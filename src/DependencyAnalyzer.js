@@ -3,33 +3,51 @@ const path = require('path');
 const ModuleResolver = require('./ModuleResolver');
 
 class DependencyAnalyzer {
-    constructor(sourceRoot) {
-        this.resolver = new ModuleResolver(sourceRoot);
+    constructor(config) {
+        this.config = config;
+        this.resolver = new ModuleResolver(config);
         this.visited = new Set();
     }
 
     buildDependencyGraph(entryFile) {
         const graph = new Map();
         this.visited.clear();
-        this._buildGraph(entryFile, graph);
-        return graph;
+
+        const entryModule = this.resolver.createEntryRecord(entryFile);
+        this._buildGraph(entryModule, graph);
+
+        return { graph, entryModule };
     }
 
-    _buildGraph(filePath, graph) {
-        if (this.visited.has(filePath)) {
+    _buildGraph(moduleRecord, graph) {
+        if (!moduleRecord || moduleRecord.isIgnored || !moduleRecord.filePath) {
             return;
         }
-        this.visited.add(filePath);
 
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const dependencies = this._findDependencies(content);
+        if (this.visited.has(moduleRecord.filePath)) {
+            return;
+        }
+        this.visited.add(moduleRecord.filePath);
 
-        const resolvedDependencies = dependencies.map(dep => this.resolver.resolve(dep, path.dirname(filePath)));
+        const fileContent = fs.readFileSync(moduleRecord.filePath, 'utf-8');
+        const requires = this._findDependencies(fileContent);
 
-        graph.set(filePath, { dependencies: resolvedDependencies });
+        const resolvedDependencies = [];
+        for (const requireId of requires) {
+            const resolved = this.resolver.resolve(requireId, path.dirname(moduleRecord.filePath));
+            if (resolved.isIgnored) {
+                continue;
+            }
+            resolvedDependencies.push(resolved);
+        }
 
-        for (const depPath of resolvedDependencies) {
-            this._buildGraph(depPath, graph);
+        graph.set(moduleRecord.filePath, {
+            module: moduleRecord,
+            dependencies: resolvedDependencies,
+        });
+
+        for (const dependency of resolvedDependencies) {
+            this._buildGraph(dependency, graph);
         }
     }
 
@@ -61,13 +79,17 @@ class DependencyAnalyzer {
             const node = graph.get(filePath);
             if (node) {
                 for (const dep of node.dependencies) {
-                    visit(dep);
+                    if (dep.filePath) {
+                        visit(dep.filePath);
+                    }
                 }
             }
 
             visiting.delete(filePath);
             visited.add(filePath);
-            sorted.push(filePath);
+            if (node && node.module) {
+                sorted.push(node.module);
+            }
         };
 
         for (const filePath of graph.keys()) {

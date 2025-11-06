@@ -40,13 +40,13 @@ class LuaPacker {
         console.log('Starting to pack...');
         console.log('Config:', this.config);
 
-        const analyzer = new DependencyAnalyzer(this.config.sourceRoot);
-        const graph = analyzer.buildDependencyGraph(this.config.entry);
+    const analyzer = new DependencyAnalyzer(this.config);
+    const { graph, entryModule } = analyzer.buildDependencyGraph(this.config.entry);
 
-        const sortedModules = analyzer.topologicalSort(graph);
+    const sortedModules = analyzer.topologicalSort(graph);
 
         const generator = new BundleGenerator(this.config);
-        const bundleContent = await generator.generateBundle(this.config.entry, sortedModules, graph);
+    const bundleContent = await generator.generateBundle(entryModule, sortedModules);
 
         const outputDir = path.dirname(this.config.output);
         if (!fs.existsSync(outputDir)) {

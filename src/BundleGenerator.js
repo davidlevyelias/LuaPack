@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 const luamin = require('lua-format/src/luamin.js');
 
 class BundleGenerator {
@@ -42,12 +41,16 @@ require("${entryModule}")
         this.config = config;
     }
 
-    async generateBundle(entryFile, sortedModules, graph) {
+    async generateBundle(entryModule, sortedModules) {
         const modules = {};
 
-        for (const filePath of sortedModules) {
-            const moduleName = this.getModuleName(filePath);
-            let content = fs.readFileSync(filePath, 'utf-8');
+        for (const moduleRecord of sortedModules) {
+            if (!moduleRecord.filePath) {
+                continue;
+            }
+
+            const moduleName = moduleRecord.moduleName;
+            let content = fs.readFileSync(moduleRecord.filePath, 'utf-8');
 
             const obfuscation = this.config.obfuscation || { tool: 'none', config: {} };
             if (obfuscation.tool === 'internal') {
@@ -66,15 +69,9 @@ require("${entryModule}")
             modules[moduleName] = content;
         }
 
-        const entryModuleName = this.getModuleName(entryFile);
+        const entryModuleName = entryModule.moduleName;
 
         return this.createBundleTemplate(modules, entryModuleName);
-    }
-
-    getModuleName(filePath) {
-        const relativePath = path.relative(this.config.sourceRoot, filePath);
-        // remove .lua and replace path separators with dots
-        return relativePath.replace(/\.lua$/, '').replace(/[\\\/]/g, '.');
     }
 }
 
