@@ -75,6 +75,27 @@ describe('ConfigLoader', () => {
 		);
 	});
 
+	test('allows module overrides to disable recursion', () => {
+		const configPath = path.join(tempDir, 'luapack.config.json');
+		const configContent = {
+			entry: './src/main.lua',
+			output: './dist/out.lua',
+			modules: {
+				overrides: {
+					'my.module': {
+						path: './vendor/my/module.lua',
+						recursive: false,
+					},
+				},
+			},
+		};
+		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
+
+		const config = loadConfig({ config: configPath });
+
+		expect(config.modules.overrides['my.module'].recursive).toBe(false);
+	});
+
 	test('throws descriptive error for invalid configuration', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		fs.writeFileSync(

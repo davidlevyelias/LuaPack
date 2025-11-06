@@ -1,3 +1,5 @@
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const DependencyAnalyzer = require('../src/DependencyAnalyzer');
@@ -37,5 +39,58 @@ describe('DependencyAnalyzer', () => {
 		const { entryModule } = analyzer.buildDependencyGraph(config.entry);
 
 		expect(entryModule.isExternal).toBe(false);
+	});
+
+	test('skips dependency analysis when override disables recursion', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-analyzer-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(path.join(srcDir, 'vendor'), { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local json = require('dkjson')\nreturn json\n"
+			);
+
+			fs.writeFileSync(
+				path.join(srcDir, 'vendor', 'dkjson.lua'),
+				"local lpeg = require('lpeg')\nreturn {}\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						sourceRoot: './src',
+						modules: {
+							overrides: {
+								dkjson: {
+									path: './vendor/dkjson.lua',
+									recursive: false,
+								},
+							},
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { graph } = analyzer.buildDependencyGraph(config.entry);
+
+			const node = graph.get(path.join(srcDir, 'vendor', 'dkjson.lua'));
+			expect(node).toBeDefined();
+			expect(node.dependencies).toHaveLength(0);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
 	});
 });

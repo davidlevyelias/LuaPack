@@ -120,6 +120,11 @@
 				"path": {
 					"type": "string",
 					"description": "Optional explicit path to use instead of resolver result."
+				},
+				"recursive": {
+					"type": "boolean",
+					"description": "When false, skip dependency analysis for this override.",
+					"default": true
 				}
 			},
 			"default": {}

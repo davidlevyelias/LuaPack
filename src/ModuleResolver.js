@@ -38,6 +38,7 @@ class ModuleResolver {
 				moduleId,
 				filePath: resolvedPath,
 				overrideApplied: true,
+				overrideConfig: override,
 			});
 		}
 
@@ -60,6 +61,7 @@ class ModuleResolver {
 				return this.createRecord({
 					moduleId,
 					filePath: resolvedPath,
+					overrideConfig: override || null,
 				});
 			}
 		}
@@ -90,12 +92,22 @@ class ModuleResolver {
 			isIgnored: true,
 			isExternal: false,
 			overrideApplied: false,
+			analyzeDependencies: false,
 		};
 	}
 
-	createRecord({ moduleId, filePath, overrideApplied = false }) {
+	createRecord({
+		moduleId,
+		filePath,
+		overrideApplied = false,
+		overrideConfig = null,
+	}) {
 		const moduleName = this.deriveModuleName(filePath, moduleId);
 		const isExternal = !this.isWithinSource(filePath);
+		const analyzeDependencies =
+			overrideConfig && typeof overrideConfig.recursive === 'boolean'
+				? overrideConfig.recursive !== false
+				: true;
 
 		return {
 			id: moduleId || moduleName,
@@ -104,6 +116,7 @@ class ModuleResolver {
 			isIgnored: false,
 			isExternal,
 			overrideApplied,
+			analyzeDependencies,
 		};
 	}
 

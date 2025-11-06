@@ -29,6 +29,16 @@ class DependencyAnalyzer {
 		}
 		this.visited.add(moduleRecord.filePath);
 
+		const shouldAnalyze = moduleRecord.analyzeDependencies !== false;
+
+		if (!shouldAnalyze) {
+			graph.set(moduleRecord.filePath, {
+				module: moduleRecord,
+				dependencies: [],
+			});
+			return;
+		}
+
 		const fileContent = fs.readFileSync(moduleRecord.filePath, 'utf-8');
 		const requires = this._findDependencies(fileContent);
 
