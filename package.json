@@ -1,14 +1,22 @@
 {
-    "name": "luapack",
+    "name": "@davidlevyelias/luapack",
     "version": "0.3.2",
     "description": "A modern Lua bundler and obfuscator.",
     "main": "index.js",
     "bin": {
         "luapack": "./index.js"
     },
+    "files": [
+        "index.js",
+        "src",
+        "config.schema.json",
+        "README.md",
+        "LICENSE"
+    ],
     "scripts": {
         "test": "jest",
-        "pack:example": "node index.js --config examples/luapack.config.json && lua dist/example_packed.lua"
+        "pack:example": "node index.js --config examples/luapack.config.json && lua dist/example_packed.lua",
+        "prepublishOnly": "npm test"
     },
     "keywords": [
         "lua",
@@ -18,6 +26,14 @@
     ],
     "author": "",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/davidlevyelias/LuaPack.git"
+    },
+    "homepage": "https://github.com/davidlevyelias/LuaPack#readme",
+    "bugs": {
+        "url": "https://github.com/davidlevyelias/LuaPack/issues"
+    },
     "dependencies": {
         "ajv": "^8.17.1",
         "commander": "^14.0.2",
@@ -26,5 +42,8 @@
     "devDependencies": {
         "jest": "^29.7.0",
         "prettier": "^3.6.2"
+    },
+    "engines": {
+        "node": ">=18"
     }
 }
