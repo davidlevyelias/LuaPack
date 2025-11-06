@@ -6,7 +6,7 @@ const { loadConfig } = require('./src/config/ConfigLoader');
 
 async function main() {
 	program
-		.version('0.3.1')
+		.version('0.3.2')
 		.description('A modern Lua bundler and obfuscator.')
 		.argument('[entry]', 'The entry Lua file.')
 		.option('-o, --output <file>', 'The output bundled file.')

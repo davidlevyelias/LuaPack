@@ -65,7 +65,7 @@ class DependencyAnalyzer {
 	}
 
 	_findDependencies(content) {
-		const requireRegex = /require\s*\(['"]([\w\.\/]+)['"]\)/g;
+		const requireRegex = /require\s*\(\s*['"]([\w\.\/-]+)['"]\s*\)/g;
 		const dependencies = [];
 		let match;
 		while ((match = requireRegex.exec(content)) !== null) {

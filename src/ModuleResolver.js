@@ -104,10 +104,15 @@ class ModuleResolver {
 	}) {
 		const moduleName = this.deriveModuleName(filePath, moduleId);
 		const isExternal = !this.isWithinSource(filePath);
-		const analyzeDependencies =
-			overrideConfig && typeof overrideConfig.recursive === 'boolean'
-				? overrideConfig.recursive !== false
-				: true;
+		let analyzeDependencies = true;
+		if (overrideConfig && typeof overrideConfig.recursive === 'boolean') {
+			analyzeDependencies = overrideConfig.recursive !== false;
+		} else if (isExternal) {
+			const externalRecursive = this.externalConfig.recursive;
+			if (typeof externalRecursive === 'boolean') {
+				analyzeDependencies = externalRecursive !== false;
+			}
+		}
 
 		return {
 			id: moduleId || moduleName,
@@ -122,8 +127,18 @@ class ModuleResolver {
 
 	deriveModuleName(filePath, fallbackId) {
 		if (filePath && this.isWithinSource(filePath)) {
-			const relativePath = path.relative(this.sourceRoot, filePath);
-			return relativePath.replace(/\.lua$/, '').replace(/[\\/]/g, '.');
+			const relativePath = path
+				.relative(this.sourceRoot, filePath)
+				.replace(/\\/g, '/');
+			const withoutExtension = relativePath.replace(/\.lua$/, '');
+			if (withoutExtension.endsWith('/init')) {
+				const parentPath = withoutExtension.slice(0, -5);
+				if (parentPath.length === 0) {
+					return fallbackId || 'init';
+				}
+				return parentPath.replace(/\//g, '.');
+			}
+			return withoutExtension.replace(/\//g, '.');
 		}
 
 		if (fallbackId) {
