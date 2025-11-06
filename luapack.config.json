@@ -1,0 +1,13 @@
+{
+  "entry": "./examples/src/main.lua",
+  "output": "./dist/example_packed.lua",
+  "sourceRoot": "./examples/src",
+  "obfuscation": {
+    "tool": "none",
+    "config": {
+      "minify": false,
+      "renameVariables": false,
+      "ascii": false
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "LuaPack CLI Options",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"entry": {
+			"type": "string",
+			"description": "Positional entry file argument provided on the command line."
+		},
+		"config": {
+			"type": "string",
+			"description": "Path to a luapack.config.json file to merge into the effective configuration."
+		},
+		"output": {
+			"type": "string",
+			"description": "Override for the bundled Lua output path."
+		},
+		"sourceroot": {
+			"type": "string",
+			"description": "Root directory for resolving project-local modules."
+		},
+		"obfuscation": {
+			"type": "string",
+			"enum": ["internal", "none"],
+			"description": "Optional override for the obfuscation tool; full settings reside in the config file."
+		}
+	},
+	"definitions": {}
+}

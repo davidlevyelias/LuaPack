@@ -1,0 +1,30 @@
+{
+    "name": "luapack",
+    "version": "0.1.0",
+    "description": "A modern Lua bundler and obfuscator.",
+    "main": "index.js",
+    "bin": {
+        "luapack": "./index.js"
+    },
+    "scripts": {
+        "test": "jest",
+        "pack:example": "node index.js --config examples/luapack.config.json && lua dist/example_packed.lua"
+    },
+    "keywords": [
+        "lua",
+        "packer",
+        "bundler",
+        "obfuscator"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "ajv": "^8.17.1",
+        "commander": "^14.0.2",
+        "lua-format": "^1.5.3-c"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "prettier": "^3.6.2"
+    }
+}

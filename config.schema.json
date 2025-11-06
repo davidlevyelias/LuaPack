@@ -1,0 +1,128 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "LuaPack Configuration",
+	"type": "object",
+	"additionalProperties": false,
+	"required": ["entry", "output"],
+	"properties": {
+		"entry": {
+			"type": "string",
+			"description": "Path to the entry Lua file that kicks off dependency analysis."
+		},
+		"output": {
+			"type": "string",
+			"description": "Destination path for the generated bundle."
+		},
+		"sourceRoot": {
+			"type": "string",
+			"description": "Root directory for resolving project-local modules.",
+			"default": "."
+		},
+		"modules": {
+			"type": "object",
+			"description": "Controls module resolution, inclusion, and overrides.",
+			"additionalProperties": false,
+			"properties": {
+				"ignore": {
+					"type": "array",
+					"description": "Module identifiers to skip entirely with highest priority.",
+					"items": { "type": "string" },
+					"default": []
+				},
+				"external": {
+					"type": "object",
+					"description": "Configuration for modules found outside the sourceRoot.",
+					"additionalProperties": false,
+					"properties": {
+						"enabled": {
+							"type": "boolean",
+							"description": "Allow bundling of external modules.",
+							"default": false
+						},
+						"recursive": {
+							"type": "boolean",
+							"description": "Resolve dependencies of external modules when enabled.",
+							"default": true
+						},
+						"paths": {
+							"type": "array",
+							"description": "Additional search locations for external modules.",
+							"items": { "type": "string" },
+							"default": []
+						}
+					}
+				},
+				"overrides": {
+					"type": "object",
+					"description": "Per-module configuration overrides.",
+					"propertyNames": {
+						"type": "string",
+						"pattern": "^[\\w\\.\\-/]+$"
+					},
+					"additionalProperties": {
+						"$ref": "#/definitions/moduleOverride"
+					},
+					"default": {}
+				}
+			},
+			"default": {}
+		},
+		"obfuscation": {
+			"type": "object",
+			"description": "Integrated obfuscation settings.",
+			"additionalProperties": false,
+			"properties": {
+				"tool": {
+					"type": "string",
+					"description": "Select the built-in obfuscation pipeline.",
+					"enum": ["internal", "none"],
+					"default": "none"
+				},
+				"config": {
+					"type": "object",
+					"description": "Configuration for the selected tool.",
+					"additionalProperties": false,
+					"properties": {
+						"minify": {
+							"type": "boolean",
+							"description": "Minify Lua source using lua-format.",
+							"default": false
+						},
+						"renameVariables": {
+							"type": "boolean",
+							"description": "Rename local variables during minification.",
+							"default": false
+						},
+						"ascii": {
+							"type": "boolean",
+							"description": "Apply ASCII obfuscation pass.",
+							"default": false
+						}
+					},
+					"default": {}
+				}
+			},
+			"default": {
+				"tool": "none",
+				"config": {
+					"minify": false,
+					"renameVariables": false,
+					"ascii": false
+				}
+			}
+		}
+	},
+	"definitions": {
+		"moduleOverride": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"path": {
+					"type": "string",
+					"description": "Optional explicit path to use instead of resolver result."
+				}
+			},
+			"default": {}
+		}
+	}
+}
