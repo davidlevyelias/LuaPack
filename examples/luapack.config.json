@@ -1,13 +1,13 @@
 {
-  "entry": "./src/main.lua",
-  "output": "../dist/example_packed.lua",
-  "sourceRoot": "./src",
-  "obfuscation": {
-    "tool": "none",
-    "config": {
-      "minify": false,
-      "renameVariables": false,
-      "ascii": false
+    "entry": "./src/main.lua",
+    "output": "../dist/example_packed.lua",
+    "sourceRoot": "./src",
+    "obfuscation": {
+        "tool": "internal",
+        "config": {
+            "minify": true,
+            "renameVariables": true,
+            "ascii": true
+        }
     }
-  }
 }

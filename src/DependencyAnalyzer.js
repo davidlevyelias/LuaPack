@@ -3,103 +3,106 @@ const path = require('path');
 const ModuleResolver = require('./ModuleResolver');
 
 class DependencyAnalyzer {
-    constructor(config) {
-        this.config = config;
-        this.resolver = new ModuleResolver(config);
-        this.visited = new Set();
-    }
+	constructor(config) {
+		this.config = config;
+		this.resolver = new ModuleResolver(config);
+		this.visited = new Set();
+	}
 
-    buildDependencyGraph(entryFile) {
-        const graph = new Map();
-        this.visited.clear();
+	buildDependencyGraph(entryFile) {
+		const graph = new Map();
+		this.visited.clear();
 
-        const entryModule = this.resolver.createEntryRecord(entryFile);
-        this._buildGraph(entryModule, graph);
+		const entryModule = this.resolver.createEntryRecord(entryFile);
+		this._buildGraph(entryModule, graph);
 
-        return { graph, entryModule };
-    }
+		return { graph, entryModule };
+	}
 
-    _buildGraph(moduleRecord, graph) {
-        if (!moduleRecord || moduleRecord.isIgnored || !moduleRecord.filePath) {
-            return;
-        }
+	_buildGraph(moduleRecord, graph) {
+		if (!moduleRecord || moduleRecord.isIgnored || !moduleRecord.filePath) {
+			return;
+		}
 
-        if (this.visited.has(moduleRecord.filePath)) {
-            return;
-        }
-        this.visited.add(moduleRecord.filePath);
+		if (this.visited.has(moduleRecord.filePath)) {
+			return;
+		}
+		this.visited.add(moduleRecord.filePath);
 
-        const fileContent = fs.readFileSync(moduleRecord.filePath, 'utf-8');
-        const requires = this._findDependencies(fileContent);
+		const fileContent = fs.readFileSync(moduleRecord.filePath, 'utf-8');
+		const requires = this._findDependencies(fileContent);
 
-        const resolvedDependencies = [];
-        for (const requireId of requires) {
-            const resolved = this.resolver.resolve(requireId, path.dirname(moduleRecord.filePath));
-            if (resolved.isIgnored) {
-                continue;
-            }
-            resolvedDependencies.push(resolved);
-        }
+		const resolvedDependencies = [];
+		for (const requireId of requires) {
+			const resolved = this.resolver.resolve(
+				requireId,
+				path.dirname(moduleRecord.filePath)
+			);
+			if (resolved.isIgnored) {
+				continue;
+			}
+			resolvedDependencies.push(resolved);
+		}
 
-        graph.set(moduleRecord.filePath, {
-            module: moduleRecord,
-            dependencies: resolvedDependencies,
-        });
+		graph.set(moduleRecord.filePath, {
+			module: moduleRecord,
+			dependencies: resolvedDependencies,
+		});
 
-        for (const dependency of resolvedDependencies) {
-            this._buildGraph(dependency, graph);
-        }
-    }
+		for (const dependency of resolvedDependencies) {
+			this._buildGraph(dependency, graph);
+		}
+	}
 
-    _findDependencies(content) {
-        const requireRegex = /require\s*\(['"]([\w\.\/]+)['"]\)/g;
-        const dependencies = [];
-        let match;
-        while ((match = requireRegex.exec(content)) !== null) {
-            dependencies.push(match[1]);
-        }
-        return dependencies;
-    }
+	_findDependencies(content) {
+		const requireRegex = /require\s*\(['"]([\w\.\/]+)['"]\)/g;
+		const dependencies = [];
+		let match;
+		while ((match = requireRegex.exec(content)) !== null) {
+			dependencies.push(match[1]);
+		}
+		return dependencies;
+	}
 
-    topologicalSort(graph) {
-        const sorted = [];
-        const visited = new Set();
-        const visiting = new Set();
+	topologicalSort(graph) {
+		const sorted = [];
+		const visited = new Set();
+		const visiting = new Set();
 
-        const visit = (filePath) => {
-            if (visiting.has(filePath)) {
-                throw new Error(`Circular dependency detected: ${filePath}`);
-            }
-            if (visited.has(filePath)) {
-                return;
-            }
+		const visit = (filePath) => {
+			if (visiting.has(filePath)) {
+				throw new Error(`Circular dependency detected: ${filePath}`);
+			}
+			if (visited.has(filePath)) {
+				return;
+			}
 
-            visiting.add(filePath);
+			visiting.add(filePath);
 
-            const node = graph.get(filePath);
-            if (node) {
-                for (const dep of node.dependencies) {
-                    if (dep.filePath) {
-                        visit(dep.filePath);
-                    }
-                }
-            }
+			const node = graph.get(filePath);
+			if (node) {
+				for (const dep of node.dependencies) {
+					if (dep.filePath) {
+						visit(dep.filePath);
+					}
+				}
+			}
 
-            visiting.delete(filePath);
-            visited.add(filePath);
-            if (node && node.module) {
-                sorted.push(node.module);
-            }
-        };
+			visiting.delete(filePath);
+			visited.add(filePath);
+			if (node && node.module) {
+				sorted.push(node.module);
+			}
+		};
 
-        for (const filePath of graph.keys()) {
-            if (!visited.has(filePath)) {
-                visit(filePath);
-            }
-        }
+		for (const filePath of graph.keys()) {
+			if (!visited.has(filePath)) {
+				visit(filePath);
+			}
+		}
 
-        return sorted;
-    }
+		return sorted;
+	}
 }
 
 module.exports = DependencyAnalyzer;

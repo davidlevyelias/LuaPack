@@ -1,13 +1,16 @@
 const fs = require('fs');
 const luamin = require('lua-format/src/luamin.js');
+const AsciiObfuscator = require('./obfuscation/AsciiObfuscator');
 
 class BundleGenerator {
-    createBundleTemplate(modules, entryModule) {
-        const moduleEntries = Object.entries(modules).map(([name, content]) => {
-            return `["${name}"] = function(...)\n${content}\nend,`;
-        }).join('\n');
+	createBundleTemplate(modules, entryModule) {
+		const moduleEntries = Object.entries(modules)
+			.map(([name, content]) => {
+				return `["${name}"] = function(...)\n${content}\nend,`;
+			})
+			.join('\n');
 
-        return `
+		return `
 local modules = {
 ${moduleEntries}
 }
@@ -35,44 +38,61 @@ require = custom_require
 -- Run the entry module
 require("${entryModule}")
 `;
-    }
+	}
 
-    constructor(config) {
-        this.config = config;
-    }
+	constructor(config) {
+		this.config = config;
+	}
 
-    async generateBundle(entryModule, sortedModules) {
-        const modules = {};
+	async generateBundle(entryModule, sortedModules) {
+		const modules = {};
 
-        for (const moduleRecord of sortedModules) {
-            if (!moduleRecord.filePath) {
-                continue;
-            }
+		for (const moduleRecord of sortedModules) {
+			if (!moduleRecord.filePath) {
+				continue;
+			}
 
-            const moduleName = moduleRecord.moduleName;
-            let content = fs.readFileSync(moduleRecord.filePath, 'utf-8');
+			const moduleName = moduleRecord.moduleName;
+			let content = fs.readFileSync(moduleRecord.filePath, 'utf-8');
 
-            const obfuscation = this.config.obfuscation || { tool: 'none', config: {} };
-            if (obfuscation.tool === 'internal') {
-                const { minify = false, renameVariables = false } = obfuscation.config || {};
-                if (minify || renameVariables) {
-                    const options = {};
-                    if (renameVariables) {
-                        options.RenameVariables = true;
-                        options.RenameGlobals = true;
-                    }
-                    content = luamin.Minify(content, options);
-                }
-                // ASCII obfuscation will be handled in a later stage when the module is integrated.
-            }
+			const obfuscation = this.config.obfuscation || {
+				tool: 'none',
+				config: {},
+			};
+			let transformedContent = content;
+			if (obfuscation.tool === 'internal') {
+				const {
+					minify = false,
+					renameVariables = false,
+					ascii = false,
+				} = obfuscation.config || {};
+				if (minify || renameVariables) {
+					const options = {};
+					if (renameVariables) {
+						options.RenameVariables = true;
+						options.RenameGlobals = true;
+					}
+					transformedContent = luamin.Minify(
+						transformedContent,
+						options
+					);
+				}
 
-            modules[moduleName] = content;
-        }
+				if (ascii) {
+					transformedContent = AsciiObfuscator.encode(
+						transformedContent,
+						moduleName
+					);
+				}
+			}
 
-        const entryModuleName = entryModule.moduleName;
+			modules[moduleName] = transformedContent;
+		}
 
-        return this.createBundleTemplate(modules, entryModuleName);
-    }
+		const entryModuleName = entryModule.moduleName;
+
+		return this.createBundleTemplate(modules, entryModuleName);
+	}
 }
 
 module.exports = BundleGenerator;
