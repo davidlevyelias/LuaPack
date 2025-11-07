@@ -1,31 +1,27 @@
 # LuaPack Examples
 
-This folder contains a small self-contained Lua project that demonstrates how LuaPack resolves modules, bundles dependencies, and produces a single Lua script.
+Each subfolder under `examples/` is a standalone scenario with its own `luapack.config.json` and source tree. Use these projects to experiment with different resolver and bundling features.
 
-```
-examples/
-  README.md
-  src/
-    main.lua
-    app/
-      greeter.lua
-    util/
-      math.lua
-    vendor/
-      version.lua
-```
+## Directory Overview
 
-- `main.lua` – entry point used in `examples/luapack.config.json`.
-- `app/greeter.lua` – simple component that returns a greeting.
-- `util/math.lua` – utility module that exposes arithmetic helpers.
-- `vendor/version.lua` – simulates an external-style module bundled with the project.
+- `basic/` – Friendly starter project without obfuscation. Demonstrates local module resolution, nested directories, and a simple bundle target.
+- `obfuscation/` – Same workflow as `basic`, but enables the internal obfuscation pipeline with minification, ASCII encoding, and custom rename bounds.
+- `ignore-missing/` – Shows how `modules.ignoreMissing` records missing modules during analysis while still producing a bundle.
+- `external/` – Resolves a module from an additional search path via `modules.external.paths`.
 
-To try it out:
+## Running an Example
+
+From the repository root:
 
 ```pwsh
-cd path\to\LuaPack
-node index.js --config examples/luapack.config.json
-lua .\dist\example_packed.lua
+# 1. Run analysis (optional but recommended)
+node index.js --config examples/basic/luapack.config.json --analyze --verbose
+
+# 2. Produce the bundle
+node index.js --config examples/basic/luapack.config.json
+
+# 3. Execute the generated Lua script
+lua .\dist\basic_bundle.lua
 ```
 
-The resulting bundle prints a greeting, the result of an addition, and the version string from the vendor module.
+Swap `basic` for `obfuscation`, `ignore-missing`, or `external` to try other scenarios. The generated bundles are written to `dist/` and named after the example.

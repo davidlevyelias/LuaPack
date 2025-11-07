@@ -9,7 +9,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 function loadExampleConfig() {
 	return loadConfig({
-		config: path.join(PROJECT_ROOT, 'examples/luapack.config.json'),
+		config: path.join(PROJECT_ROOT, 'examples/basic/luapack.config.json'),
 	});
 }
 

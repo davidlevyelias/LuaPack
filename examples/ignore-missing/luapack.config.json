@@ -1,0 +1,16 @@
+{
+    "entry": "./src/main.lua",
+    "output": "../../dist/ignore_missing_bundle.lua",
+    "sourceRoot": "./src",
+    "modules": {
+        "ignoreMissing": true
+    },
+    "obfuscation": {
+        "tool": "none",
+        "config": {
+            "minify": false,
+            "renameVariables": false,
+            "ascii": false
+        }
+    }
+}

@@ -1,87 +1,51 @@
 const fs = require('fs');
+const path = require('path');
 const luamin = require('lua-format/src/luamin.js');
 const AsciiObfuscator = require('./obfuscation/AsciiObfuscator');
 
-class BundleGenerator {
-	createBundleTemplate(modules, entryModule) {
-		const moduleEntries = Object.entries(modules)
-			.map(([name, content]) => {
-				return `["${name}"] = function(...)
-${content}
-end,`;
-			})
-			.join('\n');
+const TEMPLATE_PLACEHOLDERS = {
+	modules: '-- __MODULE_DEFINITIONS__',
+	entry: /__ENTRY_MODULE__/g,
+};
 
-		return `local modules = {
-${moduleEntries}
+let defaultTemplateCache = null;
+
+function getDefaultTemplate() {
+	if (!defaultTemplateCache) {
+		const templatePath = path.resolve(
+			__dirname,
+			'../templates/default.lua'
+		);
+		defaultTemplateCache = fs.readFileSync(templatePath, 'utf-8');
+	}
+	return defaultTemplateCache;
 }
 
-local require_cache = {}
-local original_require = require
+class BundleGenerator {
+	createBundleTemplate(modules, entryModule) {
+		const moduleDefinitions = Object.entries(modules)
+			.map(([name, content]) => {
+				const normalizedContent = content
+					.replace(/\r\n/g, '\n')
+					.replace(/\r/g, '\n');
+				const indentedContent = normalizedContent
+					.split('\n')
+					.map((line) => (line.length ? `\t${line}` : ''))
+					.join('\n');
+				return `modules["${name}"] = function(...)
+${indentedContent}
+end`;
+			})
+			.join('\n\n');
 
-local function resolve_module_name(module_name)
-	if modules[module_name] then
-		return module_name
-	end
+		const template = getDefaultTemplate();
+		const definitionsSection = moduleDefinitions
+			? `${moduleDefinitions}\n`
+			: '';
 
-	if module_name:sub(-5) == ".init" then
-		local parent = module_name:sub(1, -6)
-		if parent ~= "" and modules[parent] then
-			return parent
-		end
-	else
-		local with_init = module_name .. ".init"
-		if modules[with_init] then
-			return with_init
-		end
-	end
-
-	return nil
-end
-
-local function custom_require(module_name, ...)
-	if require_cache[module_name] then
-		return require_cache[module_name]
-	end
-
-	local resolved_name = resolve_module_name(module_name)
-	if not resolved_name then
-		if original_require then
-			local result = original_require(module_name)
-			require_cache[module_name] = result
-			return result
-		end
-		error("Module '" .. module_name .. "' not found.")
-	end
-
-	if require_cache[resolved_name] then
-		local cached = require_cache[resolved_name]
-		require_cache[module_name] = cached
-		return cached
-	end
-
-	local module_func = modules[resolved_name]
-	local previous_require = require
-	require = custom_require
-	local result = module_func(...)
-	require = previous_require
-	require_cache[module_name] = result
-	if module_name ~= resolved_name then
-		require_cache[resolved_name] = result
-	end
-	return result
-end
-
-local function run_entry(...)
-	local previous_require = require
-	require = custom_require
-	local result = custom_require("${entryModule}", ...)
-	require = previous_require
-	return result
-end
-
-run_entry(...)
-`;
+		return template
+			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
+			.replace(TEMPLATE_PLACEHOLDERS.entry, entryModule);
 	}
 
 	constructor(config) {
@@ -107,12 +71,19 @@ run_entry(...)
 			if (obfuscation.tool === 'internal') {
 				const {
 					minify = false,
-					renameVariables = false,
+					renameVariables = {
+						enabled: false,
+						min: 5,
+						max: 5,
+					},
 					ascii = false,
 				} = obfuscation.config || {};
-				if (minify || renameVariables) {
+				const renameConfig =
+					BundleGenerator.normalizeRenameConfig(renameVariables);
+				const renameEnabled = renameConfig.enabled;
+				if (minify || renameEnabled) {
 					const options = {};
-					if (renameVariables) {
+					if (renameEnabled) {
 						options.RenameVariables = true;
 						options.RenameGlobals = true;
 					}
@@ -138,5 +109,31 @@ run_entry(...)
 		return this.createBundleTemplate(modules, entryModuleName);
 	}
 }
+
+BundleGenerator.normalizeRenameConfig = function normalizeRenameConfig(value) {
+	const defaults = { enabled: false, min: 5, max: 5 };
+	if (typeof value === 'boolean') {
+		return { ...defaults, enabled: value };
+	}
+	if (value && typeof value === 'object') {
+		const min =
+			Number.isInteger(value.min) && value.min > 0 ? value.min : 5;
+		let max =
+			Number.isInteger(value.max) && value.max > 0 ? value.max : min;
+		if (max < min) {
+			max = min;
+		}
+		return {
+			enabled: Boolean(
+				typeof value.enabled === 'boolean'
+					? value.enabled
+					: defaults.enabled
+			),
+			min,
+			max,
+		};
+	}
+	return { ...defaults };
+};
 
 module.exports = BundleGenerator;

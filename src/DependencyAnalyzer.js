@@ -7,16 +7,25 @@ class DependencyAnalyzer {
 		this.config = config;
 		this.resolver = new ModuleResolver(config);
 		this.visited = new Set();
+		this.missingRecords = [];
+		this.errors = [];
 	}
 
 	buildDependencyGraph(entryFile) {
 		const graph = new Map();
 		this.visited.clear();
+		this.missingRecords = [];
+		this.errors = [];
 
 		const entryModule = this.resolver.createEntryRecord(entryFile);
 		this._buildGraph(entryModule, graph);
 
-		return { graph, entryModule };
+		return {
+			graph,
+			entryModule,
+			missing: [...this.missingRecords],
+			errors: [...this.errors],
+		};
 	}
 
 	_buildGraph(moduleRecord, graph) {
@@ -44,13 +53,47 @@ class DependencyAnalyzer {
 
 		const resolvedDependencies = [];
 		for (const requireId of requires) {
-			const resolved = this.resolver.resolve(
-				requireId,
-				path.dirname(moduleRecord.filePath)
-			);
+			let resolved;
+			try {
+				resolved = this.resolver.resolve(
+					requireId,
+					path.dirname(moduleRecord.filePath)
+				);
+			} catch (error) {
+				if (error && error.code === 'MODULE_NOT_FOUND') {
+					const missingRecord = this.resolver.createMissingRecord(requireId);
+					this.missingRecords.push({
+						requiredBy: moduleRecord,
+						requireId,
+						record: missingRecord,
+						error,
+						fatal: !this.resolver.ignoreMissing,
+					});
+					if (!this.resolver.ignoreMissing) {
+						this.errors.push(error);
+					}
+					resolvedDependencies.push(missingRecord);
+					continue;
+				}
+				throw error;
+			}
+
 			if (resolved.isIgnored) {
 				continue;
 			}
+
+			if (resolved.isMissing) {
+				this.missingRecords.push({
+					requiredBy: moduleRecord,
+					requireId,
+					record: resolved,
+					error: null,
+					fatal: false,
+				});
+				resolvedDependencies.push(resolved);
+				continue;
+			}
+
 			resolvedDependencies.push(resolved);
 		}
 

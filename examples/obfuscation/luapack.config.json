@@ -1,12 +1,16 @@
 {
     "entry": "./src/main.lua",
-    "output": "../dist/example_packed.lua",
+    "output": "../../dist/obfuscation_bundle.lua",
     "sourceRoot": "./src",
     "obfuscation": {
         "tool": "internal",
         "config": {
             "minify": true,
-            "renameVariables": true,
+            "renameVariables": {
+                "enabled": true,
+                "min": 5,
+                "max": 8
+            },
             "ascii": true
         }
     }

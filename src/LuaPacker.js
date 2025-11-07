@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
-const DependencyAnalyzer = require('./DependencyAnalyzer');
 const BundleGenerator = require('./BundleGenerator');
+const logger = require('./Logger');
 
 class LuaPacker {
 	constructor(config) {
@@ -16,7 +16,11 @@ class LuaPacker {
 			tool: 'none',
 			config: {
 				minify: false,
-				renameVariables: false,
+				renameVariables: {
+					enabled: false,
+					min: 5,
+					max: 5,
+				},
 				ascii: false,
 			},
 		};
@@ -29,6 +33,10 @@ class LuaPacker {
 				...(incomingObfuscation.config || {}),
 			},
 		};
+		mergedObfuscation.config.renameVariables =
+			LuaPacker.normalizeRenameConfig(
+				mergedObfuscation.config.renameVariables
+			);
 		return {
 			...config,
 			entry: path.resolve(config.entry),
@@ -40,16 +48,71 @@ class LuaPacker {
 		};
 	}
 
-	async pack() {
-		console.log('Starting to pack...');
-		console.log('Config:', this.config);
+	static normalizeRenameConfig(renameValue) {
+		const defaults = {
+			enabled: false,
+			min: 5,
+			max: 5,
+		};
 
-		const analyzer = new DependencyAnalyzer(this.config);
-		const { graph, entryModule } = analyzer.buildDependencyGraph(
-			this.config.entry
-		);
+		if (typeof renameValue === 'boolean') {
+			return {
+				...defaults,
+				enabled: renameValue,
+			};
+		}
 
-		const sortedModules = analyzer.topologicalSort(graph);
+		if (renameValue && typeof renameValue === 'object') {
+			const enabled =
+				typeof renameValue.enabled === 'boolean'
+					? renameValue.enabled
+					: defaults.enabled;
+			const min = LuaPacker.clampInteger(
+				renameValue.min,
+				1,
+				Number.MAX_SAFE_INTEGER,
+				defaults.min
+			);
+			const max = LuaPacker.clampInteger(
+				renameValue.max,
+				min,
+				Number.MAX_SAFE_INTEGER,
+				Math.max(min, defaults.max)
+			);
+
+			return {
+				enabled,
+				min,
+				max,
+			};
+		}
+
+		return { ...defaults };
+	}
+
+	static clampInteger(value, min, max, fallback) {
+		const intValue = Number.parseInt(value, 10);
+		if (Number.isInteger(intValue)) {
+			return Math.min(Math.max(intValue, min), max);
+		}
+		return fallback;
+	}
+
+	getConfig() {
+		return this.config;
+	}
+
+	async pack(analysisResult) {
+		if (!analysisResult) {
+			throw new Error('Analysis result is required to create a bundle.');
+		}
+
+		const { entryModule, sortedModules } = analysisResult;
+		if (!entryModule || !Array.isArray(sortedModules)) {
+			throw new Error(
+				'Analysis result must include entryModule and sortedModules.'
+			);
+		}
 
 		const generator = new BundleGenerator(this.config);
 		const bundleContent = await generator.generateBundle(
@@ -64,7 +127,7 @@ class LuaPacker {
 
 		fs.writeFileSync(this.config.output, bundleContent);
 
-		console.log(`Bundle successfully created at: ${this.config.output}`);
+		logger.info(`Bundle successfully created at: ${this.config.output}`);
 	}
 }
 

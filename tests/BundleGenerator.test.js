@@ -67,7 +67,7 @@ describe('BundleGenerator', () => {
 			expect(bundle).toContain('local original_require = require');
 			expect(bundle).toContain('local result = original_require(module_name)');
 			expect(bundle).toContain('local resolved_name = resolve_module_name(module_name)');
-			expect(bundle).toContain('run_entry(...)');
+			expect(bundle).toContain('return require("packages.app.src", ...)');
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

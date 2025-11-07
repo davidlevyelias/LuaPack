@@ -65,10 +65,36 @@ function mergeConfig(baseConfig, cliOptions) {
 		merged.sourceRoot = cliOptions.sourceroot;
 	}
 
-	if (cliOptions.obfuscation) {
+	const hasObfuscationToggle = ['renameVariables', 'minify', 'ascii'].some(
+		(key) => typeof cliOptions[key] === 'boolean'
+	);
+
+	if (hasObfuscationToggle) {
+		const existingObfuscation = merged.obfuscation || { tool: 'none', config: {} };
+		const existingConfig = existingObfuscation.config || {};
+		const updatedConfig = { ...existingConfig };
+
+		if (typeof cliOptions.renameVariables === 'boolean') {
+			updatedConfig.renameVariables = cliOptions.renameVariables;
+		}
+		if (typeof cliOptions.minify === 'boolean') {
+			updatedConfig.minify = cliOptions.minify;
+		}
+		if (typeof cliOptions.ascii === 'boolean') {
+			updatedConfig.ascii = cliOptions.ascii;
+		}
+
 		merged.obfuscation = {
-			...(merged.obfuscation || {}),
-			tool: cliOptions.obfuscation,
+			...existingObfuscation,
+			tool: 'internal',
+			config: updatedConfig,
+		};
+	}
+
+	if (typeof cliOptions.ignoreMissing === 'boolean') {
+		merged.modules = {
+			...(merged.modules || {}),
+			ignoreMissing: cliOptions.ignoreMissing,
 		};
 	}
 

@@ -12,6 +12,7 @@ class ModuleResolver {
 		);
 		this.overrides = this.modulesConfig.overrides || {};
 		this.externalConfig = this.modulesConfig.external || {};
+		this.ignoreMissing = Boolean(this.modulesConfig.ignoreMissing);
 	}
 
 	normalizeModuleId(moduleId = '') {
@@ -66,7 +67,15 @@ class ModuleResolver {
 			}
 		}
 
-		throw new Error(`Module not found: ${moduleId}`);
+		if (this.ignoreMissing) {
+			return this.createMissingRecord(moduleId);
+		}
+
+		const error = new Error(`Module not found: ${moduleId}`);
+		error.code = 'MODULE_NOT_FOUND';
+		error.moduleId = moduleId;
+		error.requester = currentDir;
+		throw error;
 	}
 
 	createEntryRecord(filePath) {
@@ -90,6 +99,20 @@ class ModuleResolver {
 			moduleName: moduleId,
 			filePath: null,
 			isIgnored: true,
+			isMissing: false,
+			isExternal: false,
+			overrideApplied: false,
+			analyzeDependencies: false,
+		};
+	}
+
+	createMissingRecord(moduleId) {
+		return {
+			id: moduleId,
+			moduleName: moduleId,
+			filePath: null,
+			isIgnored: false,
+			isMissing: true,
 			isExternal: false,
 			overrideApplied: false,
 			analyzeDependencies: false,
@@ -119,6 +142,7 @@ class ModuleResolver {
 			moduleName,
 			filePath,
 			isIgnored: false,
+			isMissing: false,
 			isExternal,
 			overrideApplied,
 			analyzeDependencies,

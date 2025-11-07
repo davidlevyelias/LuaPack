@@ -3,7 +3,7 @@ MyClass.__index = MyClass
 
 function MyClass.new(name)
     local self = setmetatable({}, MyClass)
-    self.name = name
+    self.name = name or 'Anonymous'
     return self
 end
 

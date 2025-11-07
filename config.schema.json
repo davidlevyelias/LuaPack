@@ -23,6 +23,11 @@
 			"description": "Controls module resolution, inclusion, and overrides.",
 			"additionalProperties": false,
 			"properties": {
+				"ignoreMissing": {
+					"type": "boolean",
+					"description": "When true, unresolved modules are reported but do not stop bundling.",
+					"default": false
+				},
 				"ignore": {
 					"type": "array",
 					"description": "Module identifiers to skip entirely with highest priority.",
@@ -89,8 +94,34 @@
 							"default": false
 						},
 						"renameVariables": {
-							"type": "boolean",
-							"description": "Rename local variables during minification.",
+							"description": "Controls local variable renaming.",
+							"oneOf": [
+								{ "type": "boolean" },
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"enabled": {
+											"type": "boolean",
+											"description": "Enable variable renaming.",
+											"default": true
+										},
+										"min": {
+											"type": "integer",
+											"minimum": 1,
+											"description": "Minimum generated identifier length.",
+											"default": 5
+										},
+										"max": {
+											"type": "integer",
+											"minimum": 1,
+											"description": "Maximum generated identifier length.",
+											"default": 5
+										}
+									},
+									"required": ["enabled"]
+								}
+							],
 							"default": false
 						},
 						"ascii": {

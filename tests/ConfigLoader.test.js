@@ -61,17 +61,17 @@ describe('ConfigLoader', () => {
 
 		const config = loadConfig({
 			config: configPath,
-			entry: './examples/src/main.lua',
+			entry: './examples/basic/src/main.lua',
 			output: './dist/cli.lua',
-			sourceroot: './examples/src',
+			sourceroot: './examples/basic/src',
 		});
 
 		expect(config.entry).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/src/main.lua')
+			path.resolve(PROJECT_ROOT, 'examples/basic/src/main.lua')
 		);
 		expect(config.output).toBe(path.resolve(PROJECT_ROOT, 'dist/cli.lua'));
 		expect(config.sourceRoot).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/src')
+			path.resolve(PROJECT_ROOT, 'examples/basic/src')
 		);
 	});
 
