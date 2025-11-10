@@ -87,7 +87,7 @@ class DependencyAnalyzer {
 					requiredBy: moduleRecord,
 					requireId,
 					record: resolved,
-					error: null,
+					error: resolved.missingError || null,
 					fatal: false,
 				});
 				resolvedDependencies.push(resolved);

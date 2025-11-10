@@ -98,6 +98,19 @@ function mergeConfig(baseConfig, cliOptions) {
 		};
 	}
 
+	if (cliOptions.env !== undefined) {
+		const envValues = Array.isArray(cliOptions.env)
+			? cliOptions.env
+			: [];
+		merged.modules = {
+			...(merged.modules || {}),
+			external: {
+				...((merged.modules && merged.modules.external) || {}),
+				env: envValues,
+			},
+		};
+	}
+
 	return merged;
 }
 

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { resolveExternalEnv } = require('./utils/env');
 
 class ModuleResolver {
 	constructor(config) {
@@ -13,6 +14,11 @@ class ModuleResolver {
 		this.overrides = this.modulesConfig.overrides || {};
 		this.externalConfig = this.modulesConfig.external || {};
 		this.ignoreMissing = Boolean(this.modulesConfig.ignoreMissing);
+		this.envInfo = resolveExternalEnv({
+			envConfig: this.externalConfig.env,
+			sourceRoot: this.sourceRoot,
+		});
+		this.externalRoots = this.computeExternalRoots();
 	}
 
 	normalizeModuleId(moduleId = '') {
@@ -31,9 +37,19 @@ class ModuleResolver {
 			const overrideCandidate = this.resolveOverridePath(override.path);
 			const resolvedPath = this.tryPath(overrideCandidate);
 			if (!resolvedPath) {
-				throw new Error(
+				const overrideError = new Error(
 					`Override path for module '${moduleId}' not found: ${override.path}`
 				);
+				overrideError.code = 'MODULE_OVERRIDE_NOT_FOUND';
+				if (this.ignoreMissing) {
+					return this.createMissingRecord(moduleId, {
+						isExternal: !this.isWithinSource(overrideCandidate),
+						overrideApplied: true,
+						error: overrideError,
+						filePath: this.buildSyntheticOverridePath(overrideCandidate),
+					});
+				}
+				throw overrideError;
 			}
 			return this.createRecord({
 				moduleId,
@@ -44,20 +60,28 @@ class ModuleResolver {
 		}
 
 		const pathFromRequire = moduleId.replace(/\./g, path.sep);
-		const candidates = [
-			path.resolve(currentDir, pathFromRequire),
-			path.resolve(this.sourceRoot, pathFromRequire),
-		];
+		const candidates = [];
 
-		const externalPaths = (this.externalConfig.paths || []).map((p) =>
-			path.isAbsolute(p) ? p : path.resolve(this.sourceRoot, p)
-		);
-		for (const externalRoot of externalPaths) {
-			candidates.push(path.resolve(externalRoot, pathFromRequire));
+		const pushCandidate = (basePath, isExternal) => {
+			candidates.push({
+				basePath,
+				isExternal,
+			});
+		};
+
+		const resolvedLocal = path.resolve(currentDir, pathFromRequire);
+		pushCandidate(resolvedLocal, !this.isWithinSource(resolvedLocal));
+
+		const resolvedSource = path.resolve(this.sourceRoot, pathFromRequire);
+		pushCandidate(resolvedSource, false);
+
+		for (const externalRoot of this.externalRoots) {
+			const resolvedExternal = path.resolve(externalRoot, pathFromRequire);
+			pushCandidate(resolvedExternal, true);
 		}
 
 		for (const candidate of candidates) {
-			const resolvedPath = this.tryPath(candidate);
+			const resolvedPath = this.tryPath(candidate.basePath);
 			if (resolvedPath) {
 				return this.createRecord({
 					moduleId,
@@ -68,7 +92,9 @@ class ModuleResolver {
 		}
 
 		if (this.ignoreMissing) {
-			return this.createMissingRecord(moduleId);
+			const hasInternalCandidate = candidates.some((candidate) => !candidate.isExternal);
+			const isExternalMiss = !hasInternalCandidate;
+			return this.createMissingRecord(moduleId, { isExternal: isExternalMiss });
 		}
 
 		const error = new Error(`Module not found: ${moduleId}`);
@@ -106,17 +132,32 @@ class ModuleResolver {
 		};
 	}
 
-	createMissingRecord(moduleId) {
+	createMissingRecord(
+		moduleId,
+		{ isExternal = false, overrideApplied = false, error = null, filePath = null } = {}
+	) {
 		return {
 			id: moduleId,
 			moduleName: moduleId,
-			filePath: null,
+			filePath,
 			isIgnored: false,
 			isMissing: true,
-			isExternal: false,
-			overrideApplied: false,
+			isExternal,
+			overrideApplied: Boolean(overrideApplied),
 			analyzeDependencies: false,
+			missingError: error || null,
 		};
+	}
+
+	buildSyntheticOverridePath(basePath) {
+		if (!basePath) {
+			return null;
+		}
+		const normalized = basePath.replace(/[\\/]+$/, '');
+		if (normalized.endsWith('.lua')) {
+			return normalized;
+		}
+		return `${normalized}.lua`;
 	}
 
 	createRecord({
@@ -147,6 +188,26 @@ class ModuleResolver {
 			overrideApplied,
 			analyzeDependencies,
 		};
+	}
+
+	computeExternalRoots() {
+		const resolvedPaths = new Set();
+		const configuredPaths = Array.isArray(this.externalConfig.paths)
+			? this.externalConfig.paths
+			: [];
+
+		for (const configured of configuredPaths) {
+			const normalized = path.isAbsolute(configured)
+				? configured
+				: path.resolve(this.sourceRoot, configured);
+			resolvedPaths.add(normalized);
+		}
+
+		for (const envPath of this.envInfo.allPaths) {
+			resolvedPaths.add(envPath);
+		}
+
+		return Array.from(resolvedPaths);
 	}
 
 	deriveModuleName(filePath, fallbackId) {

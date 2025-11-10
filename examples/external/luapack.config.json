@@ -1,19 +1,17 @@
 {
-    "entry": "./src/main.lua",
-    "output": "../../dist/external_bundle.lua",
-    "sourceRoot": "./src",
-    "modules": {
-        "external": {
-            "paths": ["./external_modules"],
-            "recursive": false
-        }
-    },
-    "obfuscation": {
-        "tool": "none",
-        "config": {
-            "minify": false,
-            "renameVariables": false,
-            "ascii": false
-        }
-    }
+	"entry": "./src/main.lua",
+	"output": "../../dist/external_bundle.lua",
+	"modules": {
+		"ignoreMissing": true,
+		"external": {
+			"paths": ["./external_modules"],
+			"recursive": false,
+			"env": ["LUA_PATH", "TEST_PATH"]
+		},
+		"overrides": {
+			"dkjson": {
+				"path": "./external_modules/dkjson"
+			}
+		}
+	}
 }

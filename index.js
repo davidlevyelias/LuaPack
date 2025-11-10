@@ -55,6 +55,10 @@ async function main() {
 			'--ignore-missing',
 			'Continue analysis/bundling when modules cannot be resolved.'
 		)
+		.option(
+			'--env <vars>',
+			'Comma-separated environment variables to inspect for external modules (empty string to disable).'
+		)
 		.option('--verbose', 'Print verbose analysis details (tree and order).')
 		.option('--log-level <level>', 'Set log verbosity (error, warn, info, debug).')
 		.action(async (entry, options) => {
@@ -63,6 +67,7 @@ async function main() {
 					logger.setLevel(options.logLevel);
 				}
 				const analyzeOnly = Boolean(options.analyze);
+				const envOption = parseEnvOption(options.env);
 				const config = loadConfig({
 					entry,
 					output: analyzeOnly ? undefined : options.output,
@@ -72,7 +77,14 @@ async function main() {
 					renameVariables: options.renameVariables,
 					minify: options.minify,
 					ascii: options.ascii,
+					env: envOption,
 				});
+
+				// mark analysis-only mode on the config so downstream code (reporter/pipeline)
+				// can adjust behaviour (e.g., hide bundle size when only analyzing)
+				if (analyzeOnly) {
+					config._analyzeOnly = true;
+				}
 
 				const packer = new LuaPacker(config);
 				const workflowConfig = packer.getConfig();
@@ -82,9 +94,15 @@ async function main() {
 				const analysis = analysisPipeline.run();
 				const reporter = new AnalysisReporter({ logger });
 
-				reporter.printConsoleReport(analysis, {
-					verbose: Boolean(options.verbose),
-				});
+				if (!analyzeOnly && analysis.success) {
+					try {
+						await packer.pack(analysis);
+					} catch (error) {
+						analysis.errors.push(error);
+						analysis.success = false;
+						logger.error(`Failed to create bundle: ${error.message}`);
+					}
+				}
 
 				if (analyzeOnly && options.output) {
 					const savedPath = await reporter.writeReport(
@@ -97,6 +115,10 @@ async function main() {
 					logger.info(`Analysis report saved to ${savedPath}`);
 				}
 
+				reporter.printConsoleReport(analysis, {
+					verbose: Boolean(options.verbose),
+				});
+
 				if (!analysis.success) {
 					process.exitCode = 1;
 					return;
@@ -105,8 +127,6 @@ async function main() {
 				if (analyzeOnly) {
 					return;
 				}
-
-				await packer.pack(analysis);
 			} catch (error) {
 				logger.error(`An error occurred: ${error.message}`);
 				process.exit(1);
@@ -117,3 +137,20 @@ async function main() {
 }
 
 main();
+
+function parseEnvOption(value) {
+	if (value === undefined) {
+		return undefined;
+	}
+	if (typeof value !== 'string') {
+		return [];
+	}
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return [];
+	}
+	return trimmed
+		.split(',')
+		.map((token) => token.trim())
+		.filter((token) => token.length > 0);
+}

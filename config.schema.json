@@ -54,6 +54,11 @@
 							"description": "Additional search locations for external modules.",
 							"items": { "type": "string" },
 							"default": []
+						},
+						"env": {
+							"type": "array",
+							"description": "Environment variables to inspect for external search paths (defaults to LUA_PATH when omitted).",
+							"items": { "type": "string" }
 						}
 					}
 				},

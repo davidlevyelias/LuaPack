@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { performance } = require('perf_hooks');
 const DependencyAnalyzer = require('../DependencyAnalyzer');
+const { resolveExternalEnv } = require('../utils/env');
 
 class AnalysisPipeline {
 	constructor(config, { logger } = {}) {
@@ -30,8 +31,10 @@ class AnalysisPipeline {
 				missingCount: 0,
 				moduleSizeSum: 0,
 				estimatedBundleSize: 0,
+				bundleSizeBytes: 0,
 			},
 			obfuscation: this.getObfuscationConfig(),
+			context: this.buildContext(),
 			success: true,
 			durationMs: 0,
 		};
@@ -63,7 +66,8 @@ class AnalysisPipeline {
 		this.populateModuleCollections(graph, analysis);
 
 		try {
-			analysis.sortedModules = this.analyzer.topologicalSort(graph);
+			const sorted = this.analyzer.topologicalSort(graph);
+			analysis.sortedModules = sorted.filter((moduleRecord) => !moduleRecord.isMissing);
 			analysis.topologicalOrder = analysis.sortedModules.map(
 				(moduleRecord) => moduleRecord.moduleName
 			);
@@ -81,10 +85,61 @@ class AnalysisPipeline {
 		);
 		analysis.metrics.estimatedBundleSize = analysis.metrics.moduleSizeSum;
 
+		const warningSet = new Set(analysis.warnings);
+		for (const missingEntry of analysis.missing) {
+			if (!missingEntry) {
+				continue;
+			}
+			const isOverrideWarning =
+				missingEntry.overrideApplied && !missingEntry.fatal && missingEntry.message;
+			if (isOverrideWarning && !warningSet.has(missingEntry.message)) {
+				analysis.warnings.push(missingEntry.message);
+				warningSet.add(missingEntry.message);
+			}
+		}
+
 		analysis.durationMs = performance.now() - start;
 		analysis.success = analysis.errors.length === 0;
 
 		return analysis;
+	}
+
+	buildContext() {
+		const modulesConfig = this.config.modules || {};
+		const externalConfig = modulesConfig.external || {};
+		const ignoredPatterns = Array.isArray(modulesConfig.ignore)
+			? [...modulesConfig.ignore]
+			: [];
+		const externalPaths = Array.isArray(externalConfig.paths)
+			? [...externalConfig.paths]
+			: [];
+		const envInfo = resolveExternalEnv({
+			envConfig: externalConfig.env,
+			sourceRoot: this.config.sourceRoot,
+		});
+
+		return {
+			rootDir: this.config.sourceRoot,
+			entryPath: this.config.entry,
+			outputPath: this.config.output,
+			analyzeOnly: Boolean(this.config._analyzeOnly),
+			ignoredPatterns,
+			ignoreMissing: Boolean(modulesConfig.ignoreMissing),
+			externals: {
+				enabled: Boolean(externalConfig.enabled),
+				recursive:
+					typeof externalConfig.recursive === 'boolean'
+						? externalConfig.recursive
+						: true,
+				paths: externalPaths,
+				env: {
+					hasExplicitConfig: envInfo.hasExplicitConfig,
+					names: envInfo.envNames,
+					pathsByEnv: envInfo.pathsByEnv,
+					resolvedPaths: envInfo.allPaths,
+				},
+			},
+		};
 	}
 
 	populateModuleCollections(graph, analysis) {
@@ -126,12 +181,6 @@ class AnalysisPipeline {
 		analysis.externals = analysis.modules.filter((module) =>
 			module.isExternal === true
 		);
-
-		for (const external of analysis.externals) {
-			analysis.warnings.push(
-				`Module '${external.moduleName}' resolved outside source root and will be treated as external.`
-			);
-		}
 	}
 
 	getObfuscationConfig() {
@@ -139,7 +188,7 @@ class AnalysisPipeline {
 		const obfConfig = toolConfig.config || {};
 		const rename = this.normalizeRenameConfig(obfConfig.renameVariables);
 		return {
-			ool: toolConfig.tool || 'none',
+			tool: toolConfig.tool || 'none',
 			rename,
 			minify: Boolean(obfConfig.minify),
 			ascii: Boolean(obfConfig.ascii),
@@ -193,9 +242,14 @@ class AnalysisPipeline {
 
 	formatMissing(item) {
 		const parentName = item.requiredBy?.moduleName || item.requiredBy?.id;
+		const record = item.record || {};
 		return {
 			requiredBy: parentName || null,
 			requireId: item.requireId,
+			moduleName: record.moduleName || item.requireId,
+			filePath: record.filePath || null,
+			isExternal: Boolean(record.isExternal),
+			overrideApplied: Boolean(record.overrideApplied),
 			fatal: Boolean(item.fatal),
 			message: item.error ? item.error.message : 'Module was marked missing.',
 		};
