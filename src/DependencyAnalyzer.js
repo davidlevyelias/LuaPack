@@ -108,11 +108,26 @@ class DependencyAnalyzer {
 	}
 
 	_findDependencies(content) {
-		const requireRegex = /require\s*\(\s*['"]([\w\.\/-]+)['"]\s*\)/g;
+		const requireRegex = /\brequire\s*(?:\(\s*)?(?:(['"])([\w\.\/-]+)\1|\[\[([\s\S]+?)\]\])\s*(?:\))?/g;
 		const dependencies = [];
 		let match;
 		while ((match = requireRegex.exec(content)) !== null) {
-			dependencies.push(match[1]);
+			const moduleId = (match[2] || match[3] || '').trim();
+			if (!moduleId) {
+				continue;
+			}
+			if (!/^[\w\.\/-]+$/.test(moduleId)) {
+				continue;
+			}
+			const remaining = content.slice(requireRegex.lastIndex);
+			if (/^\s*\.\./.test(remaining)) {
+				continue;
+			}
+			const matchedCall = match[0];
+			if (matchedCall.includes('(') && !matchedCall.trim().endsWith(')')) {
+				continue;
+			}
+			dependencies.push(moduleId);
 		}
 		return dependencies;
 	}

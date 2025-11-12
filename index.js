@@ -35,7 +35,7 @@ function parseToggle(value) {
 
 async function main() {
 	program
-		.version('1.0.0')
+		.version('1.1.0')
 		.description('A modern Lua bundler and obfuscator.')
 		.argument('[entry]', 'The entry Lua file.')
 		.option(

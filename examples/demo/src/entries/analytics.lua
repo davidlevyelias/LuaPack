@@ -1,4 +1,4 @@
-local Stats = require('app.analytics.stats2')
+local Stats = require('app.analytics.stats')
 local Reporter = require('app.diagnostics.reporter')
 local sample = require('app.data.sample')
 local message = require('app.analytics.message')
