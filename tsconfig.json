@@ -12,6 +12,7 @@
         "allowJs": true,
         "checkJs": false,
         "baseUrl": ".",
+        "rootDir": "src",
         "outDir": "build",
         "types": [
             "node",
@@ -20,12 +21,9 @@
     },
     "include": [
         "src/**/*.ts",
-        "src/**/*.d.ts",
-        "examples/**/*.ts",
-        "examples/**/*.tsx"
+        "src/**/*.d.ts"
     ],
     "exclude": [
-        "index.js",
         "dist",
         "node_modules",
         "build"
