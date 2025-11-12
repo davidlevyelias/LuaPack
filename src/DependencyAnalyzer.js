@@ -3,81 +3,159 @@ const path = require('path');
 const ModuleResolver = require('./ModuleResolver');
 
 class DependencyAnalyzer {
-    constructor(sourceRoot) {
-        this.resolver = new ModuleResolver(sourceRoot);
-        this.visited = new Set();
-    }
+	constructor(config) {
+		this.config = config;
+		this.resolver = new ModuleResolver(config);
+		this.visited = new Set();
+		this.missingRecords = [];
+		this.errors = [];
+	}
 
-    buildDependencyGraph(entryFile) {
-        const graph = new Map();
-        this.visited.clear();
-        this._buildGraph(entryFile, graph);
-        return graph;
-    }
+	buildDependencyGraph(entryFile) {
+		const graph = new Map();
+		this.visited.clear();
+		this.missingRecords = [];
+		this.errors = [];
 
-    _buildGraph(filePath, graph) {
-        if (this.visited.has(filePath)) {
-            return;
-        }
-        this.visited.add(filePath);
+		const entryModule = this.resolver.createEntryRecord(entryFile);
+		this._buildGraph(entryModule, graph);
 
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const dependencies = this._findDependencies(content);
+		return {
+			graph,
+			entryModule,
+			missing: [...this.missingRecords],
+			errors: [...this.errors],
+		};
+	}
 
-        const resolvedDependencies = dependencies.map(dep => this.resolver.resolve(dep, path.dirname(filePath)));
+	_buildGraph(moduleRecord, graph) {
+		if (!moduleRecord || moduleRecord.isIgnored || !moduleRecord.filePath) {
+			return;
+		}
 
-        graph.set(filePath, { dependencies: resolvedDependencies });
+		if (this.visited.has(moduleRecord.filePath)) {
+			return;
+		}
+		this.visited.add(moduleRecord.filePath);
 
-        for (const depPath of resolvedDependencies) {
-            this._buildGraph(depPath, graph);
-        }
-    }
+		const shouldAnalyze = moduleRecord.analyzeDependencies !== false;
 
-    _findDependencies(content) {
-        const requireRegex = /require\s*\(['"]([\w\.\/]+)['"]\)/g;
-        const dependencies = [];
-        let match;
-        while ((match = requireRegex.exec(content)) !== null) {
-            dependencies.push(match[1]);
-        }
-        return dependencies;
-    }
+		if (!shouldAnalyze) {
+			graph.set(moduleRecord.filePath, {
+				module: moduleRecord,
+				dependencies: [],
+			});
+			return;
+		}
 
-    topologicalSort(graph) {
-        const sorted = [];
-        const visited = new Set();
-        const visiting = new Set();
+		const fileContent = fs.readFileSync(moduleRecord.filePath, 'utf-8');
+		const requires = this._findDependencies(fileContent);
 
-        const visit = (filePath) => {
-            if (visiting.has(filePath)) {
-                throw new Error(`Circular dependency detected: ${filePath}`);
-            }
-            if (visited.has(filePath)) {
-                return;
-            }
+		const resolvedDependencies = [];
+		for (const requireId of requires) {
+			let resolved;
+			try {
+				resolved = this.resolver.resolve(
+					requireId,
+					path.dirname(moduleRecord.filePath)
+				);
+			} catch (error) {
+				if (error && error.code === 'MODULE_NOT_FOUND') {
+					const missingRecord = this.resolver.createMissingRecord(requireId);
+					this.missingRecords.push({
+						requiredBy: moduleRecord,
+						requireId,
+						record: missingRecord,
+						error,
+						fatal: !this.resolver.ignoreMissing,
+					});
+					if (!this.resolver.ignoreMissing) {
+						this.errors.push(error);
+					}
+					resolvedDependencies.push(missingRecord);
+					continue;
+				}
+				throw error;
+			}
 
-            visiting.add(filePath);
+			if (resolved.isIgnored) {
+				continue;
+			}
 
-            const node = graph.get(filePath);
-            if (node) {
-                for (const dep of node.dependencies) {
-                    visit(dep);
-                }
-            }
+			if (resolved.isMissing) {
+				this.missingRecords.push({
+					requiredBy: moduleRecord,
+					requireId,
+					record: resolved,
+					error: resolved.missingError || null,
+					fatal: false,
+				});
+				resolvedDependencies.push(resolved);
+				continue;
+			}
 
-            visiting.delete(filePath);
-            visited.add(filePath);
-            sorted.push(filePath);
-        };
+			resolvedDependencies.push(resolved);
+		}
 
-        for (const filePath of graph.keys()) {
-            if (!visited.has(filePath)) {
-                visit(filePath);
-            }
-        }
+		graph.set(moduleRecord.filePath, {
+			module: moduleRecord,
+			dependencies: resolvedDependencies,
+		});
 
-        return sorted;
-    }
+		for (const dependency of resolvedDependencies) {
+			this._buildGraph(dependency, graph);
+		}
+	}
+
+	_findDependencies(content) {
+		const requireRegex = /require\s*\(\s*['"]([\w\.\/-]+)['"]\s*\)/g;
+		const dependencies = [];
+		let match;
+		while ((match = requireRegex.exec(content)) !== null) {
+			dependencies.push(match[1]);
+		}
+		return dependencies;
+	}
+
+	topologicalSort(graph) {
+		const sorted = [];
+		const visited = new Set();
+		const visiting = new Set();
+
+		const visit = (filePath) => {
+			if (visiting.has(filePath)) {
+				throw new Error(`Circular dependency detected: ${filePath}`);
+			}
+			if (visited.has(filePath)) {
+				return;
+			}
+
+			visiting.add(filePath);
+
+			const node = graph.get(filePath);
+			if (node) {
+				for (const dep of node.dependencies) {
+					if (dep.filePath) {
+						visit(dep.filePath);
+					}
+				}
+			}
+
+			visiting.delete(filePath);
+			visited.add(filePath);
+			if (node && node.module) {
+				sorted.push(node.module);
+			}
+		};
+
+		for (const filePath of graph.keys()) {
+			if (!visited.has(filePath)) {
+				visit(filePath);
+			}
+		}
+
+		return sorted;
+	}
 }
 
 module.exports = DependencyAnalyzer;

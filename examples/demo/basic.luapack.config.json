@@ -1,0 +1,13 @@
+{
+	"entry": "./src/main.lua",
+	"output": "../../dist/demo_basic_bundle.lua",
+	"sourceRoot": "./src",
+	"obfuscation": {
+		"tool": "none",
+		"config": {
+			"minify": false,
+			"renameVariables": false,
+			"ascii": false
+		}
+	}
+}

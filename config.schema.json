@@ -3,7 +3,7 @@
 	"title": "LuaPack Configuration",
 	"type": "object",
 	"additionalProperties": false,
-	"required": ["entry", "output"],
+	"required": ["entry"],
 	"properties": {
 		"entry": {
 			"type": "string",
@@ -11,7 +11,7 @@
 		},
 		"output": {
 			"type": "string",
-			"description": "Destination path for the generated bundle."
+			"description": "Optional destination path for the generated bundle. When omitted, LuaPack will emit '<entry-name>_packed.lua' alongside the entry file."
 		},
 		"sourceRoot": {
 			"type": "string",
@@ -23,6 +23,11 @@
 			"description": "Controls module resolution, inclusion, and overrides.",
 			"additionalProperties": false,
 			"properties": {
+				"ignoreMissing": {
+					"type": "boolean",
+					"description": "When true, unresolved modules are reported but do not stop bundling.",
+					"default": false
+				},
 				"ignore": {
 					"type": "array",
 					"description": "Module identifiers to skip entirely with highest priority.",
@@ -49,6 +54,11 @@
 							"description": "Additional search locations for external modules.",
 							"items": { "type": "string" },
 							"default": []
+						},
+						"env": {
+							"type": "array",
+							"description": "Environment variables to inspect for external search paths (defaults to LUA_PATH when omitted).",
+							"items": { "type": "string" }
 						}
 					}
 				},
@@ -89,8 +99,34 @@
 							"default": false
 						},
 						"renameVariables": {
-							"type": "boolean",
-							"description": "Rename local variables during minification.",
+							"description": "Controls local variable renaming.",
+							"oneOf": [
+								{ "type": "boolean" },
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"enabled": {
+											"type": "boolean",
+											"description": "Enable variable renaming.",
+											"default": true
+										},
+										"min": {
+											"type": "integer",
+											"minimum": 1,
+											"description": "Minimum generated identifier length.",
+											"default": 5
+										},
+										"max": {
+											"type": "integer",
+											"minimum": 1,
+											"description": "Maximum generated identifier length.",
+											"default": 5
+										}
+									},
+									"required": ["enabled"]
+								}
+							],
 							"default": false
 						},
 						"ascii": {
@@ -120,6 +156,11 @@
 				"path": {
 					"type": "string",
 					"description": "Optional explicit path to use instead of resolver result."
+				},
+				"recursive": {
+					"type": "boolean",
+					"description": "When false, skip dependency analysis for this override.",
+					"default": true
 				}
 			},
 			"default": {}

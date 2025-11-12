@@ -1,81 +1,71 @@
 const fs = require('fs');
 const path = require('path');
-const luamin = require('lua-format/src/luamin.js');
+const TEMPLATE_PLACEHOLDERS = {
+	modules: '-- __MODULE_DEFINITIONS__',
+	entry: /__ENTRY_MODULE__/g,
+};
 
-class BundleGenerator {
-    createBundleTemplate(modules, entryModule) {
-        const moduleEntries = Object.entries(modules).map(([name, content]) => {
-            return `["${name}"] = function(...)\n${content}\nend,`;
-        }).join('\n');
+let defaultTemplateCache = null;
 
-        return `
-local modules = {
-${moduleEntries}
+function getDefaultTemplate() {
+	if (!defaultTemplateCache) {
+		const templatePath = path.resolve(
+			__dirname,
+			'../templates/default.lua'
+		);
+		defaultTemplateCache = fs.readFileSync(templatePath, 'utf-8');
+	}
+	return defaultTemplateCache;
 }
 
-local require_cache = {}
+class BundleGenerator {
+	createBundleTemplate(modules, entryModule) {
+		const moduleDefinitions = Object.entries(modules)
+			.map(([name, content]) => {
+				const normalizedContent = content
+					.replace(/\r\n/g, '\n')
+					.replace(/\r/g, '\n');
+				const indentedContent = normalizedContent
+					.split('\n')
+					.map((line) => (line.length ? `\t${line}` : ''))
+					.join('\n');
+				return `modules["${name}"] = function(...)
+${indentedContent}
+end`;
+			})
+			.join('\n\n');
 
-local function custom_require(module_name)
-    if require_cache[module_name] then
-        return require_cache[module_name]
-    end
+		const template = getDefaultTemplate();
+		const definitionsSection = moduleDefinitions
+			? `${moduleDefinitions}\n`
+			: '';
 
-    if not modules[module_name] then
-        error("Module '" .. module_name .. "' not found.")
-    end
+		return template
+			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
+			.replace(TEMPLATE_PLACEHOLDERS.entry, entryModule);
+	}
 
-    local module_func = modules[module_name]
-    local result = module_func()
-    require_cache[module_name] = result
-    return result
-end
+	constructor(config) {
+		this.config = config;
+	}
 
--- Set the global require to our custom require
-require = custom_require
+	async generateBundle(entryModule, sortedModules) {
+		const modules = {};
 
--- Run the entry module
-require("${entryModule}")
-`;
-    }
+		for (const moduleRecord of sortedModules) {
+			if (!moduleRecord.filePath) {
+				continue;
+			}
 
-    constructor(config) {
-        this.config = config;
-    }
+			const moduleName = moduleRecord.moduleName;
+			const content = fs.readFileSync(moduleRecord.filePath, 'utf-8');
+			modules[moduleName] = content;
+		}
 
-    async generateBundle(entryFile, sortedModules, graph) {
-        const modules = {};
+		const entryModuleName = entryModule.moduleName;
 
-        for (const filePath of sortedModules) {
-            const moduleName = this.getModuleName(filePath);
-            let content = fs.readFileSync(filePath, 'utf-8');
-
-            const obfuscation = this.config.obfuscation || { tool: 'none', config: {} };
-            if (obfuscation.tool === 'internal') {
-                const { minify = false, renameVariables = false } = obfuscation.config || {};
-                if (minify || renameVariables) {
-                    const options = {};
-                    if (renameVariables) {
-                        options.RenameVariables = true;
-                        options.RenameGlobals = true;
-                    }
-                    content = luamin.Minify(content, options);
-                }
-                // ASCII obfuscation will be handled in a later stage when the module is integrated.
-            }
-
-            modules[moduleName] = content;
-        }
-
-        const entryModuleName = this.getModuleName(entryFile);
-
-        return this.createBundleTemplate(modules, entryModuleName);
-    }
-
-    getModuleName(filePath) {
-        const relativePath = path.relative(this.config.sourceRoot, filePath);
-        // remove .lua and replace path separators with dots
-        return relativePath.replace(/\.lua$/, '').replace(/[\\\/]/g, '.');
-    }
+		return this.createBundleTemplate(modules, entryModuleName);
+	}
 }
 
 module.exports = BundleGenerator;

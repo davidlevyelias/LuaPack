@@ -1,0 +1,18 @@
+{
+	"entry": "./src/entries/external.lua",
+	"output": "../../dist/demo_external_bundle.lua",
+	"modules": {
+		"ignoreMissing": true,
+		"external": {
+			"paths": ["./external_modules"],
+			"recursive": false,
+			"env": ["LUA_PATH", "SDK_PATH"]
+		},
+		"overrides": {
+			"dkjson": {
+				"path": "./external_modules/dkjson",
+				"recursive": false
+			}
+		}
+	}
+}
