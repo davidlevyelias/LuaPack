@@ -1,8 +1,5 @@
 import type { AnalysisResult } from '../../types';
-import {
-	buildSummarySection,
-	type ExternalSummary,
-} from '../sections/SummarySection';
+import { buildSummarySection } from '../sections/SummarySection';
 import {
 	buildDependencyTreeSection,
 	type DependencyTreeNode,
@@ -16,7 +13,7 @@ import {
 	buildMissingSection,
 	buildErrorsSection,
 } from '../sections/AlertsSection';
-import type { ReporterAnalysis } from '../types';
+import type { ExternalSummary, ReporterAnalysis } from '../types';
 import type { Palette } from '../palette';
 
 export interface PaletteOverride extends Palette {
