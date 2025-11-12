@@ -11,6 +11,7 @@ Thumbs.db
 
 # Build artifacts
 /dist/
+/build/
 
 # Coverage and test outputs
 coverage/

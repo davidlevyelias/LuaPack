@@ -1,18 +1,17 @@
 {
 	"name": "@davidlevyelias/luapack",
 	"author": "David Levy Elias",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "A modern Lua packer tool.",
-	"main": "index.js",
+	"main": "build/index.js",
 	"bin": {
-		"luapack": "index.js"
+		"luapack": "build/index.js"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
 	"files": [
-		"index.js",
-		"src",
+		"build",
 		"templates",
 		"config.schema.json",
 		"README.md",
@@ -21,8 +20,9 @@
 	"scripts": {
 		"test": "jest --config jest.config.cjs",
 		"typecheck": "tsc --noEmit",
-		"pack:example": "node index.js --config examples/demo/basic.luapack.config.json && lua dist/demo_basic_bundle.lua",
-		"prepublishOnly": "npm run typecheck && npm test"
+		"build": "tsc -p tsconfig.json",
+		"pack:example": "npm run build && node build/index.js --verbose --config examples/demo/basic.luapack.config.json && lua dist/demo_basic_bundle.lua",
+		"prepublishOnly": "npm run build && npm run typecheck && npm test"
 	},
 	"keywords": [
 		"lua",
