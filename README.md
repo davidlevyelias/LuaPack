@@ -6,6 +6,7 @@ The packer follows explicit `require` statements and only includes `.lua` source
 ## Features
 
 - Resolves `require` statements starting from an entry Lua file and builds a dependency graph.
+- Understands Lua `require` calls with or without parentheses, including long-string module identifiers.
 - Generates a self-contained Lua bundle with a custom lightweight `require` loader.
 - Honors module metadata such as ignore lists, overrides, and external module hints supplied through configuration.
 - Integrates optional obfuscation via `lua-format` minification, symbol renaming, and ASCII string encoding.
@@ -14,9 +15,7 @@ The packer follows explicit `require` statements and only includes `.lua` source
 ## Installation
 
 ```bash
-git clone https://github.com/your-org/luapack.git
-cd luapack
-npm install
+npm install @davidlevyelias/luapack
 ```
 
 ## CLI Usage

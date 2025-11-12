@@ -193,6 +193,63 @@ describe('DependencyAnalyzer', () => {
 		}
 	});
 
+	test('parses require calls without parentheses and ignores dynamic concatenations', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-bare-require-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(path.join(srcDir, 'core'), { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				[
+					"local Class = require 'core.class'",
+					"local Utils = require [[core.utils]]",
+					"local dynamic = require('core.' .. moduleName)",
+					'return Class, Utils, dynamic',
+				].join('\n')
+			);
+
+			fs.writeFileSync(
+				path.join(srcDir, 'core', 'class.lua'),
+				'return {}\n'
+			);
+
+			fs.writeFileSync(
+				path.join(srcDir, 'core', 'utils.lua'),
+				'return {}\n'
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						sourceRoot: './src',
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { graph, missing } = analyzer.buildDependencyGraph(config.entry);
+
+			const classNode = graph.get(path.join(srcDir, 'core', 'class.lua'));
+			const utilsNode = graph.get(path.join(srcDir, 'core', 'utils.lua'));
+			expect(classNode).toBeDefined();
+			expect(utilsNode).toBeDefined();
+			expect(missing).toHaveLength(0);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	test('honors external recursive flag when disabled', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'luapack-external-recursive-')

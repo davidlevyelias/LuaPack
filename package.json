@@ -1,11 +1,11 @@
 {
 	"name": "@davidlevyelias/luapack",
 	"author": "David Levy Elias",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "A modern Lua packer tool.",
 	"main": "index.js",
 	"bin": {
-		"luapack": "./index.js"
+		"luapack": "index.js"
 	},
 	"publishConfig": {
 		"access": "public"
