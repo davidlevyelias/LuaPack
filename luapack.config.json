@@ -1,7 +1,7 @@
 {
-  "entry": "./examples/basic/src/main.lua",
-  "output": "./dist/basic_bundle.lua",
-  "sourceRoot": "./examples/basic/src",
+  "entry": "./examples/demo/src/main.lua",
+  "output": "./dist/demo_basic_bundle.lua",
+  "sourceRoot": "./examples/demo/src",
   "obfuscation": {
     "tool": "none",
     "config": {

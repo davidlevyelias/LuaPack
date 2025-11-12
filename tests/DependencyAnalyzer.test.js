@@ -9,7 +9,10 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 function loadExampleConfig() {
 	return loadConfig({
-		config: path.join(PROJECT_ROOT, 'examples/basic/luapack.config.json'),
+		config: path.join(
+			PROJECT_ROOT,
+			'examples/demo/basic.luapack.config.json'
+		),
 	});
 }
 
@@ -101,7 +104,9 @@ describe('DependencyAnalyzer', () => {
 
 		try {
 			const srcDir = path.join(tempDir, 'src');
-			fs.mkdirSync(path.join(srcDir, 'feature', 'mod'), { recursive: true });
+			fs.mkdirSync(path.join(srcDir, 'feature', 'mod'), {
+				recursive: true,
+			});
 
 			fs.writeFileSync(
 				path.join(srcDir, 'main.lua'),

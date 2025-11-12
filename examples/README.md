@@ -1,27 +1,29 @@
 # LuaPack Examples
 
-Each subfolder under `examples/` is a standalone scenario with its own `luapack.config.json` and source tree. Use these projects to experiment with different resolver and bundling features.
+The `examples/demo` directory contains a single, feature-rich Lua project that exercises most LuaPack capabilities. Different `*.luapack.config.json` files toggle behaviours such as external resolution, obfuscation, and missing-module handling while using the same source tree.
 
-## Directory Overview
+## Available Configurations
 
-- `basic/` – Friendly starter project without obfuscation. Demonstrates local module resolution, nested directories, and a simple bundle target.
-- `obfuscation/` – Same workflow as `basic`, but enables the internal obfuscation pipeline with minification, ASCII encoding, and custom rename bounds.
-- `ignore-missing/` – Shows how `modules.ignoreMissing` records missing modules during analysis while still producing a bundle.
-- `external/` – Resolves a module from an additional search path via `modules.external.paths`.
+- `basic.luapack.config.json` – Runs `src/main.lua`, showcasing local modules, analytics helpers, and reporting utilities.
+- `obfuscation.luapack.config.json` – Bundles the analytics entry with internal obfuscation (minify, rename, ASCII) enabled.
+- `external.luapack.config.json` – Demonstrates `modules.external` paths and overrides by loading SDK utilities and a stub `dkjson` parser from `external_modules/`.
+- `ignore-missing.luapack.config.json` – Shows how `modules.ignoreMissing` records unresolved modules without aborting the build.
 
-## Running an Example
+Each config writes its bundle to the shared `dist/` folder with a descriptive file name.
+
+## Running a Scenario
 
 From the repository root:
 
 ```pwsh
-# 1. Run analysis (optional but recommended)
-node index.js --config examples/basic/luapack.config.json --analyze --verbose
+# Inspect the dependency graph first (optional but recommended)
+node index.js --config examples/demo/basic.luapack.config.json --analyze --verbose
 
-# 2. Produce the bundle
-node index.js --config examples/basic/luapack.config.json
+# Produce one of the bundles
+node index.js --config examples/demo/basic.luapack.config.json
 
-# 3. Execute the generated Lua script
-lua .\dist\basic_bundle.lua
+# Execute the generated Lua script
+lua .\dist\demo_basic_bundle.lua
 ```
 
-Swap `basic` for `obfuscation`, `ignore-missing`, or `external` to try other scenarios. The generated bundles are written to `dist/` and named after the example.
+Swap the config file for `obfuscation`, `external`, or `ignore-missing` to explore each scenario.

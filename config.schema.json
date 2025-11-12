@@ -3,7 +3,7 @@
 	"title": "LuaPack Configuration",
 	"type": "object",
 	"additionalProperties": false,
-	"required": ["entry", "output"],
+	"required": ["entry"],
 	"properties": {
 		"entry": {
 			"type": "string",
@@ -11,7 +11,7 @@
 		},
 		"output": {
 			"type": "string",
-			"description": "Destination path for the generated bundle."
+			"description": "Optional destination path for the generated bundle. When omitted, LuaPack will emit '<entry-name>_packed.lua' alongside the entry file."
 		},
 		"sourceRoot": {
 			"type": "string",

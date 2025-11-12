@@ -6,6 +6,14 @@ const SCHEMA_PATH = path.resolve(__dirname, '..', '..', 'config.schema.json');
 
 let validator;
 
+function buildDefaultOutputPath(entryPath) {
+	const entryDir = path.dirname(entryPath);
+	const entryExt = path.extname(entryPath);
+	const entryBase = path.basename(entryPath, entryExt) || path.basename(entryPath);
+	const outputName = `${entryBase}_packed.lua`;
+	return path.join(entryDir, outputName);
+}
+
 function getValidator() {
 	if (!validator) {
 		const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf-8'));
@@ -127,6 +135,10 @@ function normalizePaths(config, cliOptions, fileBaseDir) {
 	if (finalConfig.output) {
 		const origin = cliOptions.output ? cwd : baseDir;
 		finalConfig.output = path.resolve(origin, finalConfig.output);
+	}
+
+	if (!finalConfig.output && finalConfig.entry) {
+		finalConfig.output = buildDefaultOutputPath(finalConfig.entry);
 	}
 
 	if (finalConfig.sourceRoot) {

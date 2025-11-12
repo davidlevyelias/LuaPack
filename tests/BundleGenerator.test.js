@@ -75,10 +75,16 @@ describe('BundleGenerator', () => {
 			]);
 
 			expect(bundle).toContain('module_name:sub(-5) == ".init"');
-			expect(bundle).toContain('local with_init = module_name .. ".init"');
+			expect(bundle).toContain(
+				'local with_init = module_name .. ".init"'
+			);
 			expect(bundle).toContain('local original_require = require');
-			expect(bundle).toContain('local result = original_require(module_name)');
-			expect(bundle).toContain('local resolved_name = resolve_module_name(module_name)');
+			expect(bundle).toContain(
+				'local result = original_require(module_name)'
+			);
+			expect(bundle).toContain(
+				'local resolved_name = resolve_module_name(module_name)'
+			);
 			expect(bundle).toContain('return require("packages.app.src", ...)');
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
@@ -123,19 +129,20 @@ return module
 
 		try {
 			await packer.pack(analysisResult);
-				const bundle = fs.readFileSync(outputPath, 'utf-8');
-				expect(bundle).not.toContain('Code generated using github.com/Herrtt/luamin.js');
-				expect(bundle).not.toMatch(/\bL_\d+_/);
-				const declaredLocals = Array.from(
-					bundle.matchAll(/^local\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)
-				)
-					.map((match) => match[1]);
-				expect(declaredLocals.length).toBeGreaterThanOrEqual(3);
-				for (const name of declaredLocals.slice(0, 5)) {
-					expect(name.length).toBeGreaterThanOrEqual(6);
-					expect(name.length).toBeLessThanOrEqual(9);
-					expect(/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)).toBe(true);
-				}
+			const bundle = fs.readFileSync(outputPath, 'utf-8');
+			expect(bundle).not.toContain(
+				'Code generated using github.com/Herrtt/luamin.js'
+			);
+			expect(bundle).not.toMatch(/\bL_\d+_/);
+			const declaredLocals = Array.from(
+				bundle.matchAll(/^local\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)
+			).map((match) => match[1]);
+			expect(declaredLocals.length).toBeGreaterThanOrEqual(3);
+			for (const name of declaredLocals.slice(0, 5)) {
+				expect(name.length).toBeGreaterThanOrEqual(6);
+				expect(name.length).toBeLessThanOrEqual(9);
+				expect(/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)).toBe(true);
+			}
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

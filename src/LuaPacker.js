@@ -172,7 +172,7 @@ class LuaPacker {
 			);
 		}
 
-		logger.info(`Bundle successfully created at: ${this.config.output}`);
+		return this.config.output;
 	}
 
 	applyObfuscation(bundleContent) {

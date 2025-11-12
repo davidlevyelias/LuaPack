@@ -51,6 +51,21 @@ describe('ConfigLoader', () => {
 		});
 	});
 
+	test('derives default output when omitted', () => {
+		const configPath = path.join(tempDir, 'luapack.config.json');
+		const configContent = {
+			entry: './src/main.lua',
+			sourceRoot: './src',
+		};
+
+		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
+
+		const config = loadConfig({ config: configPath });
+
+		expect(config.entry).toBe(path.resolve(tempDir, 'src/main.lua'));
+		expect(config.output).toBe(path.resolve(tempDir, 'src/main_packed.lua'));
+	});
+
 	test('applies CLI overrides relative to cwd', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
@@ -61,17 +76,17 @@ describe('ConfigLoader', () => {
 
 		const config = loadConfig({
 			config: configPath,
-			entry: './examples/basic/src/main.lua',
+			entry: './examples/demo/src/main.lua',
 			output: './dist/cli.lua',
-			sourceroot: './examples/basic/src',
+			sourceroot: './examples/demo/src',
 		});
 
 		expect(config.entry).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/basic/src/main.lua')
+			path.resolve(PROJECT_ROOT, 'examples/demo/src/main.lua')
 		);
 		expect(config.output).toBe(path.resolve(PROJECT_ROOT, 'dist/cli.lua'));
 		expect(config.sourceRoot).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/basic/src')
+			path.resolve(PROJECT_ROOT, 'examples/demo/src')
 		);
 	});
 

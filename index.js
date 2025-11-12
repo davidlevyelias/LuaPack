@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 
+try {
+	require('ts-node/register/transpile-only');
+} catch (error) {
+	console.error(
+		"Unable to load TypeScript runtime. Install 'ts-node' to execute LuaPack CLI."
+	);
+	process.exit(1);
+}
+
+const colors = require('ansi-colors');
+const { version: packageVersion } = require('./package.json');
+
 const { program } = require('commander');
 const LuaPacker = require('./src/LuaPacker');
 const { loadConfig } = require('./src/config/ConfigLoader');
-const AnalysisPipeline = require('./src/analysis/AnalysisPipeline');
-const AnalysisReporter = require('./src/analysis/AnalysisReporter');
+const AnalysisPipeline = require('./src/analysis/AnalysisPipeline.ts').default;
+const AnalysisReporter = require('./src/analysis/AnalysisReporter.ts').default;
 const logger = require('./src/Logger');
 
 function parseToggle(value) {
@@ -23,7 +35,7 @@ function parseToggle(value) {
 
 async function main() {
 	program
-		.version('0.3.2')
+		.version('1.0.0')
 		.description('A modern Lua bundler and obfuscator.')
 		.argument('[entry]', 'The entry Lua file.')
 		.option(
@@ -60,13 +72,17 @@ async function main() {
 			'Comma-separated environment variables to inspect for external modules (empty string to disable).'
 		)
 		.option('--verbose', 'Print verbose analysis details (tree and order).')
-		.option('--log-level <level>', 'Set log verbosity (error, warn, info, debug).')
+		.option(
+			'--log-level <level>',
+			'Set log verbosity (error, warn, info, debug).'
+		)
 		.action(async (entry, options) => {
 			try {
 				if (options.logLevel) {
 					logger.setLevel(options.logLevel);
 				}
 				const analyzeOnly = Boolean(options.analyze);
+				printCliHeader({ analyzeOnly });
 				const envOption = parseEnvOption(options.env);
 				const config = loadConfig({
 					entry,
@@ -93,14 +109,18 @@ async function main() {
 				});
 				const analysis = analysisPipeline.run();
 				const reporter = new AnalysisReporter({ logger });
+				let bundlePath = null;
+				let reportPath = null;
 
 				if (!analyzeOnly && analysis.success) {
 					try {
-						await packer.pack(analysis);
+						bundlePath = await packer.pack(analysis);
 					} catch (error) {
 						analysis.errors.push(error);
 						analysis.success = false;
-						logger.error(`Failed to create bundle: ${error.message}`);
+						logger.error(
+							`Failed to create bundle: ${error.message}`
+						);
 					}
 				}
 
@@ -112,12 +132,20 @@ async function main() {
 							verbose: Boolean(options.verbose),
 						}
 					);
-					logger.info(`Analysis report saved to ${savedPath}`);
+					reportPath = savedPath;
 				}
 
 				reporter.printConsoleReport(analysis, {
 					verbose: Boolean(options.verbose),
 				});
+
+				if (reportPath) {
+					printReportSuccess(reportPath);
+				}
+
+				if (bundlePath && analysis.success) {
+					printBundleSuccess(bundlePath);
+				}
 
 				if (!analysis.success) {
 					process.exitCode = 1;
@@ -137,6 +165,31 @@ async function main() {
 }
 
 main();
+
+function printCliHeader({ analyzeOnly }) {
+	const title = colors.bgBlue.white.bold(` LuaPack v${packageVersion} `);
+	const modeLabel = analyzeOnly
+		? colors.bgMagenta.white.bold(' ANALYSIS MODE ')
+		: null;
+	const headerLine = [title, modeLabel].filter(Boolean).join(' ');
+	logger.info('');
+	logger.info(headerLine);
+	logger.info('');
+}
+
+function printBundleSuccess(bundlePath) {
+	const label = colors.green('Bundle successfully created at:');
+	const formattedPath = colors.bold.underline(bundlePath);
+	logger.info('');
+	logger.info(`${label} ${formattedPath}`);
+}
+
+function printReportSuccess(reportPath) {
+	const label = colors.green('Analysis report saved to:');
+	const formattedPath = colors.bold.underline(reportPath);
+	logger.info('');
+	logger.info(`${label} ${formattedPath}`);
+}
 
 function parseEnvOption(value) {
 	if (value === undefined) {
