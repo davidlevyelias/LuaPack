@@ -3,6 +3,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const luamin = require('lua-format/src/luamin.js');
 const BundleGenerator = require('./BundleGenerator');
+const BundlePlanBuilder = require('./bundle/BundlePlanBuilder');
 const AsciiObfuscator = require('./obfuscation/AsciiObfuscator');
 const logger = require('./Logger');
 
@@ -146,10 +147,12 @@ class LuaPacker {
 		}
 
 		const generator = new BundleGenerator(this.config);
-		const bundleContent = await generator.generateBundle(
+		const planBuilder = new BundlePlanBuilder(this.config);
+		const bundlePlan = planBuilder.build(
 			entryModule,
 			sortedModules
 		);
+		const bundleContent = await generator.generateBundle(bundlePlan);
 		const finalContent = this.applyObfuscation(bundleContent);
 
 		const outputDir = path.dirname(this.config.output);

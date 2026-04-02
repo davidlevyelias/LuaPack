@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const BundleGenerator = require('../src/BundleGenerator');
+const BundlePlanBuilder = require('../src/bundle/BundlePlanBuilder');
 const LuaPacker = require('../src/LuaPacker');
 
 function createTempLuaFile(content = 'return {}') {
@@ -65,14 +66,16 @@ describe('BundleGenerator', () => {
 			};
 
 			const generator = new BundleGenerator(config);
+			const planBuilder = new BundlePlanBuilder(config);
 			const moduleRecord = {
 				moduleName: 'packages.app.src',
 				filePath: initFile,
 				isIgnored: false,
+				isExternal: false,
+				isMissing: false,
 			};
-			const bundle = await generator.generateBundle(moduleRecord, [
-				moduleRecord,
-			]);
+			const bundlePlan = planBuilder.build(moduleRecord, [moduleRecord]);
+			const bundle = await generator.generateBundle(bundlePlan);
 
 			expect(bundle).toContain('module_name:sub(-5) == ".init"');
 			expect(bundle).toContain(
@@ -143,6 +146,64 @@ return module
 				expect(name.length).toBeLessThanOrEqual(9);
 				expect(/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)).toBe(true);
 			}
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('does not inline modules marked as external in the bundle plan', async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-bundle-'));
+		try {
+			const srcDir = path.join(dir, 'src');
+			const vendorDir = path.join(dir, 'vendor');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.mkdirSync(vendorDir, { recursive: true });
+
+			const mainFile = path.join(srcDir, 'main.lua');
+			const externalFile = path.join(vendorDir, 'sdk.lua');
+			fs.writeFileSync(mainFile, "local sdk = require('sdk')\nreturn sdk\n");
+			fs.writeFileSync(externalFile, 'return { provided = true }\n');
+
+			const config = {
+				sourceRoot: srcDir,
+				_v2: {
+					bundle: {
+						mode: 'runtime',
+						fallback: 'external-only',
+					},
+				},
+				obfuscation: {
+					tool: 'none',
+					config: {},
+				},
+			};
+
+			const planBuilder = new BundlePlanBuilder(config);
+			const generator = new BundleGenerator(config);
+			const entryModule = {
+				moduleName: 'main',
+				filePath: mainFile,
+				isIgnored: false,
+				isExternal: false,
+				isMissing: false,
+			};
+			const externalModule = {
+				moduleName: 'sdk',
+				filePath: externalFile,
+				isIgnored: false,
+				isExternal: true,
+				isMissing: false,
+			};
+
+			const bundlePlan = planBuilder.build(entryModule, [
+				entryModule,
+				externalModule,
+			]);
+			const bundle = await generator.generateBundle(bundlePlan);
+
+			expect(bundle).toContain('modules["main"] = function(...)');
+			expect(bundle).not.toContain('modules["sdk"] = function(...)');
+			expect(bundlePlan.externalModules).toEqual(['sdk']);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

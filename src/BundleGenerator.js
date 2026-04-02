@@ -19,9 +19,9 @@ function getDefaultTemplate() {
 }
 
 class BundleGenerator {
-	createBundleTemplate(modules, entryModule) {
-		const moduleDefinitions = Object.entries(modules)
-			.map(([name, content]) => {
+	createBundleTemplate(bundlePlan) {
+		const moduleDefinitions = bundlePlan.bundledModules
+			.map(({ moduleName, content }) => {
 				const normalizedContent = content
 					.replace(/\r\n/g, '\n')
 					.replace(/\r/g, '\n');
@@ -29,7 +29,7 @@ class BundleGenerator {
 					.split('\n')
 					.map((line) => (line.length ? `\t${line}` : ''))
 					.join('\n');
-				return `modules["${name}"] = function(...)
+				return `modules["${moduleName}"] = function(...)
 ${indentedContent}
 end`;
 			})
@@ -42,29 +42,15 @@ end`;
 
 		return template
 			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
-			.replace(TEMPLATE_PLACEHOLDERS.entry, entryModule);
+			.replace(TEMPLATE_PLACEHOLDERS.entry, bundlePlan.entryModuleName);
 	}
 
 	constructor(config) {
 		this.config = config;
 	}
 
-	async generateBundle(entryModule, sortedModules) {
-		const modules = {};
-
-		for (const moduleRecord of sortedModules) {
-			if (!moduleRecord.filePath) {
-				continue;
-			}
-
-			const moduleName = moduleRecord.moduleName;
-			const content = fs.readFileSync(moduleRecord.filePath, 'utf-8');
-			modules[moduleName] = content;
-		}
-
-		const entryModuleName = entryModule.moduleName;
-
-		return this.createBundleTemplate(modules, entryModuleName);
+	async generateBundle(bundlePlan) {
+		return this.createBundleTemplate(bundlePlan);
 	}
 }
 
