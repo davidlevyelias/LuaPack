@@ -25,3 +25,5 @@ coverage/
 # Environment files
 .env
 .env.*
+
+temp/

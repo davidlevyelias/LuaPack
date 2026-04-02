@@ -31,9 +31,6 @@ Common options:
 - `-o, --output <file>`: Override the bundle path (or report path when `--analyze` is used).
 - `-c, --config <file>`: Point to a `luapack.config.json` file.
 - `--sourceroot <path>`: Set the root directory used when resolving `require` statements.
-- `--rename-variables [state]`: Toggle identifier renaming (`true`, `false`, `on`, `off`, etc.).
-- `--minify [state]`: Toggle `lua-format` minification.
-- `--ascii [state]`: Toggle ASCII byte-array encoding.
 - `--analyze`: Skip bundling and emit the analysis report only.
 - `--ignore-missing`: Continue even when modules cannot be resolved.
 - `--env <vars>`: Comma-separated env variables to scan for external module paths (empty string disables).
@@ -50,7 +47,7 @@ luapack --help
 
 ## Configuration (`luapack.config.json`)
 
-LuaPack uses a `luapack.config.json` file to manage complex bundling and obfuscation rules. The loader validates your configuration against `config.schema.json`, ensuring that all settings are correct before bundling begins. CLI flags will always override settings from the configuration file.
+LuaPack uses a `luapack.config.json` file to manage complex bundling and obfuscation rules. The loader validates your configuration against `config.schema.json`, ensuring that all settings are correct before bundling begins. Supported CLI flags will override the corresponding settings from the configuration file.
 
 Below is a detailed breakdown of each section.
 
