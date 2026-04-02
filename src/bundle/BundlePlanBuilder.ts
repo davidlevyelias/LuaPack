@@ -1,11 +1,13 @@
-const fs = require('fs');
+import fs from 'fs';
 
-class BundlePlanBuilder {
-	constructor(config) {
-		this.config = config;
-	}
+import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
 
-	build(entryModule, sortedModules) {
+import type { BundlePlan } from './types';
+
+export default class BundlePlanBuilder {
+	constructor(private readonly config: WorkflowConfig) {}
+
+	build(entryModule: ModuleRecord, sortedModules: ModuleRecord[]): BundlePlan {
 		if (!entryModule || !entryModule.moduleName) {
 			throw new Error('Bundle plan requires an entry module with a module name.');
 		}
@@ -14,8 +16,8 @@ class BundlePlanBuilder {
 		}
 
 		const bundledModules = [];
-		const externalModules = [];
-		const ignoredModules = [];
+		const externalModules: string[] = [];
+		const ignoredModules: string[] = [];
 
 		for (const moduleRecord of sortedModules) {
 			if (!moduleRecord || moduleRecord.isMissing) {
@@ -49,11 +51,8 @@ class BundlePlanBuilder {
 			externalModules,
 			ignoredModules,
 			aliases: [],
-			fallbackPolicy:
-				this.config._v2?.bundle?.fallback || 'external-only',
+			fallbackPolicy: this.config._v2?.bundle?.fallback || 'external-only',
 			mode: this.config._v2?.bundle?.mode || 'runtime',
 		};
 	}
 }
-
-module.exports = BundlePlanBuilder;

@@ -2,8 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const luamin = require('lua-format/src/luamin.js');
-const BundleGenerator = require('./BundleGenerator');
-const BundlePlanBuilder = require('./bundle/BundlePlanBuilder');
+const { BundleGenerator, BundlePlanBuilder } = require('./bundle');
 const AsciiObfuscator = require('./obfuscation/AsciiObfuscator');
 const logger = require('./Logger');
 

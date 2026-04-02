@@ -2,8 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const BundleGenerator = require('../src/BundleGenerator');
-const BundlePlanBuilder = require('../src/bundle/BundlePlanBuilder');
+const { BundleGenerator, BundlePlanBuilder } = require('../src/bundle');
 const LuaPacker = require('../src/LuaPacker');
 
 function createTempLuaFile(content = 'return {}') {

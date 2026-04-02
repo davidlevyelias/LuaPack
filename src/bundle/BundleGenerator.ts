@@ -1,25 +1,27 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+
+import type { BundlePlan } from './types';
+
 const TEMPLATE_PLACEHOLDERS = {
 	modules: '-- __MODULE_DEFINITIONS__',
 	entry: /__ENTRY_MODULE__/g,
 };
 
-let defaultTemplateCache = null;
+let defaultTemplateCache: string | null = null;
 
-function getDefaultTemplate() {
+function getDefaultTemplate(): string {
 	if (!defaultTemplateCache) {
-		const templatePath = path.resolve(
-			__dirname,
-			'../templates/default.lua'
-		);
+		const templatePath = path.resolve(__dirname, '../../templates/default.lua');
 		defaultTemplateCache = fs.readFileSync(templatePath, 'utf-8');
 	}
 	return defaultTemplateCache;
 }
 
-class BundleGenerator {
-	createBundleTemplate(bundlePlan) {
+export default class BundleGenerator {
+	constructor(private readonly config: Record<string, unknown>) {}
+
+	createBundleTemplate(bundlePlan: BundlePlan): string {
 		const moduleDefinitions = bundlePlan.bundledModules
 			.map(({ moduleName, content }) => {
 				const normalizedContent = content
@@ -35,23 +37,15 @@ end`;
 			})
 			.join('\n\n');
 
-		const template = getDefaultTemplate();
-		const definitionsSection = moduleDefinitions
-			? `${moduleDefinitions}\n`
-			: '';
+		const definitionsSection = moduleDefinitions ? `${moduleDefinitions}\n` : '';
 
-		return template
+		return getDefaultTemplate()
 			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
 			.replace(TEMPLATE_PLACEHOLDERS.entry, bundlePlan.entryModuleName);
 	}
 
-	constructor(config) {
-		this.config = config;
-	}
-
-	async generateBundle(bundlePlan) {
+	async generateBundle(bundlePlan: BundlePlan): Promise<string> {
+		void this.config;
 		return this.createBundleTemplate(bundlePlan);
 	}
 }
-
-module.exports = BundleGenerator;
