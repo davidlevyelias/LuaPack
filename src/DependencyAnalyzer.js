@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const luaparse = require('luaparse');
 const ModuleResolver = require('./ModuleResolver');
 
 class DependencyAnalyzer {
@@ -61,7 +62,8 @@ class DependencyAnalyzer {
 				);
 			} catch (error) {
 				if (error && error.code === 'MODULE_NOT_FOUND') {
-					const missingRecord = this.resolver.createMissingRecord(requireId);
+					const missingRecord =
+						this.resolver.createMissingRecord(requireId);
 					this.missingRecords.push({
 						requiredBy: moduleRecord,
 						requireId,
@@ -108,28 +110,90 @@ class DependencyAnalyzer {
 	}
 
 	_findDependencies(content) {
-		const requireRegex = /\brequire\s*(?:\(\s*)?(?:(['"])([\w\.\/-]+)\1|\[\[([\s\S]+?)\]\])\s*(?:\))?/g;
+		const ast = luaparse.parse(content);
 		const dependencies = [];
-		let match;
-		while ((match = requireRegex.exec(content)) !== null) {
-			const moduleId = (match[2] || match[3] || '').trim();
-			if (!moduleId) {
-				continue;
-			}
-			if (!/^[\w\.\/-]+$/.test(moduleId)) {
-				continue;
-			}
-			const remaining = content.slice(requireRegex.lastIndex);
-			if (/^\s*\.\./.test(remaining)) {
-				continue;
-			}
-			const matchedCall = match[0];
-			if (matchedCall.includes('(') && !matchedCall.trim().endsWith(')')) {
-				continue;
-			}
-			dependencies.push(moduleId);
-		}
+		this._collectDependenciesFromNode(ast, dependencies);
 		return dependencies;
+	}
+
+	_collectDependenciesFromNode(node, dependencies) {
+		if (!node || typeof node !== 'object') {
+			return;
+		}
+
+		const dependency = this._extractRequireDependency(node);
+		if (dependency) {
+			dependencies.push(dependency);
+		}
+
+		for (const value of Object.values(node)) {
+			if (Array.isArray(value)) {
+				for (const item of value) {
+					this._collectDependenciesFromNode(item, dependencies);
+				}
+				continue;
+			}
+
+			this._collectDependenciesFromNode(value, dependencies);
+		}
+	}
+
+	_extractRequireDependency(node) {
+		if (!node || typeof node !== 'object') {
+			return null;
+		}
+
+		const isDirectRequire =
+			node.base &&
+			node.base.type === 'Identifier' &&
+			node.base.name === 'require';
+
+		if (!isDirectRequire) {
+			return null;
+		}
+
+		let argumentNode = null;
+		if (node.type === 'CallExpression') {
+			if (!Array.isArray(node.arguments) || node.arguments.length !== 1) {
+				return null;
+			}
+			argumentNode = node.arguments[0];
+		} else if (node.type === 'StringCallExpression') {
+			argumentNode = node.argument;
+		} else {
+			return null;
+		}
+
+		if (!argumentNode || argumentNode.type !== 'StringLiteral') {
+			return null;
+		}
+
+		const moduleId = this._decodeStringLiteral(argumentNode.raw).trim();
+		if (!moduleId || !/^[\w\.\/-]+$/.test(moduleId)) {
+			return null;
+		}
+
+		return moduleId;
+	}
+
+	_decodeStringLiteral(raw) {
+		if (typeof raw !== 'string' || raw.length === 0) {
+			return '';
+		}
+
+		if (
+			(raw.startsWith('"') && raw.endsWith('"')) ||
+			(raw.startsWith("'") && raw.endsWith("'"))
+		) {
+			return raw.slice(1, -1);
+		}
+
+		const longStringMatch = raw.match(/^\[(=*)\[([\s\S]*)\]\1\]$/);
+		if (longStringMatch) {
+			return longStringMatch[2];
+		}
+
+		return raw;
 	}
 
 	topologicalSort(graph) {

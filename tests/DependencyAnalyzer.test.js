@@ -250,6 +250,48 @@ describe('DependencyAnalyzer', () => {
 		}
 	});
 
+	test('ignores require text inside comments and plain strings', () => {
+		const analyzer = new DependencyAnalyzer(loadExampleConfig());
+		const dependencies = analyzer._findDependencies(
+			[
+				"-- require('comment.only')",
+				"local text = \"require('string.only')\"",
+				"local other = 'require(\\\"also.string\\\")'",
+				'return text, other',
+			].join('\n')
+		);
+
+		expect(dependencies).toEqual([]);
+	});
+
+	test('parses multiline require calls and long-string arguments', () => {
+		const analyzer = new DependencyAnalyzer(loadExampleConfig());
+		const dependencies = analyzer._findDependencies(
+			[
+				'local one = require(',
+				'  "core.multi"',
+				')',
+				'local two = require [[core.long]]',
+			].join('\n')
+		);
+
+		expect(dependencies).toEqual(['core.multi', 'core.long']);
+	});
+
+	test('ignores aliased require calls and dynamic expressions', () => {
+		const analyzer = new DependencyAnalyzer(loadExampleConfig());
+		const dependencies = analyzer._findDependencies(
+			[
+				'local req = require',
+				"local one = req('aliased.module')",
+				"local two = require('dynamic.' .. name)",
+				"local three = require(moduleName)",
+			].join('\n')
+		);
+
+		expect(dependencies).toEqual([]);
+	});
+
 	test('honors external recursive flag when disabled', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'luapack-external-recursive-')
