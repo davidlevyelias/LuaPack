@@ -1,3 +1,5 @@
+import type { V2Config } from '../config/loader/types';
+
 /**
  * Core TypeScript domain types describing the analysis pipeline output.
  * These will be adopted incrementally by the JS implementation until the
@@ -43,6 +45,7 @@ export interface WorkflowConfig {
   modules?: WorkflowModulesConfig;
   obfuscation?: WorkflowObfuscationConfig | null;
   _analyzeOnly?: boolean;
+  _v2?: V2Config;
 }
 
 export interface ResolverOverrideInfo {

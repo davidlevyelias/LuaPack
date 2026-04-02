@@ -2,7 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const DependencyAnalyzer = require('../src/DependencyAnalyzer');
+const { DependencyAnalyzer } = require('../src/dependency');
 const { loadConfig } = require('../src/config/ConfigLoader');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -319,14 +319,22 @@ describe('DependencyAnalyzer', () => {
 				configPath,
 				JSON.stringify(
 					{
+						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						sourceRoot: './src',
 						modules: {
-							external: {
-								recursive: false,
-								paths: [externalDir],
+							roots: ['./src', './external'],
+							rules: {
+								'external.module': {
+									mode: 'external',
+									recursive: false,
+								},
 							},
+							missing: 'error',
+						},
+						bundle: {
+							mode: 'runtime',
+							fallback: 'external-only',
 						},
 					},
 					null,
@@ -344,8 +352,210 @@ describe('DependencyAnalyzer', () => {
 			);
 			const node = graph.get(externalModulePath);
 			expect(node).toBeDefined();
+			expect(node.module.isExternal).toBe(true);
 			expect(node.module.analyzeDependencies).toBe(false);
 			expect(node.dependencies).toHaveLength(0);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('treats additional roots as discovery only unless a rule marks a module external', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-root-discovery-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			const vendorDir = path.join(tempDir, 'vendor', 'shared');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.mkdirSync(vendorDir, { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local helper = require('shared.helper')\nreturn helper\n"
+			);
+			fs.writeFileSync(path.join(vendorDir, 'helper.lua'), 'return {}\n');
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						modules: {
+							roots: ['./src', './vendor'],
+							missing: 'error',
+							rules: {},
+						},
+						bundle: {
+							mode: 'runtime',
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { graph } = analyzer.buildDependencyGraph(config.entry);
+			const node = graph.get(path.join(vendorDir, 'helper.lua'));
+
+			expect(node).toBeDefined();
+			expect(node.module.isExternal).toBe(false);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('skips ignored modules declared by rule mode', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-ignore-rule-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local skipped = require('legacy.temp')\nreturn skipped\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						modules: {
+							roots: ['./src'],
+							missing: 'error',
+							rules: {
+								'legacy.temp': {
+									mode: 'ignore',
+								},
+							},
+						},
+						bundle: {
+							mode: 'runtime',
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { graph, missing, errors } = analyzer.buildDependencyGraph(config.entry);
+
+			expect(graph.size).toBe(1);
+			expect(missing).toHaveLength(0);
+			expect(errors).toHaveLength(0);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('treats missing policy warn as non-fatal', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-missing-warn-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local missing = require('missing.module')\nreturn missing\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						modules: {
+							roots: ['./src'],
+							missing: 'warn',
+							rules: {},
+						},
+						bundle: {
+							mode: 'runtime',
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const result = analyzer.buildDependencyGraph(config.entry);
+
+			expect(result.errors).toHaveLength(0);
+			expect(result.missing).toHaveLength(1);
+			expect(result.missing[0].fatal).toBe(false);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('treats missing policy error as fatal', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-missing-error-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local missing = require('missing.module')\nreturn missing\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						modules: {
+							roots: ['./src'],
+							missing: 'error',
+							rules: {},
+						},
+						bundle: {
+							mode: 'runtime',
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const result = analyzer.buildDependencyGraph(config.entry);
+
+			expect(result.errors).toHaveLength(1);
+			expect(result.missing).toHaveLength(1);
+			expect(result.missing[0].fatal).toBe(true);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}

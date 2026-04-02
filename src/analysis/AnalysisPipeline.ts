@@ -1,5 +1,5 @@
 import { performance } from 'perf_hooks';
-import DependencyAnalyzer from '../DependencyAnalyzer';
+import DependencyAnalyzer from '../dependency';
 import { buildAnalysisContext } from './context/ConfigContextBuilder';
 import { buildModuleCollections } from './core/ModuleCollectionBuilder';
 import { computeModuleSizeSum } from './core/MetricsCalculator';
