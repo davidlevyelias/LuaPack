@@ -39,6 +39,10 @@ class LuaPacker {
 		this.config = this.normalizeConfig(config);
 	}
 
+	isV2Workflow() {
+		return Boolean(this.config && (this.config._v2 || this.config.schemaVersion === 2));
+	}
+
 	normalizeConfig(config) {
 		const sourceRoot = config.sourceRoot
 			? path.resolve(config.sourceRoot)
@@ -179,6 +183,13 @@ class LuaPacker {
 
 	applyObfuscation(bundleContent) {
 		const obfuscation = this.config.obfuscation || { tool: 'none', config: {} };
+		if (this.isV2Workflow() && obfuscation.tool === 'internal') {
+			logger.warn(
+				'Internal obfuscation is not supported in LuaPack v2 and will be ignored.'
+			);
+			return bundleContent;
+		}
+
 		if (obfuscation.tool !== 'internal') {
 			return bundleContent;
 		}

@@ -4,6 +4,7 @@ const path = require('path');
 
 const { BundleGenerator, BundlePlanBuilder } = require('../src/bundle');
 const LuaPacker = require('../src/LuaPacker');
+const logger = require('../src/Logger');
 
 function createTempLuaFile(content = 'return {}') {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-bundle-'));
@@ -44,6 +45,62 @@ describe('BundleGenerator', () => {
 			expect(bundle).toContain('string.char');
 			expect(bundle).toContain('return __lp_chunk(...)');
 		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('LuaPacker ignores internal obfuscation for canonical v2 configs', async () => {
+		const { dir, filePath } = createTempLuaFile('return { value = 42 }');
+		const outputPath = path.join(dir, 'bundle.lua');
+		const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+		const config = {
+			entry: filePath,
+			output: outputPath,
+			sourceRoot: dir,
+			_v2: {
+				schemaVersion: 2,
+				entry: filePath,
+				output: outputPath,
+				modules: {
+					roots: [dir],
+					env: [],
+					missing: 'error',
+					rules: {},
+				},
+				bundle: {
+					mode: 'runtime',
+					fallback: 'external-only',
+				},
+				_compat: { externalRecursive: true },
+			},
+			obfuscation: {
+				tool: 'internal',
+				config: { ascii: true },
+			},
+		};
+		const packer = new LuaPacker(config);
+		const moduleRecord = {
+			moduleName: 'main',
+			filePath,
+			isIgnored: false,
+			isExternal: false,
+		};
+		const analysisResult = {
+			entryModule: moduleRecord,
+			sortedModules: [moduleRecord],
+			metrics: {},
+		};
+
+		try {
+			await packer.pack(analysisResult);
+			const bundle = fs.readFileSync(outputPath, 'utf-8');
+			expect(bundle).not.toContain('string.char');
+			expect(bundle).toContain('modules["main"] = function(...)');
+			expect(warnSpy).toHaveBeenCalledWith(
+				'Internal obfuscation is not supported in LuaPack v2 and will be ignored.'
+			);
+		} finally {
+			warnSpy.mockRestore();
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
 	});
