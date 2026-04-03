@@ -81,13 +81,16 @@ describe('BundleGenerator', () => {
 				'local with_init = module_name .. ".init"'
 			);
 			expect(bundle).toContain('local original_require = require');
+			expect(bundle).toContain('local function __lp_require(module_name, ...)');
 			expect(bundle).toContain(
 				'local result = original_require(module_name)'
 			);
 			expect(bundle).toContain(
 				'local resolved_name = resolve_module_name(module_name)'
 			);
-			expect(bundle).toContain('return require("packages.app.src", ...)');
+			expect(bundle).toContain(
+				'return __lp_require("packages.app.src", ...)'
+			);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
@@ -202,9 +205,78 @@ return module
 
 			expect(bundle).toContain('modules["main"] = function(...)');
 			expect(bundle).not.toContain('modules["sdk"] = function(...)');
+			expect(bundle).toContain('["sdk"] = true');
 			expect(bundlePlan.externalModules).toEqual(['sdk']);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	test('disables runtime fallback when bundle fallback policy is never', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			bundledModules: [],
+			externalModules: ['sdk'],
+			ignoredModules: [],
+			aliases: [],
+			fallbackPolicy: 'never',
+			mode: 'runtime',
+		});
+
+		expect(bundle).toContain('local function can_fallback(module_name)');
+		expect(bundle).toContain('return false');
+		expect(bundle).not.toContain('return external_modules[module_name] == true');
+	});
+
+	test('limits runtime fallback to declared external modules for external-only policy', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			bundledModules: [],
+			externalModules: ['sdk'],
+			ignoredModules: [],
+			aliases: [],
+			fallbackPolicy: 'external-only',
+			mode: 'runtime',
+		});
+
+		expect(bundle).toContain('return external_modules[module_name] == true');
+	});
+
+	test('allows unrestricted runtime fallback for always policy', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			bundledModules: [],
+			externalModules: [],
+			ignoredModules: [],
+			aliases: [],
+			fallbackPolicy: 'always',
+			mode: 'runtime',
+		});
+
+		expect(bundle).toContain('return true');
+	});
+
+	test('uses the typed template when bundle mode is typed', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			bundledModules: [],
+			externalModules: [],
+			ignoredModules: [],
+			aliases: [],
+			fallbackPolicy: 'external-only',
+			mode: 'typed',
+		});
+
+		expect(bundle).toContain('---@alias __lp_ModuleLoader fun(...): any');
+		expect(bundle).toContain('---@type table<string, __lp_ModuleLoader>');
+		expect(bundle).toContain('return __lp_require("main", ...)');
 	});
 });

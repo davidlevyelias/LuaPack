@@ -5,17 +5,36 @@ import type { BundlePlan } from './types';
 
 const TEMPLATE_PLACEHOLDERS = {
 	modules: '-- __MODULE_DEFINITIONS__',
+	externals: '-- __EXTERNAL_MODULES__',
+	fallback: '-- __FALLBACK_LOGIC__',
 	entry: /__ENTRY_MODULE__/g,
 };
 
-let defaultTemplateCache: string | null = null;
+const templateCache = new Map<string, string>();
 
-function getDefaultTemplate(): string {
-	if (!defaultTemplateCache) {
-		const templatePath = path.resolve(__dirname, '../../templates/default.lua');
-		defaultTemplateCache = fs.readFileSync(templatePath, 'utf-8');
+function getTemplate(mode: BundlePlan['mode']): string {
+	const templateName = mode === 'typed' ? 'typed.lua' : 'runtime.lua';
+	if (!templateCache.has(templateName)) {
+		const templatePath = path.resolve(__dirname, `../../templates/${templateName}`);
+		templateCache.set(templateName, fs.readFileSync(templatePath, 'utf-8'));
 	}
-	return defaultTemplateCache;
+	return templateCache.get(templateName)!;
+}
+
+function buildExternalModuleSection(externalModules: string[]): string {
+	return externalModules.map((moduleName) => `	["${moduleName}"] = true,`).join('\n');
+}
+
+function buildFallbackLogic(fallbackPolicy: BundlePlan['fallbackPolicy']): string {
+	if (fallbackPolicy === 'never') {
+		return '    return false';
+	}
+
+	if (fallbackPolicy === 'always') {
+		return '    return true';
+	}
+
+	return '    return external_modules[module_name] == true';
 }
 
 export default class BundleGenerator {
@@ -38,9 +57,15 @@ end`;
 			.join('\n\n');
 
 		const definitionsSection = moduleDefinitions ? `${moduleDefinitions}\n` : '';
+		const externalModulesSection = buildExternalModuleSection(
+			bundlePlan.externalModules
+		);
+		const fallbackLogic = buildFallbackLogic(bundlePlan.fallbackPolicy);
 
-		return getDefaultTemplate()
+		return getTemplate(bundlePlan.mode)
 			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
+			.replace(TEMPLATE_PLACEHOLDERS.externals, externalModulesSection)
+			.replace(TEMPLATE_PLACEHOLDERS.fallback, fallbackLogic)
 			.replace(TEMPLATE_PLACEHOLDERS.entry, bundlePlan.entryModuleName);
 	}
 
