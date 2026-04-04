@@ -23,27 +23,11 @@ export interface WorkflowModulesConfig {
   overrides?: Record<string, { path?: string | null; recursive?: boolean } | undefined>;
 }
 
-export interface WorkflowObfuscationRenameConfig {
-  enabled?: boolean;
-  min?: number;
-  max?: number;
-}
-
-export interface WorkflowObfuscationConfig {
-  tool?: string;
-  config?: {
-    renameVariables?: boolean | WorkflowObfuscationRenameConfig | null;
-    minify?: boolean;
-    ascii?: boolean;
-  } | null;
-}
-
 export interface WorkflowConfig {
   entry: FilePath;
   output: FilePath;
   sourceRoot: FilePath;
   modules?: WorkflowModulesConfig;
-  obfuscation?: WorkflowObfuscationConfig | null;
   _analyzeOnly?: boolean;
   _v2?: V2Config;
 }
@@ -144,19 +128,6 @@ export type AnalysisWarning = string;
 
 export type AnalysisError = Error;
 
-export interface ObfuscationRenameConfig {
-  enabled: boolean;
-  min: number;
-  max: number;
-}
-
-export interface ObfuscationConfig {
-  tool: string;
-  rename: ObfuscationRenameConfig;
-  minify: boolean;
-  ascii: boolean;
-}
-
 export interface DependencyGraphSnapshot {
   [moduleId: ModuleId]: ModuleDependencyEdge[];
 }
@@ -175,7 +146,6 @@ export interface AnalysisResult {
   warnings: AnalysisWarning[];
   errors: AnalysisError[];
   metrics: AnalysisMetrics;
-  obfuscation: ObfuscationConfig;
   context: AnalysisContext;
 }
 

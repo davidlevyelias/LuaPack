@@ -16,7 +16,6 @@ export function buildSummarySection(
 	const moduleCount = analysis.metrics.moduleCount;
 	const ignored = analysis.context?.ignoredPatterns ?? [];
 	const effectiveExternalsSummary = externalsSummary;
-	const renameInfo = analysis.obfuscation?.rename ?? { enabled: false, min: 5, max: 5 };
 	const moduleSize = formatBytes(analysis.metrics.moduleSizeSum);
 	const bundleSize = formatBytes(
 		analysis.metrics.bundleSizeBytes > 0
@@ -81,16 +80,6 @@ export function buildSummarySection(
 		lines.push(...envLines);
 	}
 
-	lines.push(palette.key('Obfuscation:'));
-	const renameMin = typeof renameInfo.min === 'number' ? renameInfo.min : 5;
-	const renameMax = typeof renameInfo.max === 'number' ? renameInfo.max : 5;
-	lines.push(
-		`  ${palette.dot} Variable Rename: ${palette.bool(renameInfo.enabled)} ${palette.muted(
-			`(min=${renameMin}, max=${renameMax})`
-		)}`
-	);
-	lines.push(`  ${palette.dot} Minify         : ${palette.bool(!!analysis.obfuscation?.minify)}`);
-	lines.push(`  ${palette.dot} ASCII          : ${palette.bool(!!analysis.obfuscation?.ascii)}`);
 	lines.push(`${palette.key('Module Size Sum:')} ${palette.value(moduleSize)}`);
 
 	if (!analysis.context?.analyzeOnly) {

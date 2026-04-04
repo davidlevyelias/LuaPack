@@ -1,4 +1,4 @@
-import LuaPacker from '../LuaPacker';
+import { LuaPacker } from '../bundle';
 import { loadConfig } from '../config/ConfigLoader';
 import AnalysisPipeline from '../analysis/AnalysisPipeline';
 import AnalysisReporter from '../analysis/AnalysisReporter';

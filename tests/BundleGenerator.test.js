@@ -2,9 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { BundleGenerator, BundlePlanBuilder } = require('../src/bundle');
-const LuaPacker = require('../src/LuaPacker');
-const logger = require('../src/Logger');
+const { BundleGenerator, BundlePlanBuilder, LuaPacker } = require('../src/bundle');
 
 function createTempLuaFile(content = 'return {}') {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-bundle-'));
@@ -14,17 +12,13 @@ function createTempLuaFile(content = 'return {}') {
 }
 
 describe('BundleGenerator', () => {
-	test('LuaPacker applies ASCII obfuscation after bundling', async () => {
+	test('LuaPacker writes the generated bundle to disk', async () => {
 		const { dir, filePath } = createTempLuaFile('return { value = 42 }');
 		const outputPath = path.join(dir, 'bundle.lua');
 		const config = {
 			entry: filePath,
 			output: outputPath,
 			sourceRoot: dir,
-			obfuscation: {
-				tool: 'internal',
-				config: { ascii: true },
-			},
 		};
 		const packer = new LuaPacker(config);
 		const moduleRecord = {
@@ -42,41 +36,20 @@ describe('BundleGenerator', () => {
 		try {
 			await packer.pack(analysisResult);
 			const bundle = fs.readFileSync(outputPath, 'utf-8');
-			expect(bundle).toContain('string.char');
-			expect(bundle).toContain('return __lp_chunk(...)');
+			expect(bundle).toContain('modules["main"] = function(...)');
+			expect(bundle).toContain('return __lp_require("main", ...)');
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
 	});
 
-	test('LuaPacker ignores internal obfuscation for canonical v2 configs', async () => {
+	test('LuaPacker records bundle size after writing output', async () => {
 		const { dir, filePath } = createTempLuaFile('return { value = 42 }');
 		const outputPath = path.join(dir, 'bundle.lua');
-		const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
 		const config = {
 			entry: filePath,
 			output: outputPath,
 			sourceRoot: dir,
-			_v2: {
-				schemaVersion: 2,
-				entry: filePath,
-				output: outputPath,
-				modules: {
-					roots: [dir],
-					env: [],
-					missing: 'error',
-					rules: {},
-				},
-				bundle: {
-					mode: 'runtime',
-					fallback: 'external-only',
-				},
-				_compat: { externalRecursive: true },
-			},
-			obfuscation: {
-				tool: 'internal',
-				config: { ascii: true },
-			},
 		};
 		const packer = new LuaPacker(config);
 		const moduleRecord = {
@@ -93,14 +66,9 @@ describe('BundleGenerator', () => {
 
 		try {
 			await packer.pack(analysisResult);
-			const bundle = fs.readFileSync(outputPath, 'utf-8');
-			expect(bundle).not.toContain('string.char');
-			expect(bundle).toContain('modules["main"] = function(...)');
-			expect(warnSpy).toHaveBeenCalledWith(
-				'Internal obfuscation is not supported in LuaPack v2 and will be ignored.'
-			);
+			const bundleStats = fs.statSync(outputPath);
+			expect(analysisResult.metrics.bundleSizeBytes).toBe(bundleStats.size);
 		} finally {
-			warnSpy.mockRestore();
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
 	});
@@ -115,10 +83,6 @@ describe('BundleGenerator', () => {
 
 			const config = {
 				sourceRoot: dir,
-				obfuscation: {
-					tool: 'none',
-					config: {},
-				},
 			};
 
 			const generator = new BundleGenerator(config);
@@ -153,63 +117,6 @@ describe('BundleGenerator', () => {
 		}
 	});
 
-	test('LuaPacker renames variables without minifying when minify disabled', async () => {
-		const { dir, filePath } = createTempLuaFile(
-			`local function module()
-	    local value = 42
-	    return value
-	end
-
-return module
-`
-		);
-		const outputPath = path.join(dir, 'bundle.lua');
-		const config = {
-			entry: filePath,
-			output: outputPath,
-			sourceRoot: dir,
-			obfuscation: {
-				tool: 'internal',
-				config: {
-					minify: false,
-					renameVariables: { enabled: true, min: 6, max: 9 },
-				},
-			},
-		};
-		const packer = new LuaPacker(config);
-		const moduleRecord = {
-			moduleName: 'main',
-			filePath,
-			isIgnored: false,
-			isExternal: false,
-		};
-		const analysisResult = {
-			entryModule: moduleRecord,
-			sortedModules: [moduleRecord],
-			metrics: {},
-		};
-
-		try {
-			await packer.pack(analysisResult);
-			const bundle = fs.readFileSync(outputPath, 'utf-8');
-			expect(bundle).not.toContain(
-				'Code generated using github.com/Herrtt/luamin.js'
-			);
-			expect(bundle).not.toMatch(/\bL_\d+_/);
-			const declaredLocals = Array.from(
-				bundle.matchAll(/^local\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)
-			).map((match) => match[1]);
-			expect(declaredLocals.length).toBeGreaterThanOrEqual(3);
-			for (const name of declaredLocals.slice(0, 5)) {
-				expect(name.length).toBeGreaterThanOrEqual(6);
-				expect(name.length).toBeLessThanOrEqual(9);
-				expect(/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)).toBe(true);
-			}
-		} finally {
-			fs.rmSync(dir, { recursive: true, force: true });
-		}
-	});
-
 	test('does not inline modules marked as external in the bundle plan', async () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-bundle-'));
 		try {
@@ -230,10 +137,6 @@ return module
 						mode: 'runtime',
 						fallback: 'external-only',
 					},
-				},
-				obfuscation: {
-					tool: 'none',
-					config: {},
 				},
 			};
 

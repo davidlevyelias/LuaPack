@@ -12,8 +12,6 @@ import type {
 	ModuleRecord,
 	ModuleDependencyEdge,
 	ModuleId,
-	ObfuscationConfig,
-	ObfuscationRenameConfig,
 	WorkflowConfig,
 } from './types';
 
@@ -158,51 +156,10 @@ export default class AnalysisPipeline {
 				estimatedBundleSize: 0,
 				bundleSizeBytes: 0,
 			},
-			obfuscation: this.getObfuscationConfig(),
 			context,
 			success: true,
 			durationMs: 0,
 		};
-	}
-
-	private getObfuscationConfig(): ObfuscationConfig {
-		const toolConfig = this.config.obfuscation ?? { tool: 'none', config: {} };
-		const rawConfig = toolConfig.config ?? {};
-		const rename = this.normalizeRenameConfig(rawConfig.renameVariables);
-		return {
-			tool: toolConfig.tool ?? 'none',
-			rename,
-			minify: Boolean(rawConfig.minify),
-			ascii: Boolean(rawConfig.ascii),
-		};
-	}
-
-	private normalizeRenameConfig(renameValue: unknown): ObfuscationRenameConfig {
-		const defaults: ObfuscationRenameConfig = { enabled: false, min: 5, max: 5 };
-		if (typeof renameValue === 'boolean') {
-			return { ...defaults, enabled: renameValue };
-		}
-		if (renameValue && typeof renameValue === 'object') {
-			const value = renameValue as Record<string, unknown>;
-			const minCandidate = value.min;
-			const maxCandidate = value.max;
-			const enabledCandidate = value.enabled;
-
-			const min = Number.isInteger(minCandidate) && (minCandidate as number) > 0
-				? (minCandidate as number)
-				: defaults.min;
-			let max = Number.isInteger(maxCandidate) && (maxCandidate as number) > 0
-				? (maxCandidate as number)
-				: Math.max(min, defaults.max);
-			if (max < min) {
-				max = min;
-			}
-			const enabled = typeof enabledCandidate === 'boolean'
-				? enabledCandidate
-				: defaults.enabled;
-			return { enabled, min, max };
-		}
-		return { ...defaults };
 	}
 
 	private formatMissing(item: AnalyzerMissingDependency): MissingModuleRecord {

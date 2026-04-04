@@ -6,7 +6,6 @@ export type ReporterError = { message: string } | Error | null | undefined;
 export type ReporterAnalysis = Omit<AnalysisResult, 'warnings' | 'errors'> & {
 	warnings: ReporterWarning[];
 	errors: ReporterError[];
-	obfuscation: AnalysisResult['obfuscation'];
 };
 
 export interface ExternalSummaryModule {

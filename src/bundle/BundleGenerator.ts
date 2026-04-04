@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+import type { WorkflowConfig } from '../analysis/types';
 import type { BundlePlan } from './types';
 
 const TEMPLATE_PLACEHOLDERS = {
@@ -38,7 +39,7 @@ function buildFallbackLogic(fallbackPolicy: BundlePlan['fallbackPolicy']): strin
 }
 
 export default class BundleGenerator {
-	constructor(private readonly config: Record<string, unknown>) {}
+	constructor(private readonly config: WorkflowConfig) {}
 
 	createBundleTemplate(bundlePlan: BundlePlan): string {
 		const moduleDefinitions = bundlePlan.bundledModules

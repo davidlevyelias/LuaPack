@@ -36,7 +36,6 @@ export interface SerializableAnalysisPayload {
 		}
 	>;
 	metrics: AnalysisResult['metrics'];
-	obfuscation: AnalysisResult['obfuscation'];
 	warnings: string[];
 	errors: string[];
 	success: boolean;
@@ -90,7 +89,6 @@ export function buildSerializablePayload(
 			prefix: item.prefix,
 		})),
 		metrics: analysis.metrics,
-		obfuscation: analysis.obfuscation,
 		warnings: warningData.map((entry) => entry.message),
 		errors: errorData.map((entry) => entry.message),
 		success: analysis.success,
