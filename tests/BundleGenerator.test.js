@@ -419,12 +419,12 @@ describe('BundleGenerator', () => {
 					{
 						moduleName: 'main',
 						filePath: 'main.lua',
-						content: '---@alias SharedMode "a"|"b"\nreturn {}',
+						content: 'local pad = true\n---@alias SharedMode "a"|"b"\nreturn {}',
 					},
 					{
 						moduleName: 'secondary',
 						filePath: 'vendor/secondary.lua',
-						content: '---@alias SharedMode "c"|"d"\nreturn {}',
+						content: 'local pad = true\nlocal extra = true\n---@alias SharedMode "c"|"d"\nreturn {}',
 					},
 				],
 				externalModules: [],
@@ -434,7 +434,7 @@ describe('BundleGenerator', () => {
 				mode: 'typed',
 			})
 		).rejects.toThrow(
-			/Typed declaration conflict for 'SharedMode'.*main\.lua.*vendor\/secondary\.lua.*Existing:.*Conflicting:/
+			/Typed declaration conflict for 'SharedMode'.*main\.lua:2.*vendor\/secondary\.lua:3.*Existing:.*Conflicting:/
 		);
 	});
 });

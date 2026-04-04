@@ -10,6 +10,7 @@ interface ExtractedDeclaration {
 	normalizedBlock: string;
 	moduleName: string;
 	filePath: string;
+	declarationLine: number;
 }
 
 interface ProcessedTypedModules {
@@ -39,8 +40,8 @@ export function processTypedModules(bundledModules: BundledModule[]): ProcessedT
 				throw new Error(
 					[
 						`Typed declaration conflict for '${declaration.name}'.`,
-						`First declaration: ${existing.filePath} (${existing.moduleName})`,
-						`Conflicting declaration: ${declaration.filePath} (${declaration.moduleName})`,
+						`First declaration: ${formatSourceLocation(existing)} (${existing.moduleName})`,
+						`Conflicting declaration: ${formatSourceLocation(declaration)} (${declaration.moduleName})`,
 						`Existing: ${summarizeDeclaration(existing.block)}`,
 						`Conflicting: ${summarizeDeclaration(declaration.block)}`,
 					].join(' ')
@@ -102,6 +103,7 @@ function extractTypedDeclarations(content: string, moduleName: string, filePath:
 			normalizedBlock: normalizeDeclarationBlock(blockLines),
 			moduleName,
 			filePath,
+			declarationLine: index + 1,
 		});
 
 		index = scanIndex - 1;
@@ -168,4 +170,8 @@ function findLeadingCommentStart(lines: string[], declarationIndex: number): num
 
 function summarizeDeclaration(block: string): string {
 	return block.replace(/\s+/g, ' ').trim();
+}
+
+function formatSourceLocation(declaration: Pick<ExtractedDeclaration, 'filePath' | 'declarationLine'>): string {
+	return `${declaration.filePath}:${declaration.declarationLine}`;
 }
