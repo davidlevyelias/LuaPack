@@ -7,6 +7,7 @@ import {
 	parseBundleMode,
 	parseFallbackMode,
 	parseMissingPolicy,
+	parseReportFormat,
 	parseEnvOption,
 	parseLogLevel,
 	printBundleSuccess,
@@ -23,6 +24,7 @@ export {
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
+	parseReportFormat,
 	printBundleSuccess,
 	printReportSuccess,
 };

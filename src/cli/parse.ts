@@ -5,8 +5,10 @@ import type { BundleMode, FallbackMode } from '../config/loader';
 import {
 	VALID_LOG_LEVELS,
 	VALID_MISSING_POLICIES,
+	VALID_REPORT_FORMATS,
 	type CliMissingPolicy,
 	type LogLevel,
+	type ReportFormat,
 } from './types';
 
 export function parseLogLevel(value: string): LogLevel {
@@ -78,5 +80,15 @@ export function parseFallbackMode(value: string): FallbackMode {
 	}
 	throw new InvalidArgumentError(
 		`Expected one of: ${Array.from(FALLBACK_MODES).join(', ')}`
+	);
+}
+
+export function parseReportFormat(value: string): ReportFormat {
+	const normalized = String(value).trim().toLowerCase();
+	if ((VALID_REPORT_FORMATS as readonly string[]).includes(normalized)) {
+		return normalized as ReportFormat;
+	}
+	throw new InvalidArgumentError(
+		`Expected one of: ${VALID_REPORT_FORMATS.join(', ')}`
 	);
 }

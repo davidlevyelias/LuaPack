@@ -38,9 +38,9 @@ export default class AnalysisReporter {
 
 	private readonly useColor: boolean;
 
-	constructor({ logger }: { logger?: ReporterLogger } = {}) {
+	constructor({ logger, useColor }: { logger?: ReporterLogger; useColor?: boolean } = {}) {
 		this.logger = logger || console;
-		this.useColor = supportsColor();
+		this.useColor = typeof useColor === 'boolean' ? useColor : supportsColor();
 	}
 
 	printConsoleReport(
@@ -151,12 +151,16 @@ export default class AnalysisReporter {
 	async writeReport(
 		filePath: string,
 		analysis: ReporterAnalysis,
-		{ verbose = false }: { verbose?: boolean } = {}
+		{
+			verbose = false,
+			format,
+		}: { verbose?: boolean; format?: 'text' | 'json' } = {}
 	): Promise<string> {
 		const resolvedPath = path.resolve(filePath);
 		const ext = path.extname(resolvedPath).toLowerCase();
+		const effectiveFormat = format || (ext === '.json' ? 'json' : 'text');
 
-		if (ext === '.json') {
+		if (effectiveFormat === 'json') {
 			const serializable = buildSerializablePayload(analysis, {
 				verbose,
 			});

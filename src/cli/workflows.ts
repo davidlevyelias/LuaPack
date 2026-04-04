@@ -5,7 +5,12 @@ import { loadConfig } from '../config/ConfigLoader';
 import logger from '../Logger';
 
 import type { CliOptions } from './types';
-import { printBundleSuccess, printCliHeader, printReportSuccess } from './output';
+import {
+	printBundleSuccess,
+	printCliHeader,
+	printConfigSnapshot,
+	printReportSuccess,
+} from './output';
 
 type WorkflowContext = {
 	analysis: ReturnType<AnalysisPipeline['run']>;
@@ -13,14 +18,8 @@ type WorkflowContext = {
 	packer: LuaPacker;
 };
 
-function createWorkflowContext(
-	entry: string | undefined,
-	options: CliOptions,
-	packageVersion: string,
-	{ analyzeOnly }: { analyzeOnly: boolean }
-): WorkflowContext {
-	printCliHeader({ analyzeOnly, packageVersion });
-	const config = loadConfig({
+function loadWorkflowConfig(entry: string | undefined, options: CliOptions) {
+	return loadConfig({
 		entry,
 		output: options.output,
 		root: options.root,
@@ -30,6 +29,17 @@ function createWorkflowContext(
 		mode: options.mode,
 		fallback: options.fallback,
 	});
+}
+
+function createWorkflowContext(
+	entry: string | undefined,
+	options: CliOptions,
+	packageVersion: string,
+	{ analyzeOnly }: { analyzeOnly: boolean }
+): WorkflowContext {
+	const useColor = options.color !== false;
+	printCliHeader({ analyzeOnly, packageVersion, useColor });
+	const config = loadWorkflowConfig(entry, options);
 
 	if (analyzeOnly) {
 		config._analyzeOnly = true;
@@ -41,7 +51,7 @@ function createWorkflowContext(
 
 	return {
 		analysis: analysisPipeline.run(),
-		reporter: new AnalysisReporter({ logger }),
+		reporter: new AnalysisReporter({ logger, useColor }),
 		packer,
 	};
 }
@@ -51,15 +61,26 @@ export async function runAnalyzeWorkflow(
 	options: CliOptions,
 	packageVersion: string
 ) {
+	if (options.printConfig) {
+		const config = loadWorkflowConfig(entry, options);
+		printConfigSnapshot(config._v2);
+		return;
+	}
+
 	const context = createWorkflowContext(entry, options, packageVersion, {
 		analyzeOnly: true,
 	});
 	let reportPath: string | null = null;
 
 	if (options.output) {
-		reportPath = await context.reporter.writeReport(options.output, context.analysis, {
-			verbose: Boolean(options.verbose),
-		});
+		reportPath = await context.reporter.writeReport(
+			options.output,
+			context.analysis,
+			{
+				verbose: Boolean(options.verbose),
+				format: options.format,
+			}
+		);
 	}
 
 	context.reporter.printConsoleReport(context.analysis, {
@@ -67,7 +88,7 @@ export async function runAnalyzeWorkflow(
 	});
 
 	if (reportPath) {
-		printReportSuccess(reportPath);
+		printReportSuccess(reportPath, { useColor: options.color !== false });
 	}
 
 	if (!context.analysis.success) {
@@ -80,6 +101,12 @@ export async function runBundleWorkflow(
 	options: CliOptions,
 	packageVersion: string
 ) {
+	if (options.printConfig) {
+		const config = loadWorkflowConfig(entry, options);
+		printConfigSnapshot(config._v2);
+		return;
+	}
+
 	const context = createWorkflowContext(entry, options, packageVersion, {
 		analyzeOnly: false,
 	});
@@ -100,7 +127,7 @@ export async function runBundleWorkflow(
 	});
 
 	if (bundlePath && context.analysis.success) {
-		printBundleSuccess(bundlePath);
+		printBundleSuccess(bundlePath, { useColor: options.color !== false });
 	}
 
 	if (!context.analysis.success) {

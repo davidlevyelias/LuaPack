@@ -1,17 +1,28 @@
 import colors from 'ansi-colors';
+import type { V2Config } from '../config/loader/types';
 
 import logger from '../Logger';
+
+function applyColor(
+	useColor: boolean,
+	formatter: (value: string) => string,
+	value: string
+): string {
+	return useColor ? formatter(value) : value;
+}
 
 export function printCliHeader({
 	analyzeOnly,
 	packageVersion,
+	useColor = true,
 }: {
 	analyzeOnly: boolean;
 	packageVersion: string;
+	useColor?: boolean;
 }) {
-	const title = colors.bgBlue.white.bold(` LuaPack v${packageVersion} `);
+	const title = applyColor(useColor, colors.bgBlue.white.bold, ` LuaPack v${packageVersion} `);
 	const modeLabel = analyzeOnly
-		? colors.bgMagenta.white.bold(' ANALYSIS MODE ')
+		? applyColor(useColor, colors.bgMagenta.white.bold, ' ANALYSIS MODE ')
 		: null;
 	const headerLine = [title, modeLabel].filter(Boolean).join(' ');
 	logger.info('');
@@ -19,16 +30,20 @@ export function printCliHeader({
 	logger.info('');
 }
 
-export function printBundleSuccess(bundlePath: string) {
-	const label = colors.green('Bundle successfully created at:');
-	const formattedPath = colors.bold.underline(bundlePath);
+export function printBundleSuccess(bundlePath: string, { useColor = true }: { useColor?: boolean } = {}) {
+	const label = applyColor(useColor, colors.green, 'Bundle successfully created at:');
+	const formattedPath = applyColor(useColor, colors.bold.underline, bundlePath);
 	logger.info('');
 	logger.info(`${label} ${formattedPath}`);
 }
 
-export function printReportSuccess(reportPath: string) {
-	const label = colors.green('Analysis report saved to:');
-	const formattedPath = colors.bold.underline(reportPath);
+export function printReportSuccess(reportPath: string, { useColor = true }: { useColor?: boolean } = {}) {
+	const label = applyColor(useColor, colors.green, 'Analysis report saved to:');
+	const formattedPath = applyColor(useColor, colors.bold.underline, reportPath);
 	logger.info('');
 	logger.info(`${label} ${formattedPath}`);
+}
+
+export function printConfigSnapshot(config: V2Config) {
+	process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
 }

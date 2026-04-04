@@ -10,7 +10,9 @@ export async function executeCliAction(
 	packageVersion: string
 ) {
 	try {
-		if (options.logLevel) {
+		if (options.quiet) {
+			logger.setLevel('warn');
+		} else if (options.logLevel) {
 			logger.setLevel(options.logLevel);
 		}
 		if (commandName === 'analyze') {

@@ -4,6 +4,7 @@ const {
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
+	parseReportFormat,
 } = require('../src/index');
 
 function exitOverrideRecursively(program) {
@@ -46,6 +47,13 @@ describe('CLI', () => {
 		);
 	});
 
+	test('accepts only supported analyze report formats', () => {
+		expect(parseReportFormat('JSON')).toBe('json');
+		expect(() => parseReportFormat('yaml')).toThrow(
+			'Expected one of: text, json'
+		);
+	});
+
 	test('passes parsed bundle CLI values into the action handler', async () => {
 		const action = jest.fn().mockResolvedValue(undefined);
 		const cli = createProgram(action);
@@ -67,6 +75,9 @@ describe('CLI', () => {
 			'typed',
 			'--fallback',
 			'always',
+			'--no-color',
+			'--quiet',
+			'--print-config',
 			'--log-level',
 			'debug',
 		]);
@@ -75,12 +86,15 @@ describe('CLI', () => {
 			'bundle',
 			'main.lua',
 			expect.objectContaining({
+				color: false,
 				command: 'bundle',
 				envVar: ['LUA_PATH', 'LUA_CPATH'],
 				fallback: 'always',
 				logLevel: 'debug',
 				missing: 'warn',
 				mode: 'typed',
+				printConfig: true,
+				quiet: true,
 				root: ['src'],
 			}),
 		);
@@ -95,6 +109,11 @@ describe('CLI', () => {
 			'luapack',
 			'analyze',
 			'main.lua',
+			'--no-color',
+			'--quiet',
+			'--print-config',
+			'--format',
+			'json',
 			'--verbose',
 			'--output',
 			'report.txt',
@@ -104,8 +123,12 @@ describe('CLI', () => {
 			'analyze',
 			'main.lua',
 			expect.objectContaining({
+				color: false,
 				command: 'analyze',
+				format: 'json',
 				output: 'report.txt',
+				printConfig: true,
+				quiet: true,
 				verbose: true,
 			})
 		);

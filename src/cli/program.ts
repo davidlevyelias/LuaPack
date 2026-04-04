@@ -7,13 +7,26 @@ import {
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
+	parseReportFormat,
 } from './parse';
 import { executeCliAction } from './executeCliAction';
 
-function addCommonOptions(command: Command, { includeVerbose }: { includeVerbose: boolean }) {
+function addCommonOptions(
+	command: Command,
+	{
+		includeVerbose,
+		includeFormat,
+	}: {
+		includeVerbose: boolean;
+		includeFormat: boolean;
+	}
+) {
 	command
 		.option('-c, --config <file>', 'Path to a luapack.config.json file.')
 		.option('-o, --output <file>', 'Output file for the generated artifact or analysis report.')
+		.option('--no-color', 'Disable ANSI color output.')
+		.option('--quiet', 'Suppress informational CLI output and keep warnings/errors only.')
+		.option('--print-config', 'Print the effective normalized v2 config and exit.')
 		.option(
 			'--root <path>',
 			'Module search root. Repeat to replace the effective root set.',
@@ -51,6 +64,14 @@ function addCommonOptions(command: Command, { includeVerbose }: { includeVerbose
 		command.option('--verbose', 'Print verbose analysis details (tree and order).');
 	}
 
+	if (includeFormat) {
+		command.option(
+			'--format <format>',
+			'Analysis report format (text, json).',
+			parseReportFormat
+		);
+	}
+
 	return command;
 }
 
@@ -72,7 +93,7 @@ export function createProgram(
 		program
 			.command('bundle [entry]')
 			.description('Analyze the dependency graph and build a bundle.'),
-		{ includeVerbose: false }
+		{ includeVerbose: false, includeFormat: false }
 	).action((entry: string | undefined, options: CliOptions) => {
 		return action('bundle', entry, { ...options, command: 'bundle' });
 	});
@@ -81,7 +102,7 @@ export function createProgram(
 		program
 			.command('analyze [entry]')
 			.description('Analyze the dependency graph and optionally write a report.'),
-		{ includeVerbose: true }
+		{ includeVerbose: true, includeFormat: true }
 	).action((entry: string | undefined, options: CliOptions) => {
 		return action('analyze', entry, { ...options, command: 'analyze' });
 	});
