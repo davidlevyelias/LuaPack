@@ -3,8 +3,10 @@ import path from 'path';
 
 import type { WorkflowConfig } from '../analysis/types';
 import type { BundlePlan } from './types';
+import { processTypedModules } from './typedDeclarations';
 
 const TEMPLATE_PLACEHOLDERS = {
+	declarations: '-- __TYPE_DECLARATIONS__',
 	modules: '-- __MODULE_DEFINITIONS__',
 	externals: '-- __EXTERNAL_MODULES__',
 	fallback: '-- __FALLBACK_LOGIC__',
@@ -42,7 +44,12 @@ export default class BundleGenerator {
 	constructor(private readonly config: WorkflowConfig) {}
 
 	createBundleTemplate(bundlePlan: BundlePlan): string {
-		const moduleDefinitions = bundlePlan.bundledModules
+		const typedModules =
+			bundlePlan.mode === 'typed'
+				? processTypedModules(bundlePlan.bundledModules)
+				: { declarationsBlock: '', modules: bundlePlan.bundledModules };
+
+		const moduleDefinitions = typedModules.modules
 			.map(({ moduleName, content }) => {
 				const normalizedContent = content
 					.replace(/\r\n/g, '\n')
@@ -62,8 +69,12 @@ end`;
 			bundlePlan.externalModules
 		);
 		const fallbackLogic = buildFallbackLogic(bundlePlan.fallbackPolicy);
+		const declarationsSection = typedModules.declarationsBlock
+			? `${typedModules.declarationsBlock}\n\n`
+			: '';
 
 		return getTemplate(bundlePlan.mode)
+			.replace(TEMPLATE_PLACEHOLDERS.declarations, declarationsSection)
 			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
 			.replace(TEMPLATE_PLACEHOLDERS.externals, externalModulesSection)
 			.replace(TEMPLATE_PLACEHOLDERS.fallback, fallbackLogic)

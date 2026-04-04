@@ -1,5 +1,7 @@
 ---@alias __lp_ModuleLoader fun(...): any
 
+-- __TYPE_DECLARATIONS__
+
 ---@type table<string, __lp_ModuleLoader>
 local modules = {}
 ---@type table<string, any>

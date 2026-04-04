@@ -239,4 +239,88 @@ describe('BundleGenerator', () => {
 		expect(bundle).toContain('---@type table<string, __lp_ModuleLoader>');
 		expect(bundle).toContain('return __lp_require("main", ...)');
 	});
+
+	test('hoists LuaCATS declarations in typed mode', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			bundledModules: [
+				{
+					moduleName: 'main',
+					filePath: 'main.lua',
+					content: [
+						'---@class DemoWidget',
+						'---@field label string',
+						'local DemoWidget = {}',
+						'return DemoWidget',
+					].join('\n'),
+				},
+			],
+			externalModules: [],
+			ignoredModules: [],
+			aliases: [],
+			fallbackPolicy: 'external-only',
+			mode: 'typed',
+		});
+
+		expect(bundle).toContain('---@class DemoWidget\n---@field label string');
+		expect(bundle).toContain('modules["main"] = function(...)\n\tlocal DemoWidget = {}');
+		expect(bundle).not.toContain('modules["main"] = function(...)\n\t---@class DemoWidget');
+	});
+
+	test('dedupes identical LuaCATS declarations in typed mode', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			bundledModules: [
+				{
+					moduleName: 'main',
+					filePath: 'main.lua',
+					content: '---@alias SharedMode "a"|"b"\nreturn {}',
+				},
+				{
+					moduleName: 'secondary',
+					filePath: 'secondary.lua',
+					content: '---@alias SharedMode "a"|"b"\nreturn {}',
+				},
+			],
+			externalModules: [],
+			ignoredModules: [],
+			aliases: [],
+			fallbackPolicy: 'external-only',
+			mode: 'typed',
+		});
+
+		expect(bundle.match(/---@alias SharedMode/g)).toHaveLength(1);
+	});
+
+	test('fails on conflicting LuaCATS declarations in typed mode', async () => {
+		const config = { sourceRoot: process.cwd() };
+		const generator = new BundleGenerator(config);
+
+		await expect(
+			generator.generateBundle({
+				entryModuleName: 'main',
+				bundledModules: [
+					{
+						moduleName: 'main',
+						filePath: 'main.lua',
+						content: '---@alias SharedMode "a"|"b"\nreturn {}',
+					},
+					{
+						moduleName: 'secondary',
+						filePath: 'secondary.lua',
+						content: '---@alias SharedMode "c"|"d"\nreturn {}',
+					},
+				],
+				externalModules: [],
+				ignoredModules: [],
+				aliases: [],
+				fallbackPolicy: 'external-only',
+				mode: 'typed',
+			})
+		).rejects.toThrow(/Typed declaration conflict for 'SharedMode'/);
+	});
 });
