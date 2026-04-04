@@ -40,6 +40,11 @@ export interface CliOptions {
 	config?: string;
 	entry?: string;
 	output?: string;
+	root?: string[];
+	missing?: MissingPolicy;
+	envVar?: string[];
+	mode?: BundleMode;
+	fallback?: FallbackMode;
 	sourceroot?: string;
 	renameVariables?: boolean;
 	minify?: boolean;

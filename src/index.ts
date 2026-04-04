@@ -4,6 +4,9 @@ import { version as packageVersion } from '../package.json';
 import {
 	createProgram as createCliProgram,
 	executeCliAction as executeCliWorkflow,
+	parseBundleMode,
+	parseFallbackMode,
+	parseMissingPolicy,
 	parseEnvOption,
 	parseLogLevel,
 	printBundleSuccess,
@@ -14,21 +17,31 @@ import {
 
 export type { CliOptions, LogLevel } from './cli';
 
-export { parseEnvOption, parseLogLevel, printBundleSuccess, printReportSuccess };
+export {
+	parseEnvOption,
+	parseBundleMode,
+	parseFallbackMode,
+	parseLogLevel,
+	parseMissingPolicy,
+	printBundleSuccess,
+	printReportSuccess,
+};
 
 export function printCliHeader({ analyzeOnly }: { analyzeOnly: boolean }) {
 	return printCliHeaderMessage({ analyzeOnly, packageVersion });
 }
 
 export async function executeCliAction(
+	commandName: import('./cli').CommandName,
 	entry: string | undefined,
 	options: import('./cli').CliOptions
 ) {
-	return executeCliWorkflow(entry, options, packageVersion);
+	return executeCliWorkflow(commandName, entry, options, packageVersion);
 }
 
 export function createProgram(
 	action: (
+		commandName: import('./cli').CommandName,
 		entry: string | undefined,
 		options: import('./cli').CliOptions
 	) => Promise<void> = executeCliAction

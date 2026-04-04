@@ -53,6 +53,27 @@ describe('ConfigLoader', () => {
 		});
 	});
 
+	test('applies CLI bundle overrides before v1-to-v2 normalization', () => {
+		const configPath = path.join(tempDir, 'luapack.config.json');
+		const configContent = {
+			entry: './src/main.lua',
+			output: './dist/out.lua',
+		};
+
+		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
+
+		const config = loadConfig({
+			config: configPath,
+			mode: 'typed',
+			fallback: 'never',
+		});
+
+		expect(config._v2.bundle).toEqual({
+			mode: 'typed',
+			fallback: 'never',
+		});
+	});
+
 	test('derives default output when omitted', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {

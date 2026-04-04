@@ -27,7 +27,9 @@ export function normalizePathsV1(
 	}
 
 	if (finalConfig.sourceRoot) {
-		const origin = cliOptions.sourceroot ? cwd : baseDir;
+		const origin = cliOptions.sourceroot || (cliOptions.root && cliOptions.root.length > 0)
+			? cwd
+			: baseDir;
 		finalConfig.sourceRoot = path.resolve(origin, finalConfig.sourceRoot);
 	}
 

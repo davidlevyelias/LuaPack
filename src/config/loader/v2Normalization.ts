@@ -111,6 +111,7 @@ export function normalizeToV2Config(config: RawConfig, version: ConfigVersion): 
 	const sourceRoot = config.sourceRoot || path.dirname(config.entry!);
 	const externalPaths = Array.isArray(externalConfig.paths) ? externalConfig.paths : [];
 	const env = Array.isArray(externalConfig.env) ? externalConfig.env : ['LUA_PATH'];
+	const bundleConfig = config.bundle || {};
 	const rules: Record<string, NormalizedRule> = {};
 
 	const ignored = Array.isArray(modulesConfig.ignore) ? modulesConfig.ignore : [];
@@ -152,7 +153,16 @@ export function normalizeToV2Config(config: RawConfig, version: ConfigVersion): 
 			missing: modulesConfig.ignoreMissing ? 'warn' : 'error',
 			rules,
 		},
-		bundle: { mode: 'runtime', fallback: 'external-only' },
+		bundle: {
+			mode:
+				typeof bundleConfig.mode === 'string' && BUNDLE_MODES.has(bundleConfig.mode)
+					? (bundleConfig.mode as BundleMode)
+					: 'runtime',
+			fallback:
+				typeof bundleConfig.fallback === 'string' && FALLBACK_MODES.has(bundleConfig.fallback)
+					? (bundleConfig.fallback as FallbackMode)
+					: 'external-only',
+		},
 		_compat: {
 			externalRecursive:
 				typeof externalConfig.recursive === 'boolean'

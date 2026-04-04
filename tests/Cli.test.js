@@ -1,33 +1,24 @@
 const {
 	createProgram,
-	parseEnvOption,
+	parseBundleMode,
+	parseFallbackMode,
 	parseLogLevel,
+	parseMissingPolicy,
 } = require('../src/index');
+
+function exitOverrideRecursively(program) {
+	program.exitOverride();
+	program.commands.forEach((command) => command.exitOverride());
+}
 
 describe('CLI', () => {
 	test('does not expose obfuscation flags in the command surface', () => {
 		const cli = createProgram(async () => {});
-		const optionFlags = cli.options.map((option) => option.long);
+		const subcommands = cli.commands.map((command) => command.name());
 
 		expect(cli.description()).toBe('A modern Lua bundler and analyzer.');
-		expect(optionFlags).not.toContain('--rename-variables');
-		expect(optionFlags).not.toContain('--minify');
-		expect(optionFlags).not.toContain('--ascii');
-	});
-
-	test('parses env option as a trimmed list and supports explicit disable', () => {
-		expect(parseEnvOption('LUA_PATH, LUA_CPATH')).toEqual([
-			'LUA_PATH',
-			'LUA_CPATH',
-		]);
-		expect(parseEnvOption('')).toEqual([]);
-		expect(parseEnvOption(undefined)).toBeUndefined();
-	});
-
-	test('rejects env option entries with empty items', () => {
-		expect(() => parseEnvOption('LUA_PATH,,CUSTOM_PATH')).toThrow(
-			'Expected a comma-separated list of non-empty environment variable names'
-		);
+		expect(subcommands).toEqual(expect.arrayContaining(['bundle', 'analyze']));
+		expect(subcommands).not.toContain('completion');
 	});
 
 	test('accepts only supported log levels', () => {
@@ -37,48 +28,114 @@ describe('CLI', () => {
 		);
 	});
 
-	test('passes parsed CLI values into the action handler', async () => {
+	test('accepts only supported missing policies', () => {
+		expect(parseMissingPolicy('WARN')).toBe('warn');
+		expect(() => parseMissingPolicy('skip')).toThrow(
+			'Expected one of: error, warn, ignore'
+		);
+	});
+
+	test('accepts only supported bundle modes and fallback policies', () => {
+		expect(parseBundleMode('typed')).toBe('typed');
+		expect(parseFallbackMode('ALWAYS')).toBe('always');
+		expect(() => parseBundleMode('packed')).toThrow(
+			'Expected one of: runtime, typed'
+		);
+		expect(() => parseFallbackMode('sometimes')).toThrow(
+			'Expected one of: never, external-only, always'
+		);
+	});
+
+	test('passes parsed bundle CLI values into the action handler', async () => {
 		const action = jest.fn().mockResolvedValue(undefined);
 		const cli = createProgram(action);
 
 		await cli.parseAsync([
 			'node',
 			'luapack',
+			'bundle',
 			'main.lua',
-			'--env',
-			'LUA_PATH, LUA_CPATH',
+			'--env-var',
+			'LUA_PATH',
+			'--env-var',
+			'LUA_CPATH',
+			'--root',
+			'src',
+			'--missing',
+			'warn',
+			'--mode',
+			'typed',
+			'--fallback',
+			'always',
 			'--log-level',
 			'debug',
-			'--analyze',
-			'--verbose',
 		]);
 
 		expect(action).toHaveBeenCalledWith(
+			'bundle',
 			'main.lua',
 			expect.objectContaining({
-				analyze: true,
-				env: ['LUA_PATH', 'LUA_CPATH'],
+				command: 'bundle',
+				envVar: ['LUA_PATH', 'LUA_CPATH'],
+				fallback: 'always',
 				logLevel: 'debug',
-				verbose: true,
+				missing: 'warn',
+				mode: 'typed',
+				root: ['src'],
 			}),
-			expect.any(Object)
+		);
+	});
+
+	test('passes analyze-specific options into the action handler', async () => {
+		const action = jest.fn().mockResolvedValue(undefined);
+		const cli = createProgram(action);
+
+		await cli.parseAsync([
+			'node',
+			'luapack',
+			'analyze',
+			'main.lua',
+			'--verbose',
+			'--output',
+			'report.txt',
+		]);
+
+		expect(action).toHaveBeenCalledWith(
+			'analyze',
+			'main.lua',
+			expect.objectContaining({
+				command: 'analyze',
+				output: 'report.txt',
+				verbose: true,
+			})
 		);
 	});
 
 	test('fails parsing when log-level is invalid', async () => {
 		const cli = createProgram(async () => {});
-		cli.exitOverride();
+		exitOverrideRecursively(cli);
 
 		await expect(
 			cli.parseAsync([
 				'node',
 				'luapack',
+				'bundle',
 				'main.lua',
 				'--log-level',
 				'trace',
 			])
 		).rejects.toMatchObject({
 			code: 'commander.invalidArgument',
+		});
+	});
+
+	test('fails when no subcommand is provided', async () => {
+		const cli = createProgram(async () => {});
+		exitOverrideRecursively(cli);
+
+		await expect(cli.parseAsync(['node', 'luapack'])).rejects.toMatchObject({
+			code: 'luapack.subcommandRequired',
+			exitCode: 2,
 		});
 	});
 });

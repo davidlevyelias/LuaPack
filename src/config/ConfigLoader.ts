@@ -39,6 +39,14 @@ export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
 			? normalizePathsV2(configCopy, cliOptions, baseDir)
 			: normalizePathsV1(configCopy, cliOptions, baseDir);
 
+	if (cliOptions.mode || cliOptions.fallback) {
+		pathNormalized.bundle = {
+			...(pathNormalized.bundle || {}),
+			...(cliOptions.mode ? { mode: cliOptions.mode } : {}),
+			...(cliOptions.fallback ? { fallback: cliOptions.fallback } : {}),
+		};
+	}
+
 	const normalizedV2 = normalizeToV2Config(pathNormalized, configVersion);
 	const outputConfig: LegacyFacadeOutput = buildLegacyFacade(normalizedV2);
 
