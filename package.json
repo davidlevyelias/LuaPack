@@ -2,7 +2,7 @@
   "name": "@davidlevyelias/luapack",
   "author": "David Levy Elias",
   "version": "1.1.1",
-  "description": "A modern Lua packer tool.",
+  "description": "A modern Lua bundler and analyzer.",
   "main": "build/index.js",
   "bin": {
     "luapack": "build/index.js"
@@ -21,14 +21,14 @@
     "test": "jest --config jest.config.cjs",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
-    "pack:example": "npm run build && node build/index.js --verbose --config examples/demo/basic.luapack.config.json && lua dist/demo_basic_bundle.lua",
+    "pack:example": "npm run build && node build/index.js bundle --config examples/demo/basic.luapack.config.json && lua dist/demo_basic_bundle.lua",
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "keywords": [
     "lua",
     "packer",
     "bundler",
-    "obfuscator"
+    "analysis"
   ],
   "license": "MIT",
   "repository": {

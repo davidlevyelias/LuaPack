@@ -1,16 +1,15 @@
 # LuaPack
 
-LuaPack is a Node.js command-line tool that bundles Lua projects into a single distributable script. It walks your Lua dependency graph, inlines the modules in execution order, and can optionally obfuscate the output to make it harder to reverse-engineer.
-The packer follows explicit `require` statements and only includes `.lua` sources.
+LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and producing a single distributable bundle. It follows explicit `require` statements, resolves project and external module roots, and emits either a runtime bundle or a typed bundle with hoisted LuaCATS declarations.
 
 ## Features
 
-- Resolves `require` statements starting from an entry Lua file and builds a dependency graph.
-- Understands Lua `require` calls with or without parentheses, including long-string module identifiers.
-- Generates a self-contained Lua bundle with a custom lightweight `require` loader.
-- Honors module metadata such as ignore lists, overrides, and external module hints supplied through configuration.
-- Integrates optional obfuscation via `lua-format` minification, symbol renaming, and ASCII string encoding.
-- Validates configuration with JSON Schema so mistakes are caught before the bundle step.
+- Resolves static `require` statements starting from an entry Lua file.
+- Builds dependency analysis output in text or JSON form.
+- Generates self-contained runtime bundles with controlled fallback behavior.
+- Generates typed bundles that hoist LuaCATS declarations.
+- Supports per-module rules for bundled, external, and ignored modules.
+- Validates configuration against the canonical v2 schema before execution.
 
 ## Installation
 
@@ -20,24 +19,45 @@ npm install @davidlevyelias/luapack
 
 ## CLI Usage
 
-The CLI is exposed through the `luapack` binary (also runnable with `node index.js`).
+The CLI is exposed through the `luapack` binary.
 
 ```bash
-luapack [entry] [options]
+luapack <command> [entry] [options]
 ```
+
+Available commands:
+
+- `luapack bundle [entry]`: Analyze the dependency graph and emit a bundle.
+- `luapack analyze [entry]`: Analyze the dependency graph and print or write a report.
 
 Common options:
 
-- `-o, --output <file>`: Override the bundle path (or report path when `--analyze` is used).
 - `-c, --config <file>`: Point to a `luapack.config.json` file.
-- `--sourceroot <path>`: Set the root directory used when resolving `require` statements.
-- `--analyze`: Skip bundling and emit the analysis report only.
-- `--ignore-missing`: Continue even when modules cannot be resolved.
-- `--env <vars>`: Comma-separated env variables to scan for external module paths (empty string disables).
+- `-o, --output <file>`: Override the bundle path or report path.
+- `--root <path>`: Add a module search root. Repeat to replace the effective root set.
+- `--missing <policy>`: Missing-module policy: `error`, `warn`, or `ignore`.
+- `--env-var <name>`: Add an environment variable to inspect for module roots. Repeatable.
+- `--mode <mode>`: Bundle mode: `runtime` or `typed`.
+- `--fallback <policy>`: Runtime fallback policy: `never`, `external-only`, or `always`.
+- `--print-config`: Print the effective normalized v2 config and exit.
+- `--no-color`: Disable ANSI color output.
+- `--quiet`: Suppress informational CLI output.
 - `--verbose`: Include dependency tree and topological order in the console report.
+- `--format <format>`: Analysis report format: `text` or `json`.
 - `--log-level <level>`: Adjust logger verbosity (`error`, `warn`, `info`, `debug`).
 
-When `--analyze` is supplied the pack step is skipped. Combine it with `--output` to write the report to disk, or with `--verbose` to expand the console output.
+Examples:
+
+```bash
+# Build a runtime bundle from config
+luapack bundle --config examples/demo/basic.luapack.config.json
+
+# Analyze and write a JSON report
+luapack analyze --config examples/demo/external.luapack.config.json --format json --output dist/analysis.json
+
+# Inspect the effective normalized config without running analysis or bundling
+luapack bundle --config examples/demo/basic.luapack.config.json --print-config
+```
 
 Display full help with:
 
@@ -47,103 +67,81 @@ luapack --help
 
 ## Configuration (`luapack.config.json`)
 
-LuaPack uses a `luapack.config.json` file to manage complex bundling and obfuscation rules. The loader validates your configuration against `config.schema.json`, ensuring that all settings are correct before bundling begins. Supported CLI flags will override the corresponding settings from the configuration file.
+LuaPack now accepts only the canonical v2 configuration format. Every config file must declare `schemaVersion: 2`. The loader validates the file against `config.schema.json`, then applies supported CLI overrides.
 
-Below is a detailed breakdown of each section.
-
-
-
-### Core Configuration
-
-These are the fundamental properties needed to bundle your project.
+Minimal example:
 
 ```json
 {
-	"entry": "./examples/demo/src/main.lua",
-	"output": "./dist/demo_basic_bundle.lua",
-	"sourceRoot": "./examples/demo/src"
+	"schemaVersion": 2,
+	"entry": "./src/main.lua",
+	"output": "./dist/app.bundle.lua",
+	"modules": {
+		"roots": ["./src"]
+	}
 }
 ```
 
-- **`entry`** (string, required): The path to the main Lua script that serves as the entry point for your application. Dependency analysis starts from this file.
-- **`output`** (string, optional): The file path where the final bundled Lua script will be saved. If not set, the final packed file will be created at the same directory as the entry file and named as `<entry-filename>_packed.lua`.
-- **`sourceRoot`** (string, optional): The root directory for your source files. When LuaPack encounters a `require("my.module")`, it resolves the path relative to this directory (e.g., `<sourceRoot>/my/module.lua`). If not set, the sourceRoot will default to the entry directory.
+- `schemaVersion`: Must be `2`.
+- `entry`: Entry Lua file.
+- `output`: Optional output path. Defaults to `<entry-name>_packed.lua` alongside the entry file.
+- `modules.roots`: Ordered search roots. If omitted, LuaPack uses the entry file directory.
 
-
-
-### Module Management (`modules`)
-
-This section controls how LuaPack finds, includes, and excludes modules.
+### `modules`
 
 ```json
 {
 	"modules": {
-		"ignore": ["socket.core"],
-		"external": {
-			"enabled": true,
-			"recursive": false,
-			"paths": ["./lua_modules"],
-			"env": ["LUA_PATH"]
-		},
-		"overrides": {
+		"roots": ["./src", "./external_modules"],
+		"env": ["LUA_PATH", "SDK_PATH"],
+		"missing": "warn",
+		"rules": {
+			"socket.core": {
+				"mode": "ignore"
+			},
 			"dkjson": {
+				"mode": "bundle",
 				"path": "./vendor/dkjson.lua",
 				"recursive": false
+			},
+			"sdk": {
+				"mode": "external"
 			}
 		}
 	}
 }
 ```
 
-- **`ignore`** (array of strings): A list of module names that should not be included in the bundle. This is useful for modules that are provided by the host environment (e.g., built-in libraries like `socket.core`).
+- `roots`: Ordered search roots for resolving modules.
+- `env`: Environment variables whose values contribute additional roots.
+- `missing`: Global missing-module policy.
+- `rules`: Per-module policy keyed by module identifier.
 
-- **`external`**: Configuration for modules that are not part of your project's source but are expected to be available in the runtime environment (e.g., installed via a package manager, like LuaRocks).
-    - **`enabled`** (boolean): Set to `true` to enable external module resolution. Defaults to `false` when omitted.
-    - **`recursive`** (boolean): If `true`, LuaPack will analyze the dependencies of external modules and try to include them in the final bundle. Defaults to `true` when `enabled` is on.
-    - **`paths`** (array of strings): Optional directories LuaPack should search for external modules. Defaults to an empty list.
-    - **`env`** (array of strings): Environment variables (for example `"LUA_PATH"`) that contain search paths. When this field is omitted, LuaPack inspects `LUA_PATH` automatically. Use an empty array to disable env lookups.
+Each rule supports:
 
-- **`overrides`** (object): A map where you can override specific settings per-module by its required name.
-    - **`key`** (e.g., `"dkjson"`, `"src.app.moduleA"`): The module name being required.
-    - **`path`** (string): The file path to use instead. If the module is not found at this override path it will be marked as missing.
-        - **`recursive`** (boolean): If `false`, LuaPack will not analyze the dependencies of the overridden module, including it as-is. Default `true`.
+- `mode: "bundle"`: Include the module in the bundle.
+- `mode: "external"`: Treat the module as runtime-provided.
+- `mode: "ignore"`: Skip the module entirely.
+- `path`: Override the resolved module path.
+- `recursive: false`: Resolve the module but skip dependency traversal below it.
 
-
-
-### Obfuscation (`obfuscation`)
-
-This section configures the optional obfuscation pipeline, which makes the code harder to read.
-The current implementation does not aim to provide complex/advanced obfuscation techniques. For that, it is better to not use the internal tool and process the modules or packed bundle with an external, dedicated obfuscation tool. E.g: Hercules Obfuscator.
+### `bundle`
 
 ```json
 {
-	"obfuscation": {
-		"tool": "internal",
-		"config": {
-			"minify": true,
-			"renameVariables": {
-				"enabled": true,
-				"min": 5,
-				"max": 5
-			},
-			"ascii": false
-		}
+	"bundle": {
+		"mode": "typed",
+		"fallback": "never"
 	}
 }
 ```
 
-- **`tool`** (string): The obfuscation tool to use. Currently, only `"internal"` is supported. Set to `"none"` or omit to disable.
+- `mode`: `runtime` or `typed`.
+- `fallback`: `never`, `external-only`, or `always`.
 
-- **`config`**: A configuration object for the internal tool. The obfuscation layers are applied in a fixed order: 1. Rename, 2. Minify, 3. ASCII.
-    - **`renameVariables`** (boolean or object): Renames local and global identifiers.
-        - Set to `true` to enable with default settings (variable name length of 5).
-        - Provide an object for fine-grained control:
-            - `enabled` (boolean): Toggles the feature.
-            - `min` (number): The minimum character length for renamed variables.
-            - `max` (number): The maximum character length for renamed variables.
-              Keep `min`/`max` at 3 or higher for any non-trivial bundle—very small ranges (such as `1`) limit the pool of unique identifiers and can cause the rename pass to fail.
-    - **`minify`** (boolean): If `true`, runs the bundled code through `lua-format` to remove whitespace, comments, and unnecessary characters.
-    - **`ascii`** (boolean): If `true`, encodes each module's source code into an ASCII byte array. The arrays are decoded back into Lua code at runtime, which can help evade simple static analysis.
+## Breaking Change
+
+LuaPack v1 configuration is no longer supported. Legacy fields such as `sourceRoot`, `modules.external`, `modules.overrides`, `modules.ignoreMissing`, `--sourceroot`, and `--ignore-missing` have been removed from the active config and CLI surface. Migrate configs to `schemaVersion: 2` before publishing or upgrading.
 
 
 
@@ -153,7 +151,7 @@ The current implementation does not aim to provide complex/advanced obfuscation 
 - **Run example build**: `npm run pack:example`
 - **Run tests**: `npm test`
 
-The test suite covers the configuration loader, dependency analysis pipeline, bundle generator, and ASCII obfuscator so you can iterate with confidence.
+The test suite covers the configuration loader, dependency analysis pipeline, bundle generator, CLI workflows, and report generation.
 
 
 
