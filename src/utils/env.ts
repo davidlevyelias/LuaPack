@@ -1,29 +1,43 @@
-const path = require('path');
+import path from 'path';
 
-function normalizeEnvNames(envConfig) {
+export type ResolvedExternalEnv = {
+	hasExplicitConfig: boolean;
+	envNames: string[];
+	pathsByEnv: Record<string, string[]>;
+	allPaths: string[];
+};
+
+type ResolveExternalEnvOptions = {
+	envConfig?: string[] | null;
+	sourceRoot?: string | null;
+};
+
+function normalizeEnvNames(envConfig?: string[] | null): string[] | undefined {
 	if (!Array.isArray(envConfig)) {
 		return undefined;
 	}
+
 	return envConfig
 		.map((value) => (typeof value === 'string' ? value.trim() : ''))
 		.filter((value) => value.length > 0);
 }
 
-function splitEnvValue(value) {
+function splitEnvValue(value: string | undefined): string[] {
 	if (typeof value !== 'string' || value.length === 0) {
 		return [];
 	}
+
 	return value.split(';');
 }
 
-function normalizeEnvEntry(entry, sourceRoot) {
+function normalizeEnvEntry(entry: string, sourceRoot?: string | null): string | null {
 	const trimmed = entry.trim();
 	if (!trimmed) {
 		return null;
 	}
+
 	const questionIndex = trimmed.indexOf('?');
 	let withoutPattern = questionIndex === -1 ? trimmed : trimmed.slice(0, questionIndex);
-
 	if (!withoutPattern) {
 		return null;
 	}
@@ -41,18 +55,21 @@ function normalizeEnvEntry(entry, sourceRoot) {
 	return path.resolve(base, withoutPattern);
 }
 
-function resolveExternalEnv({ envConfig, sourceRoot }) {
+export function resolveExternalEnv({
+	envConfig,
+	sourceRoot,
+}: ResolveExternalEnvOptions): ResolvedExternalEnv {
 	const normalizedConfig = normalizeEnvNames(envConfig);
 	const hasExplicitConfig = Array.isArray(envConfig);
 	const envNames = normalizedConfig ?? ['LUA_PATH'];
 
-	const pathsByEnv = {};
-	const aggregated = [];
-	const aggregateSet = new Set();
+	const pathsByEnv: Record<string, string[]> = {};
+	const aggregated: string[] = [];
+	const aggregateSet = new Set<string>();
 
 	for (const envName of envNames) {
 		const rawValue = process.env[envName];
-		const resolvedPaths = [];
+		const resolvedPaths: string[] = [];
 
 		if (typeof rawValue === 'string' && rawValue.length > 0) {
 			for (const entry of splitEnvValue(rawValue)) {
@@ -60,6 +77,7 @@ function resolveExternalEnv({ envConfig, sourceRoot }) {
 				if (!normalized) {
 					continue;
 				}
+
 				if (!resolvedPaths.includes(normalized)) {
 					resolvedPaths.push(normalized);
 				}
@@ -80,7 +98,3 @@ function resolveExternalEnv({ envConfig, sourceRoot }) {
 		allPaths: aggregated,
 	};
 }
-
-module.exports = {
-	resolveExternalEnv,
-};
