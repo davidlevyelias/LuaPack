@@ -1,17 +1,12 @@
 {
+  "schemaVersion": 2,
   "entry": "./src/entries/analytics.lua",
   "output": "../../dist/demo_obfuscation_bundle.lua",
-  "sourceRoot": "./src",
-  "obfuscation": {
-    "tool": "internal",
-    "config": {
-      "minify": true,
-      "renameVariables": {
-        "enabled": true,
-        "min": 3,
-        "max": 8
-      },
-      "ascii": true
-    }
+  "modules": {
+    "roots": ["./src"]
+  },
+  "bundle": {
+    "mode": "runtime",
+    "fallback": "external-only"
   }
 }

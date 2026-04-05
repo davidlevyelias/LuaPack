@@ -10,7 +10,7 @@ export {
 	setConfigWarnings,
 } from './accessors';
 export { hasObfuscationCliToggles, mergeConfig } from './mergeConfig';
-export { normalizePathsV1, normalizePathsV2 } from './pathNormalization';
+export { normalizePaths } from './pathNormalization';
 export { normalizeToV2Config } from './v2Normalization';
 export { buildLegacyFacade } from './legacyFacade';
 export { collectWarnings, emitWarning } from './warnings';

@@ -4,8 +4,7 @@ import {
 	getValidator,
 	hasObfuscationCliToggles,
 	mergeConfig,
-	normalizePathsV1,
-	normalizePathsV2,
+	normalizePaths,
 	normalizeToV2Config,
 	buildLegacyFacade,
 	collectWarnings,
@@ -18,9 +17,9 @@ import {
 import type { CliOptions, LegacyFacadeOutput } from './loader';
 
 export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
-	let fileConfig = {} as import('./loader/types').RawConfig;
+	let fileConfig = { schemaVersion: 2 } as import('./loader/types').RawConfig;
 	let baseDir: string | undefined;
-	let configVersion = detectConfigVersion({});
+	let configVersion: import('./loader').ConfigVersion = 'v2';
 
 	if (cliOptions.config) {
 		const result = readConfigFile(cliOptions.config);
@@ -37,10 +36,7 @@ export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
 	const configCopy = JSON.parse(JSON.stringify(merged)) as typeof merged;
 	validateConfig(validatorInstance, configCopy);
 
-	const pathNormalized =
-		configVersion === 'v2'
-			? normalizePathsV2(configCopy, cliOptions, baseDir)
-			: normalizePathsV1(configCopy, cliOptions, baseDir);
+	const pathNormalized = normalizePaths(configCopy, cliOptions, baseDir);
 
 	if (cliOptions.mode || cliOptions.fallback) {
 		pathNormalized.bundle = {
@@ -50,7 +46,7 @@ export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
 		};
 	}
 
-	const normalizedV2 = normalizeToV2Config(pathNormalized, configVersion);
+	const normalizedV2 = normalizeToV2Config(pathNormalized);
 	const outputConfig: LegacyFacadeOutput = buildLegacyFacade(normalizedV2);
 
 	setConfigWarnings(outputConfig, collectWarnings({

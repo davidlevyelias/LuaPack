@@ -20,8 +20,7 @@ export function collectWarnings({
 	hasObfuscationToggles: boolean;
 }): string[] {
 	const warnings: string[] = [];
-	const hasLegacyObfuscation =
-		configVersion === 'v1' && hasOwn(mergedConfig, 'obfuscation');
+	const hasLegacyObfuscation = hasOwn(mergedConfig, 'obfuscation');
 
 	if (hasLegacyObfuscation) {
 		warnings.push(OBSOLETE_OBFUSCATION_WARNING);

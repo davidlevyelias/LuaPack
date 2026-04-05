@@ -26,5 +26,7 @@ export function detectConfigVersion(config: RawConfig): ConfigVersion {
 	if (config && typeof config === 'object' && Number(config.schemaVersion) === 2) {
 		return 'v2';
 	}
-	return 'v1';
+	throw new Error(
+		'LuaPack v1 configuration is no longer supported. Add schemaVersion: 2 and migrate the config to the v2 schema.'
+	);
 }

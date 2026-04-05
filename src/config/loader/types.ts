@@ -1,4 +1,4 @@
-export type ConfigVersion = 'v1' | 'v2';
+export type ConfigVersion = 'v2';
 
 import type { LOADER_INTERNALS, LoaderInternals } from './internals';
 
@@ -47,12 +47,9 @@ export interface CliOptions {
 	envVar?: string[];
 	mode?: BundleMode;
 	fallback?: FallbackMode;
-	sourceroot?: string;
 	renameVariables?: boolean;
 	minify?: boolean;
 	ascii?: boolean;
-	ignoreMissing?: boolean;
-	env?: string | string[];
 	onWarning?: (message: string) => void;
 	[key: string]: unknown;
 }
@@ -87,29 +84,18 @@ export interface LegacyFacadeOutput {
 
 /** Raw modules block shared between v1 and v2 file shapes. All fields optional. */
 export interface RawModules {
-	ignoreMissing?: boolean;
-	ignore?: string[];
 	missing?: string;
 	roots?: string[];
 	env?: string[];
-	external?: {
-		enabled?: boolean;
-		recursive?: boolean;
-		paths?: string[];
-		env?: string[];
-	};
-	overrides?: Record<string, { path?: string; recursive?: boolean } | undefined>;
 	rules?: Record<string, { mode?: string; path?: string; recursive?: boolean } | undefined>;
 }
 
-/** Raw config as read from file or merged with CLI options (v1 or v2 shape). */
+/** Raw canonical v2 config as read from file or merged with CLI options. */
 export interface RawConfig {
-	schemaVersion?: number;
+	schemaVersion: 2;
 	entry?: string;
 	output?: string;
-	sourceRoot?: string;
 	modules?: RawModules;
-	obfuscation?: unknown;
 	bundle?: {
 		mode?: string;
 		fallback?: string;

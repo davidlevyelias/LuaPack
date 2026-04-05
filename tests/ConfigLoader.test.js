@@ -23,9 +23,12 @@ describe('ConfigLoader', () => {
 	test('loads configuration from file and normalizes paths', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
+			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
-			sourceRoot: './src',
+			modules: {
+				roots: ['./src'],
+			},
 		};
 
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
@@ -36,14 +39,14 @@ describe('ConfigLoader', () => {
 		expect(config.output).toBe(path.resolve(tempDir, 'dist/out.lua'));
 		expect(config.sourceRoot).toBe(path.resolve(tempDir, 'src'));
 		expect(config.schemaVersion).toBe(2);
-		expect(config._configVersion).toBe('v1');
+		expect(config._configVersion).toBe('v2');
 		expect(config._v2).toMatchObject({
 			schemaVersion: 2,
 			entry: path.resolve(tempDir, 'src/main.lua'),
 			output: path.resolve(tempDir, 'dist/out.lua'),
 			modules: {
 				roots: [path.resolve(tempDir, 'src')],
-				env: ['LUA_PATH'],
+				env: [],
 				missing: 'error',
 			},
 			bundle: {
@@ -56,6 +59,7 @@ describe('ConfigLoader', () => {
 	test('applies CLI bundle overrides before v1-to-v2 normalization', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
+			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
 		};
@@ -77,8 +81,11 @@ describe('ConfigLoader', () => {
 	test('derives default output when omitted', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
+			schemaVersion: 2,
 			entry: './src/main.lua',
-			sourceRoot: './src',
+			modules: {
+				roots: ['./src'],
+			},
 		};
 
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
@@ -93,8 +100,12 @@ describe('ConfigLoader', () => {
 	test('applies CLI overrides relative to cwd', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
+			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
+			modules: {
+				roots: ['./src'],
+			},
 		};
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
 
@@ -102,7 +113,7 @@ describe('ConfigLoader', () => {
 			config: configPath,
 			entry: './examples/demo/src/main.lua',
 			output: './dist/cli.lua',
-			sourceroot: './examples/demo/src',
+			root: ['./examples/demo/src'],
 		});
 
 		expect(config.entry).toBe(
@@ -120,11 +131,14 @@ describe('ConfigLoader', () => {
 	test('allows module overrides to disable recursion', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
+			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
 			modules: {
-				overrides: {
+				roots: ['./src'],
+				rules: {
 					'my.module': {
+						mode: 'bundle',
 						path: './vendor/my/module.lua',
 						recursive: false,
 					},
@@ -196,38 +210,23 @@ describe('ConfigLoader', () => {
 		});
 	});
 
-	test('warns and ignores v1 obfuscation settings', () => {
-		const warnings = [];
+	test('rejects configs without schemaVersion 2', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
-		const configContent = {
-			entry: './src/main.lua',
-			output: './dist/out.lua',
-			obfuscation: {
-				tool: 'internal',
-				config: {
-					minify: true,
-					renameVariables: true,
-					ascii: true,
-				},
-			},
-		};
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify({ entry: './src/main.lua', output: './dist/out.lua' }, null, 2)
+		);
 
-		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
-
-		const config = loadConfig({
-			config: configPath,
-			onWarning: (message) => warnings.push(message),
-		});
-
-		expect(config._warnings).toHaveLength(1);
-		expect(warnings[0]).toMatch(/removed in LuaPack v2/);
-		expect(config).not.toHaveProperty('obfuscation');
+		expect(() => loadConfig({ config: configPath })).toThrow(
+			/v1 configuration is no longer supported/
+		);
 	});
 
 	test('warns and ignores obfuscation CLI toggles', () => {
 		const warnings = [];
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
+				schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
 		};
@@ -249,7 +248,7 @@ describe('ConfigLoader', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		fs.writeFileSync(
 			configPath,
-			JSON.stringify({ output: './dist/out.lua' }, null, 2)
+			JSON.stringify({ schemaVersion: 2, output: './dist/out.lua' }, null, 2)
 		);
 
 		expect(() => loadConfig({ config: configPath })).toThrow(

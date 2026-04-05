@@ -1,15 +1,18 @@
 {
+	"schemaVersion": 2,
 	"entry": "./src/entries/external.lua",
 	"output": "../../dist/demo_external_bundle.lua",
+	"bundle": {
+		"mode": "runtime",
+		"fallback": "external-only"
+	},
 	"modules": {
-		"ignoreMissing": true,
-		"external": {
-			"paths": ["./external_modules"],
-			"recursive": false,
-			"env": ["LUA_PATH", "SDK_PATH"]
-		},
-		"overrides": {
+		"roots": ["./src", "./external_modules"],
+		"env": ["LUA_PATH", "SDK_PATH"],
+		"missing": "warn",
+		"rules": {
 			"dkjson": {
+				"mode": "bundle",
 				"path": "./external_modules/dkjson",
 				"recursive": false
 			}

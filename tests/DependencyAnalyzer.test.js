@@ -72,13 +72,15 @@ describe('DependencyAnalyzer', () => {
 				configPath,
 				JSON.stringify(
 					{
+						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						sourceRoot: './src',
 						modules: {
-							overrides: {
+							roots: ['./src'],
+							rules: {
 								dkjson: {
-									path: './vendor/dkjson.lua',
+									mode: 'bundle',
+									path: './src/vendor/dkjson.lua',
 									recursive: false,
 								},
 							},
@@ -127,9 +129,12 @@ describe('DependencyAnalyzer', () => {
 				configPath,
 				JSON.stringify(
 					{
+						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						sourceRoot: './src',
+						modules: {
+							roots: ['./src'],
+						},
 					},
 					null,
 					2
@@ -175,9 +180,12 @@ describe('DependencyAnalyzer', () => {
 				configPath,
 				JSON.stringify(
 					{
+						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						sourceRoot: './src',
+						modules: {
+							roots: ['./src'],
+						},
 					},
 					null,
 					2
@@ -231,9 +239,12 @@ describe('DependencyAnalyzer', () => {
 				configPath,
 				JSON.stringify(
 					{
+						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						sourceRoot: './src',
+						modules: {
+							roots: ['./src'],
+						},
 					},
 					null,
 					2

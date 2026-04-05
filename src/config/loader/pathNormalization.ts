@@ -3,53 +3,7 @@ import path from 'path';
 import { buildDefaultOutputPath } from './utils';
 import type { CliOptions, RawConfig, RawModules } from './types';
 
-export function normalizePathsV1(
-	config: RawConfig,
-	cliOptions: CliOptions,
-	fileBaseDir: string | undefined
-): RawConfig {
-	const finalConfig: RawConfig = { ...config };
-	const cwd = process.cwd();
-	const baseDir = fileBaseDir || cwd;
-
-	if (finalConfig.entry) {
-		const origin = cliOptions.entry ? cwd : baseDir;
-		finalConfig.entry = path.resolve(origin, finalConfig.entry);
-	}
-
-	if (finalConfig.output) {
-		const origin = cliOptions.output ? cwd : baseDir;
-		finalConfig.output = path.resolve(origin, finalConfig.output);
-	}
-
-	if (!finalConfig.output && finalConfig.entry) {
-		finalConfig.output = buildDefaultOutputPath(finalConfig.entry);
-	}
-
-	if (finalConfig.sourceRoot) {
-		const origin = cliOptions.sourceroot || (cliOptions.root && cliOptions.root.length > 0)
-			? cwd
-			: baseDir;
-		finalConfig.sourceRoot = path.resolve(origin, finalConfig.sourceRoot);
-	}
-
-	const extPaths = finalConfig.modules?.external?.paths;
-	if (finalConfig.modules && Array.isArray(extPaths)) {
-		finalConfig.modules = {
-			...finalConfig.modules,
-			external: {
-				...(finalConfig.modules.external || {}),
-				paths: extPaths.map((value) =>
-					path.isAbsolute(value) ? value : path.resolve(baseDir, value)
-				),
-			},
-		};
-	}
-
-	return finalConfig;
-}
-
-export function normalizePathsV2(
+export function normalizePaths(
 	config: RawConfig,
 	cliOptions: CliOptions,
 	fileBaseDir: string | undefined
