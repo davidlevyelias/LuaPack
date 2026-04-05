@@ -12,12 +12,12 @@ export {
 export { hasObfuscationCliToggles, mergeConfig } from './mergeConfig';
 export { normalizePaths } from './pathNormalization';
 export { normalizeToV2Config } from './v2Normalization';
-export { buildLegacyFacade } from './legacyFacade';
 export { collectWarnings, emitWarning } from './warnings';
 export { validateConfig } from './validation';
 export type {
 	ConfigVersion,
 	CliOptions,
+	LoadedConfig,
 	RawConfig,
 	RawModules,
 	V2Config,
@@ -29,8 +29,5 @@ export type {
 	BundleMode,
 	FallbackMode,
 	RuleMode,
-	LegacyFacadeOutput,
-	LegacyModulesConfig,
-	LegacyExternalConfig,
 } from './types';
 export type { LoaderInternals } from './internals';

@@ -1,4 +1,4 @@
-import type { V2Config } from '../config/loader/types';
+import type { LoadedConfig } from '../config/loader/types';
 
 /**
  * Core TypeScript domain types describing the analysis pipeline output.
@@ -9,28 +9,7 @@ import type { V2Config } from '../config/loader/types';
 export type ModuleId = string;
 export type FilePath = string;
 
-export interface WorkflowModulesExternalConfig {
-  enabled?: boolean;
-  recursive?: boolean;
-  paths?: FilePath[];
-  env?: string[] | null;
-}
-
-export interface WorkflowModulesConfig {
-  ignore?: string[];
-  ignoreMissing?: boolean;
-  external?: WorkflowModulesExternalConfig;
-  overrides?: Record<string, { path?: string | null; recursive?: boolean } | undefined>;
-}
-
-export interface WorkflowConfig {
-  entry: FilePath;
-  output: FilePath;
-  sourceRoot: FilePath;
-  modules?: WorkflowModulesConfig;
-  _analyzeOnly?: boolean;
-  _v2?: V2Config;
-}
+export type WorkflowConfig = LoadedConfig;
 
 export interface ResolverOverrideInfo {
   path: string | null;

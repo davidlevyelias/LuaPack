@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const { loadConfig } = require('../src/config/ConfigLoader');
+const { getConfigWarnings } = require('../src/config/loader');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
@@ -37,10 +38,8 @@ describe('ConfigLoader', () => {
 
 		expect(config.entry).toBe(path.resolve(tempDir, 'src/main.lua'));
 		expect(config.output).toBe(path.resolve(tempDir, 'dist/out.lua'));
-		expect(config.sourceRoot).toBe(path.resolve(tempDir, 'src'));
 		expect(config.schemaVersion).toBe(2);
-		expect(config._configVersion).toBe('v2');
-		expect(config._v2).toMatchObject({
+		expect(config).toMatchObject({
 			schemaVersion: 2,
 			entry: path.resolve(tempDir, 'src/main.lua'),
 			output: path.resolve(tempDir, 'dist/out.lua'),
@@ -72,7 +71,7 @@ describe('ConfigLoader', () => {
 			fallback: 'never',
 		});
 
-		expect(config._v2.bundle).toEqual({
+		expect(config.bundle).toEqual({
 			mode: 'typed',
 			fallback: 'never',
 		});
@@ -94,7 +93,7 @@ describe('ConfigLoader', () => {
 
 		expect(config.entry).toBe(path.resolve(tempDir, 'src/main.lua'));
 		expect(config.output).toBe(path.resolve(tempDir, 'src/main_packed.lua'));
-		expect(config._v2.output).toBe(path.resolve(tempDir, 'src/main_packed.lua'));
+		expect(config.output).toBe(path.resolve(tempDir, 'src/main_packed.lua'));
 	});
 
 	test('applies CLI overrides relative to cwd', () => {
@@ -120,10 +119,7 @@ describe('ConfigLoader', () => {
 			path.resolve(PROJECT_ROOT, 'examples/demo/src/main.lua')
 		);
 		expect(config.output).toBe(path.resolve(PROJECT_ROOT, 'dist/cli.lua'));
-		expect(config.sourceRoot).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/demo/src')
-		);
-		expect(config._v2.modules.roots[0]).toBe(
+		expect(config.modules.roots[0]).toBe(
 			path.resolve(PROJECT_ROOT, 'examples/demo/src')
 		);
 	});
@@ -149,15 +145,14 @@ describe('ConfigLoader', () => {
 
 		const config = loadConfig({ config: configPath });
 
-		expect(config.modules.overrides['my.module'].recursive).toBe(false);
-		expect(config._v2.modules.rules['my.module']).toEqual({
+		expect(config.modules.rules['my.module']).toEqual({
 			mode: 'bundle',
 			path: path.resolve(tempDir, 'vendor/my/module.lua'),
 			recursive: false,
 		});
 	});
 
-	test('loads schemaVersion 2 configuration and exposes compatibility facade', () => {
+	test('loads schemaVersion 2 configuration as canonical v2 config', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
 			schemaVersion: 2,
@@ -188,23 +183,22 @@ describe('ConfigLoader', () => {
 
 		const config = loadConfig({ config: configPath });
 
-		expect(config._configVersion).toBe('v2');
-		expect(config.sourceRoot).toBe(path.resolve(tempDir, 'src'));
-		expect(config.modules.external.paths).toEqual([
+		expect(config.modules.roots).toEqual([
+			path.resolve(tempDir, 'src'),
 			path.resolve(tempDir, 'vendor'),
 		]);
-		expect(config.modules.external.env).toEqual(['SDK_PATH']);
-		expect(config.modules.ignoreMissing).toBe(true);
-		expect(config._v2.modules.rules.dkjson).toEqual({
+		expect(config.modules.env).toEqual(['SDK_PATH']);
+		expect(config.modules.missing).toBe('warn');
+		expect(config.modules.rules.dkjson).toEqual({
 			mode: 'bundle',
 			path: path.resolve(tempDir, 'vendor/dkjson.lua'),
 			recursive: false,
 		});
-		expect(config._v2.modules.rules.socket).toEqual({
+		expect(config.modules.rules.socket).toEqual({
 			mode: 'external',
 			recursive: true,
 		});
-		expect(config._v2.bundle).toEqual({
+		expect(config.bundle).toEqual({
 			mode: 'typed',
 			fallback: 'never',
 		});
@@ -240,7 +234,7 @@ describe('ConfigLoader', () => {
 			onWarning: (message) => warnings.push(message),
 		});
 
-		expect(config._warnings).toHaveLength(1);
+		expect(getConfigWarnings(config)).toHaveLength(1);
 		expect(warnings[0]).toMatch(/Obfuscation settings are ignored/);
 	});
 

@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-import { getNormalizedV2Config } from '../config/loader';
 import { resolveExternalEnv } from '../utils/env';
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
 import type {
@@ -12,7 +11,6 @@ import type {
 type OverrideConfig = { path?: string | null; recursive?: boolean };
 
 export default class ModuleResolver {
-	private readonly v2Config;
 	private readonly sourceRoot: string;
 	private readonly moduleRules: Record<string, NormalizedRule>;
 	private readonly searchRoots: string[];
@@ -22,20 +20,19 @@ export default class ModuleResolver {
 	private readonly envInfo: { allPaths: string[] };
 
 	constructor(config: WorkflowConfig) {
-		this.v2Config = getNormalizedV2Config(config);
-		const roots = Array.isArray(this.v2Config?.modules.roots)
-			? this.v2Config!.modules.roots
-			: [config.sourceRoot];
-		this.sourceRoot = roots[0] ?? config.sourceRoot;
-		this.moduleRules = this.v2Config?.modules.rules ?? {};
-		this.missingPolicy = this.v2Config?.modules.missing ?? 'error';
+		const roots = Array.isArray(config.modules?.roots) && config.modules.roots.length > 0
+			? config.modules.roots
+			: [path.dirname(config.entry)];
+		this.sourceRoot = roots[0] ?? path.dirname(config.entry);
+		this.moduleRules = config.modules?.rules ?? {};
+		this.missingPolicy = config.modules?.missing ?? 'error';
 		this.ignoreMissing = this.missingPolicy !== 'error';
 		this.externalRecursiveDefault =
-			typeof this.v2Config?._compat?.externalRecursive === 'boolean'
-				? this.v2Config._compat.externalRecursive
+			typeof config._compat?.externalRecursive === 'boolean'
+				? config._compat.externalRecursive
 				: true;
 		this.envInfo = resolveExternalEnv({
-			envConfig: this.v2Config?.modules.env ?? [],
+			envConfig: config.modules?.env ?? [],
 			sourceRoot: this.sourceRoot,
 		}) as { allPaths: string[] };
 		this.searchRoots = this.computeSearchRoots(roots);

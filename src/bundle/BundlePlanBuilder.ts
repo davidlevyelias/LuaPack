@@ -1,7 +1,6 @@
 import fs from 'fs';
 
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
-import { getNormalizedV2Config } from '../config/loader';
 
 import type { BundlePlan } from './types';
 
@@ -19,8 +18,6 @@ export default class BundlePlanBuilder {
 		const bundledModules = [];
 		const externalModules: string[] = [];
 		const ignoredModules: string[] = [];
-
-		const normalizedConfig = getNormalizedV2Config(this.config);
 
 		for (const moduleRecord of sortedModules) {
 			if (!moduleRecord || moduleRecord.isMissing) {
@@ -59,8 +56,8 @@ export default class BundlePlanBuilder {
 			externalModules,
 			ignoredModules,
 			aliases: [],
-			fallbackPolicy: normalizedConfig?.bundle?.fallback || 'external-only',
-			mode: normalizedConfig?.bundle?.mode || 'runtime',
+			fallbackPolicy: this.config.bundle?.fallback || 'external-only',
+			mode: this.config.bundle?.mode || 'runtime',
 		};
 	}
 }

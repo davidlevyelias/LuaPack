@@ -1,53 +1,53 @@
 import { LOADER_INTERNALS, type LoaderInternals } from './internals';
-import type { LegacyFacadeOutput, V2Config } from './types';
+import type { LoadedConfig, V2Config } from './types';
 
-type WorkflowConfigLike = {
+type WorkflowConfigLike = V2Config & {
 	[LOADER_INTERNALS]?: LoaderInternals;
-	_v2?: V2Config;
-	_analyzeOnly?: boolean;
 };
 
+function ensureInternals(config: WorkflowConfigLike): LoaderInternals {
+	if (!config[LOADER_INTERNALS]) {
+		config[LOADER_INTERNALS] = {
+			analyzeOnly: false,
+			warnings: [],
+		};
+	}
+
+	return config[LOADER_INTERNALS]!;
+}
+
 export function getNormalizedV2Config(config: WorkflowConfigLike): V2Config | null {
-	return config[LOADER_INTERNALS]?.normalizedV2 ?? config._v2 ?? null;
+	return config ?? null;
 }
 
 export function isAnalyzeOnlyConfig(config: WorkflowConfigLike): boolean {
-	return Boolean(config[LOADER_INTERNALS]?.analyzeOnly ?? config._analyzeOnly);
+	return Boolean(config[LOADER_INTERNALS]?.analyzeOnly);
 }
 
 export function setAnalyzeOnlyConfig(
-	config: LegacyFacadeOutput,
+	config: LoadedConfig,
 	analyzeOnly: boolean
-): LegacyFacadeOutput {
-	if (config[LOADER_INTERNALS]) {
-		config[LOADER_INTERNALS]!.analyzeOnly = analyzeOnly;
-	}
-	config._analyzeOnly = analyzeOnly;
+	): LoadedConfig {
+	ensureInternals(config).analyzeOnly = analyzeOnly;
 	return config;
 }
 
 export function setConfigWarnings(
-	config: LegacyFacadeOutput,
+	config: LoadedConfig,
 	warnings: string[]
-): LegacyFacadeOutput {
-	if (config[LOADER_INTERNALS]) {
-		config[LOADER_INTERNALS]!.warnings = [...warnings];
-	}
-	config._warnings = [...warnings];
+	): LoadedConfig {
+	ensureInternals(config).warnings = [...warnings];
 	return config;
 }
 
-export function getConfigWarnings(config: WorkflowConfigLike & { _warnings?: string[] }): string[] {
-	return config[LOADER_INTERNALS]?.warnings ?? config._warnings ?? [];
+export function getConfigWarnings(config: WorkflowConfigLike): string[] {
+	return config[LOADER_INTERNALS]?.warnings ?? [];
 }
 
 export function setConfigVersion(
-	config: LegacyFacadeOutput,
+	config: LoadedConfig,
 	configVersion: LoaderInternals['configVersion']
-): LegacyFacadeOutput {
-	if (config[LOADER_INTERNALS]) {
-		config[LOADER_INTERNALS]!.configVersion = configVersion;
-	}
-	config._configVersion = configVersion;
+	): LoadedConfig {
+	ensureInternals(config).configVersion = configVersion;
 	return config;
 }

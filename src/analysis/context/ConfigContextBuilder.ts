@@ -4,7 +4,6 @@ import type {
 	AnalysisContext,
 	FilePath,
 	WorkflowConfig,
-	WorkflowModulesExternalConfig,
 } from '../types';
 
 type ResolvedExternalEnv = {
@@ -15,7 +14,7 @@ type ResolvedExternalEnv = {
 };
 
 type ResolveExternalEnvOptions = {
-	envConfig: WorkflowModulesExternalConfig['env'];
+	envConfig: string[];
 	sourceRoot: FilePath;
 };
 
@@ -27,18 +26,19 @@ function clonePathsByEnv(pathsByEnv: Record<string, FilePath[]>): Record<string,
 }
 
 export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
-	const modulesConfig = config.modules ?? {};
-	const externalConfig: WorkflowModulesExternalConfig = modulesConfig.external ?? {};
-	const ignoredPatterns = Array.isArray(modulesConfig.ignore)
-		? [...modulesConfig.ignore]
-		: [];
-	const externalPaths = Array.isArray(externalConfig.paths)
-		? [...externalConfig.paths]
-		: [];
+	const modulesConfig = config.modules;
+	const sourceRoot = modulesConfig.roots[0] ?? config.entry;
+	const ignoredPatterns = Object.entries(modulesConfig.rules)
+		.filter(([, rule]) => rule?.mode === 'ignore')
+		.map(([moduleId]) => moduleId);
+	const externalPaths = modulesConfig.roots.slice(1);
+	const hasExplicitExternalRules = Object.values(modulesConfig.rules).some(
+		(rule) => rule?.mode === 'external'
+	);
 
 	const envInfo = resolveExternalEnv({
-		envConfig: externalConfig.env,
-		sourceRoot: config.sourceRoot,
+		envConfig: modulesConfig.env,
+		sourceRoot,
 	} as ResolveExternalEnvOptions) as ResolvedExternalEnv;
 
 	const envEntries = envInfo.envNames.map((envName) => ({
@@ -47,17 +47,20 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 	}));
 
 	return {
-		rootDir: config.sourceRoot,
+		rootDir: sourceRoot,
 		entryPath: config.entry,
 		outputPath: config.output,
 		analyzeOnly: isAnalyzeOnlyConfig(config),
 		ignoredPatterns,
-		ignoreMissing: Boolean(modulesConfig.ignoreMissing),
+		ignoreMissing: modulesConfig.missing !== 'error',
 		externals: {
-			enabled: Boolean(externalConfig.enabled),
+			enabled:
+				hasExplicitExternalRules ||
+				externalPaths.length > 0 ||
+				envInfo.allPaths.length > 0,
 			recursive:
-				typeof externalConfig.recursive === 'boolean'
-					? externalConfig.recursive
+				typeof config._compat?.externalRecursive === 'boolean'
+					? config._compat.externalRecursive
 					: true,
 			paths: externalPaths,
 			env: {

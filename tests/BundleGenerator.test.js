@@ -131,12 +131,20 @@ describe('BundleGenerator', () => {
 			fs.writeFileSync(externalFile, 'return { provided = true }\n');
 
 			const config = {
-				sourceRoot: srcDir,
-				_v2: {
-					bundle: {
-						mode: 'runtime',
-						fallback: 'external-only',
-					},
+				entry: mainFile,
+				output: path.join(dir, 'bundle.lua'),
+				modules: {
+					roots: [srcDir],
+					env: [],
+					missing: 'error',
+					rules: {},
+				},
+				bundle: {
+					mode: 'runtime',
+					fallback: 'external-only',
+				},
+				_compat: {
+					externalRecursive: true,
 				},
 			};
 

@@ -38,6 +38,10 @@ export interface V2Config {
 	_compat: V2Compat;
 }
 
+export interface LoadedConfig extends V2Config {
+	[LOADER_INTERNALS]?: LoaderInternals;
+}
+
 export interface CliOptions {
 	config?: string;
 	entry?: string;
@@ -52,34 +56,6 @@ export interface CliOptions {
 	ascii?: boolean;
 	onWarning?: (message: string) => void;
 	[key: string]: unknown;
-}
-
-export interface LegacyExternalConfig {
-	enabled: boolean;
-	recursive: boolean;
-	paths: string[];
-	env: string[];
-}
-
-export interface LegacyModulesConfig {
-	ignoreMissing: boolean;
-	ignore: string[];
-	external: LegacyExternalConfig;
-	overrides: Record<string, { path?: string; recursive?: boolean }>;
-}
-
-export interface LegacyFacadeOutput {
-	schemaVersion: 2;
-	entry: string;
-	output: string;
-	[LOADER_INTERNALS]?: LoaderInternals;
-	_analyzeOnly: boolean;
-	sourceRoot: string;
-	modules: LegacyModulesConfig;
-	bundle: V2Bundle;
-	_v2: V2Config;
-	_warnings?: string[];
-	_configVersion?: ConfigVersion;
 }
 
 /** Raw modules block shared between v1 and v2 file shapes. All fields optional. */

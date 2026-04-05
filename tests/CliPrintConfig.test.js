@@ -30,23 +30,21 @@ describe('CLI print-config', () => {
 		});
 
 		loadConfig.mockReturnValue({
-			_v2: {
-				schemaVersion: 2,
-				entry: 'entry.lua',
-				output: 'out.lua',
-				modules: {
-					roots: ['src'],
-					env: [],
-					missing: 'error',
-					rules: {},
-				},
-				bundle: {
-					mode: 'runtime',
-					fallback: 'external-only',
-				},
-				_compat: {
-					externalRecursive: true,
-				},
+			schemaVersion: 2,
+			entry: 'entry.lua',
+			output: 'out.lua',
+			modules: {
+				roots: ['src'],
+				env: [],
+				missing: 'error',
+				rules: {},
+			},
+			bundle: {
+				mode: 'runtime',
+				fallback: 'external-only',
+			},
+			_compat: {
+				externalRecursive: true,
 			},
 		});
 	});

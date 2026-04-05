@@ -15,15 +15,27 @@ export default class LuaPacker {
 	}
 
 	private normalizeConfig(config: WorkflowConfig): WorkflowConfig {
-		const sourceRoot = config.sourceRoot
-			? path.resolve(config.sourceRoot)
-			: path.dirname(path.resolve(config.entry));
+		const entry = path.resolve(config.entry);
+		const output = config.output ? path.resolve(config.output) : path.resolve('bundle.lua');
+		const roots = Array.isArray(config.modules?.roots) && config.modules.roots.length > 0
+			? config.modules.roots
+			: [path.dirname(entry)];
 
 		return {
 			...config,
-			entry: path.resolve(config.entry),
-			output: config.output ? path.resolve(config.output) : path.resolve('bundle.lua'),
-			sourceRoot,
+			entry,
+			output,
+			modules: {
+				...config.modules,
+				roots: roots.map((rootPath) => path.resolve(rootPath)),
+				env: Array.isArray(config.modules?.env) ? [...config.modules.env] : [],
+				missing: config.modules?.missing || 'error',
+				rules: config.modules?.rules || {},
+			},
+			bundle: {
+				mode: config.bundle?.mode || 'runtime',
+				fallback: config.bundle?.fallback || 'external-only',
+			},
 		};
 	}
 

@@ -1,4 +1,5 @@
 import {
+	LOADER_INTERNALS,
 	readConfigFile,
 	detectConfigVersion,
 	getValidator,
@@ -6,7 +7,6 @@ import {
 	mergeConfig,
 	normalizePaths,
 	normalizeToV2Config,
-	buildLegacyFacade,
 	collectWarnings,
 	emitWarning,
 	getConfigWarnings,
@@ -14,9 +14,9 @@ import {
 	setConfigWarnings,
 	validateConfig,
 } from './loader';
-import type { CliOptions, LegacyFacadeOutput } from './loader';
+import type { CliOptions, LoadedConfig } from './loader';
 
-export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
+export function loadConfig(cliOptions: CliOptions = {}): LoadedConfig {
 	let fileConfig = { schemaVersion: 2 } as import('./loader/types').RawConfig;
 	let baseDir: string | undefined;
 	let configVersion: import('./loader').ConfigVersion = 'v2';
@@ -47,7 +47,14 @@ export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
 	}
 
 	const normalizedV2 = normalizeToV2Config(pathNormalized);
-	const outputConfig: LegacyFacadeOutput = buildLegacyFacade(normalizedV2);
+	const outputConfig: LoadedConfig = {
+		...normalizedV2,
+		[LOADER_INTERNALS]: {
+			analyzeOnly: false,
+			warnings: [],
+			configVersion,
+		},
+	};
 
 	setConfigWarnings(outputConfig, collectWarnings({
 		configVersion,
