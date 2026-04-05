@@ -1,0 +1,12 @@
+{
+	"schemaVersion": 2,
+	"entry": "./src/entries/missing_warn.lua",
+	"output": "../../dist/simple_missing_warn_bundle.lua",
+	"modules": {
+		"roots": ["./src"],
+		"missing": "warn"
+	},
+	"bundle": {
+		"fallback": "external-only"
+	}
+}

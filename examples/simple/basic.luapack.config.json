@@ -1,0 +1,11 @@
+{
+	"schemaVersion": 2,
+	"entry": "./src/main.lua",
+	"output": "../../dist/simple_basic_bundle.lua",
+	"modules": {
+		"roots": ["./src"]
+	},
+	"bundle": {
+		"fallback": "external-only"
+	}
+}

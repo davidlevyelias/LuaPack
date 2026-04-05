@@ -1,13 +1,12 @@
 # LuaPack
 
-LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and producing a single distributable bundle. It follows explicit `require` statements, resolves project and external module roots, and emits either a runtime bundle or a typed bundle with hoisted LuaCATS declarations.
+LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and producing a single distributable runtime bundle. It follows explicit `require` statements, resolves project and external module roots, and emits a self-contained runtime artifact.
 
 ## Features
 
 - Resolves static `require` statements starting from an entry Lua file.
 - Builds dependency analysis output in text or JSON form.
 - Generates self-contained runtime bundles with controlled fallback behavior.
-- Generates typed bundles that hoist LuaCATS declarations.
 - Supports per-module rules for bundled, external, and ignored modules.
 - Validates configuration against the canonical v2 schema before execution.
 
@@ -37,7 +36,6 @@ Common options:
 - `--root <path>`: Add a module search root. Repeat to replace the effective root set.
 - `--missing <policy>`: Missing-module policy: `error`, `warn`, or `ignore`.
 - `--env-var <name>`: Add an environment variable to inspect for module roots. Repeatable.
-- `--mode <mode>`: Bundle mode: `runtime` or `typed`.
 - `--fallback <policy>`: Runtime fallback policy: `never`, `external-only`, or `always`.
 - `--print-config`: Print the effective normalized v2 config and exit.
 - `--no-color`: Disable ANSI color output.
@@ -49,14 +47,14 @@ Common options:
 Examples:
 
 ```bash
-# Build a runtime bundle from config
-luapack bundle --config examples/demo/basic.luapack.config.json
+# Build a small runtime bundle from config
+luapack bundle --config examples/simple/basic.luapack.config.json
 
-# Analyze and write a JSON report
-luapack analyze --config examples/demo/external.luapack.config.json --format json --output dist/analysis.json
+# Inspect a small missing-module report
+luapack analyze --config examples/simple/missing-warn.luapack.config.json --verbose
 
 # Inspect the effective normalized config without running analysis or bundling
-luapack bundle --config examples/demo/basic.luapack.config.json --print-config
+luapack bundle --config examples/simple/basic.luapack.config.json --print-config
 ```
 
 Display full help with:
@@ -130,13 +128,11 @@ Each rule supports:
 ```json
 {
 	"bundle": {
-		"mode": "typed",
 		"fallback": "never"
 	}
 }
 ```
 
-- `mode`: `runtime` or `typed`.
 - `fallback`: `never`, `external-only`, or `always`.
 
 ## Breaking Change
@@ -148,7 +144,8 @@ LuaPack v1 configuration is no longer supported. Legacy fields such as `sourceRo
 ## Development
 
 - **Format code**: `npx prettier --write .`
-- **Run example build**: `npm run pack:example`
+- **Run simple example build**: `npm run example:simple:bundle`
+- **Run simple example analysis**: `npm run example:simple:analyze`
 - **Run tests**: `npm test`
 
 The test suite covers the configuration loader, dependency analysis pipeline, bundle generator, CLI workflows, and report generation.
