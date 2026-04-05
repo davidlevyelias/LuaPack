@@ -105,10 +105,16 @@ export function buildMissingSection(
 	lines.push(headingColor('---------------'));
 	missingData.forEach((item) => {
 		const colorFn: (value: string) => string = item.fatal && !ignoreMissing ? palette.error : headingColor;
-		const destination = item.requireId || item.moduleName || 'unknown';
-		const message = ignoreMissing
-			? `${item.prefix}: Module not found ignored.`
-			: `${item.prefix}: Module not found.`;
+		const fallbackMessage = ignoreMissing ? 'Module not found ignored.' : 'Module not found.';
+		const rawMessage = item.message && item.message.trim().length > 0
+			? item.message.trim()
+			: fallbackMessage;
+		const prefixedMessage = rawMessage.startsWith(item.prefix)
+			? rawMessage
+			: `${item.prefix}: ${rawMessage}`;
+		const message = ignoreMissing && !prefixedMessage.endsWith('(ignored)')
+			? `${prefixedMessage} (ignored)`
+			: prefixedMessage;
 		lines.push(`${bullet} ${colorFn(message)}`);
 	});
 	return lines;

@@ -1,7 +1,7 @@
 import path from 'path';
 import { promises as fsPromises } from 'fs';
 
-import type { AnalysisResult, ModuleRecord } from './types';
+import type { ModuleRecord } from './types';
 import { buildSummarySection } from './report/sections/SummarySection';
 import { buildDependencyTreeSection } from './report/sections/DependencyTreeSection';
 import {
@@ -63,7 +63,7 @@ export default class AnalysisReporter {
 				this.formatPath(value),
 		});
 		const lines = buildSummarySection(
-			analysis as unknown as AnalysisResult,
+			analysis,
 			{ verbose, externalsSummary },
 			palette
 		);

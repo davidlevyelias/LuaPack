@@ -3,7 +3,9 @@ import type { AnalysisResult } from '../types';
 export type ReporterWarning = string | { message: string } | null | undefined;
 export type ReporterError = { message: string } | Error | null | undefined;
 
-export type ReporterAnalysis = Omit<AnalysisResult, 'warnings' | 'errors'> & {
+export type ReportCoreAnalysis = Omit<AnalysisResult, 'warnings' | 'errors'>;
+
+export type ReporterAnalysis = ReportCoreAnalysis & {
 	warnings: ReporterWarning[];
 	errors: ReporterError[];
 };

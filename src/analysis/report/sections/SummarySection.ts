@@ -1,11 +1,14 @@
 import { formatBytes } from '../utils/format';
-import type { AnalysisResult } from '../../types';
 import type { Palette } from '../palette';
 import { formatModuleLabel } from '../utils/labels';
-import type { ExternalSummaryEnvDetails, SummarySectionOptions } from '../types';
+import type {
+	ExternalSummaryEnvDetails,
+	ReportCoreAnalysis,
+	SummarySectionOptions,
+} from '../types';
 
 export function buildSummarySection(
-	analysis: AnalysisResult,
+	analysis: ReportCoreAnalysis,
 	{ verbose = false, externalsSummary }: SummarySectionOptions,
 	palette: Palette
 ): string[] {

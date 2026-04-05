@@ -1,4 +1,3 @@
-import type { AnalysisResult } from '../../types';
 import { buildSummarySection } from '../sections/SummarySection';
 import {
 	buildDependencyTreeSection,
@@ -48,7 +47,7 @@ export function buildTextReport({
 
 	lines.push(
 		...buildSummarySection(
-			analysis as unknown as AnalysisResult,
+			analysis,
 			{ verbose, externalsSummary },
 			palette
 		)

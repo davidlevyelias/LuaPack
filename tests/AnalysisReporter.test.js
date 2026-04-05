@@ -79,4 +79,34 @@ describe('AnalysisReporter', () => {
 			fs.rmSync(targetDir, { recursive: true, force: true });
 		}
 	});
+
+	test('preserves detailed missing-module messages in text reports', async () => {
+		const reporter = new AnalysisReporter();
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		analysis.missing = [
+			{
+				requireId: 'sdk.logger',
+				moduleName: 'sdk.logger',
+				filePath: null,
+				requiredBy: 'main',
+				isExternal: false,
+				overrideApplied: false,
+				fatal: true,
+				message: 'Override path for module \'sdk.logger\' not found: ./vendor/logger.lua',
+			},
+		];
+
+		try {
+			await reporter.writeReport(reportPath, analysis);
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).toContain('main -> sdk.logger: Override path for module \'sdk.logger\' not found: ./vendor/logger.lua');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
 });
