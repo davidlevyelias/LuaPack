@@ -42,12 +42,13 @@ export default class BundlePlanBuilder {
 				typeof moduleRecord.sourceContent === 'string'
 					? moduleRecord.sourceContent
 					: fs.readFileSync(moduleRecord.filePath, 'utf-8');
-
-			bundledModules.push({
+			const bundledModule = {
 				moduleName: moduleRecord.moduleName,
 				filePath: moduleRecord.filePath,
 				content,
-			});
+			};
+
+			bundledModules.push(bundledModule);
 		}
 
 		return {
@@ -57,7 +58,6 @@ export default class BundlePlanBuilder {
 			ignoredModules,
 			aliases: [],
 			fallbackPolicy: this.config.bundle?.fallback || 'external-only',
-			mode: this.config.bundle?.mode || 'runtime',
 		};
 	}
 }

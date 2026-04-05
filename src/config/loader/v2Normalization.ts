@@ -1,9 +1,8 @@
 import path from 'path';
 
-import { MISSING_POLICIES, BUNDLE_MODES, FALLBACK_MODES, RULE_MODES } from './constants';
+import { MISSING_POLICIES, FALLBACK_MODES, RULE_MODES } from './constants';
 import type {
 	MissingPolicy,
-	BundleMode,
 	FallbackMode,
 	RuleMode,
 	NormalizedRule,
@@ -78,11 +77,6 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 			: 'error'
 	) as MissingPolicy;
 	const bundle = config.bundle || {};
-	const bundleMode = (
-		typeof bundle.mode === 'string' && BUNDLE_MODES.has(bundle.mode)
-			? bundle.mode
-			: 'runtime'
-	) as BundleMode;
 	const fallback = (
 		typeof bundle.fallback === 'string' && FALLBACK_MODES.has(bundle.fallback)
 			? bundle.fallback
@@ -99,7 +93,7 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 			missing,
 			rules: normalizeModuleRules(modules.rules),
 		},
-		bundle: { mode: bundleMode, fallback },
+		bundle: { fallback },
 		_compat: { externalRecursive: true },
 	};
 }

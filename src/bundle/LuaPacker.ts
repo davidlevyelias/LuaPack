@@ -33,7 +33,6 @@ export default class LuaPacker {
 				rules: config.modules?.rules || {},
 			},
 			bundle: {
-				mode: config.bundle?.mode || 'runtime',
 				fallback: config.bundle?.fallback || 'external-only',
 			},
 		};

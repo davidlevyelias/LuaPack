@@ -30,7 +30,6 @@ function loadWorkflowConfig(entry: string | undefined, options: CliOptions) {
 		config: options.config,
 		missing: options.missing,
 		envVar: options.envVar,
-		mode: options.mode,
 		fallback: options.fallback,
 	});
 }

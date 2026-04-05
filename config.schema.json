@@ -66,12 +66,6 @@
 			"description": "Defines the generated artifact contract.",
 			"additionalProperties": false,
 			"properties": {
-				"mode": {
-					"type": "string",
-					"description": "Bundle output mode.",
-					"enum": ["runtime", "typed"],
-					"default": "runtime"
-				},
 				"fallback": {
 					"type": "string",
 					"description": "Runtime fallback policy when a module is not bundled.",
@@ -80,7 +74,6 @@
 				}
 			},
 			"default": {
-				"mode": "runtime",
 				"fallback": "external-only"
 			}
 		}

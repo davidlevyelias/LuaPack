@@ -3,7 +3,6 @@ export type ConfigVersion = 'v2';
 import type { LOADER_INTERNALS, LoaderInternals } from './internals';
 
 export type MissingPolicy = 'error' | 'warn' | 'ignore';
-export type BundleMode = 'runtime' | 'typed';
 export type FallbackMode = 'never' | 'external-only' | 'always';
 export type RuleMode = 'bundle' | 'external' | 'ignore';
 
@@ -21,7 +20,6 @@ export interface V2Modules {
 }
 
 export interface V2Bundle {
-	mode: BundleMode;
 	fallback: FallbackMode;
 }
 
@@ -49,7 +47,6 @@ export interface CliOptions {
 	root?: string[];
 	missing?: MissingPolicy;
 	envVar?: string[];
-	mode?: BundleMode;
 	fallback?: FallbackMode;
 	[key: string]: unknown;
 }
@@ -69,7 +66,6 @@ export interface RawConfig {
 	output?: string;
 	modules?: RawModules;
 	bundle?: {
-		mode?: string;
 		fallback?: string;
 	};
 }

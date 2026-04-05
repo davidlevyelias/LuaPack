@@ -1,6 +1,5 @@
 const {
 	createProgram,
-	parseBundleMode,
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
@@ -36,12 +35,8 @@ describe('CLI', () => {
 		);
 	});
 
-	test('accepts only supported bundle modes and fallback policies', () => {
-		expect(parseBundleMode('typed')).toBe('typed');
+	test('accepts only supported fallback policies', () => {
 		expect(parseFallbackMode('ALWAYS')).toBe('always');
-		expect(() => parseBundleMode('packed')).toThrow(
-			'Expected one of: runtime, typed'
-		);
 		expect(() => parseFallbackMode('sometimes')).toThrow(
 			'Expected one of: never, external-only, always'
 		);
@@ -71,8 +66,6 @@ describe('CLI', () => {
 			'src',
 			'--missing',
 			'warn',
-			'--mode',
-			'typed',
 			'--fallback',
 			'always',
 			'--no-color',
@@ -92,7 +85,6 @@ describe('CLI', () => {
 				fallback: 'always',
 				logLevel: 'debug',
 				missing: 'warn',
-				mode: 'typed',
 				printConfig: true,
 				quiet: true,
 				root: ['src'],

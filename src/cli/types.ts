@@ -1,4 +1,4 @@
-import type { BundleMode, FallbackMode, MissingPolicy } from '../config/loader';
+import type { FallbackMode, MissingPolicy } from '../config/loader';
 
 const VALID_LOG_LEVELS = ['error', 'warn', 'info', 'debug'] as const;
 const VALID_MISSING_POLICIES = ['error', 'warn', 'ignore'] as const;
@@ -20,7 +20,6 @@ export interface CliOptions {
 	color?: boolean;
 	quiet?: boolean;
 	printConfig?: boolean;
-	mode?: BundleMode;
 	fallback?: FallbackMode;
 	format?: ReportFormat;
 	verbose?: boolean;

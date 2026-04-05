@@ -140,7 +140,6 @@ describe('BundleGenerator', () => {
 					rules: {},
 				},
 				bundle: {
-					mode: 'runtime',
 					fallback: 'external-only',
 				},
 				_compat: {
@@ -213,7 +212,6 @@ describe('BundleGenerator', () => {
 			ignoredModules: [],
 			aliases: [],
 			fallbackPolicy: 'never',
-			mode: 'runtime',
 		});
 
 		expect(bundle).toContain('local function can_fallback(module_name)');
@@ -231,7 +229,6 @@ describe('BundleGenerator', () => {
 			ignoredModules: [],
 			aliases: [],
 			fallbackPolicy: 'external-only',
-			mode: 'runtime',
 		});
 
 		expect(bundle).toContain('return external_modules[module_name] == true');
@@ -247,225 +244,8 @@ describe('BundleGenerator', () => {
 			ignoredModules: [],
 			aliases: [],
 			fallbackPolicy: 'always',
-			mode: 'runtime',
 		});
 
 		expect(bundle).toContain('return true');
-	});
-
-	test('uses the typed template when bundle mode is typed', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle).toContain('---@alias __lp_ModuleLoader fun(...): any');
-		expect(bundle).toContain('---@type table<string, __lp_ModuleLoader>');
-		expect(bundle).toContain('return __lp_require("main", ...)');
-	});
-
-	test('hoists LuaCATS declarations in typed mode', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [
-				{
-					moduleName: 'main',
-					filePath: 'main.lua',
-					content: [
-						'---@class DemoWidget',
-						'---@field label string',
-						'local DemoWidget = {}',
-						'return DemoWidget',
-					].join('\n'),
-				},
-			],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle).toContain('---@class DemoWidget\n---@field label string');
-		expect(bundle).toContain('modules["main"] = function(...)\n\tlocal DemoWidget = {}');
-		expect(bundle).not.toContain('modules["main"] = function(...)\n\t---@class DemoWidget');
-	});
-
-	test('dedupes identical LuaCATS declarations in typed mode', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [
-				{
-					moduleName: 'main',
-					filePath: 'main.lua',
-					content: '---@alias SharedMode "a"|"b"\nreturn {}',
-				},
-				{
-					moduleName: 'secondary',
-					filePath: 'secondary.lua',
-					content: '---@alias SharedMode "a"|"b"\nreturn {}',
-				},
-			],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle.match(/---@alias SharedMode/g)).toHaveLength(1);
-	});
-
-	test('preserves multiline alias variants in typed mode', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [
-				{
-					moduleName: 'main',
-					filePath: 'main.lua',
-					content: [
-						'---@alias SharedMode',
-						'---| "dev"',
-						'---| "prod"',
-						'return {}',
-					].join('\n'),
-				},
-			],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle).toContain('---@alias SharedMode\n---| "dev"\n---| "prod"');
-		expect(bundle).not.toContain('modules["main"] = function(...)\n\t---| "dev"');
-	});
-
-	test('preserves declaration docs when hoisting typed declarations', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [
-				{
-					moduleName: 'main',
-					filePath: 'main.lua',
-					content: [
-						'--- Shared widget state.',
-						'---@class DemoWidget',
-						'---@field label string',
-						'local DemoWidget = {}',
-						'return DemoWidget',
-					].join('\n'),
-				},
-			],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle).toContain('--- Shared widget state.\n---@class DemoWidget\n---@field label string');
-		expect(bundle).not.toContain('modules["main"] = function(...)\n\t--- Shared widget state.');
-	});
-
-	test('hoists exact class declarations in typed mode', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [
-				{
-					moduleName: 'main',
-					filePath: 'main.lua',
-					content: [
-						'---@class (exact) DemoWidget: BaseWidget',
-						'---@field label string',
-						'local DemoWidget = {}',
-						'return DemoWidget',
-					].join('\n'),
-				},
-			],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle).toContain('---@class (exact) DemoWidget: BaseWidget\n---@field label string');
-		expect(bundle).not.toContain('modules["main"] = function(...)\n\t---@class (exact) DemoWidget: BaseWidget');
-	});
-
-	test('hoists key enum declarations in typed mode', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-		const bundle = await generator.generateBundle({
-			entryModuleName: 'main',
-			bundledModules: [
-				{
-					moduleName: 'main',
-					filePath: 'main.lua',
-					content: [
-						'---@enum (key) DemoMode',
-						'local DemoMode = { dev = true, prod = true }',
-						'return DemoMode',
-					].join('\n'),
-				},
-			],
-			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
-			fallbackPolicy: 'external-only',
-			mode: 'typed',
-		});
-
-		expect(bundle).toContain('---@enum (key) DemoMode');
-		expect(bundle).not.toContain('modules["main"] = function(...)\n\t---@enum (key) DemoMode');
-	});
-
-	test('fails on conflicting LuaCATS declarations in typed mode', async () => {
-		const config = { sourceRoot: process.cwd() };
-		const generator = new BundleGenerator(config);
-
-		await expect(
-			generator.generateBundle({
-				entryModuleName: 'main',
-				bundledModules: [
-					{
-						moduleName: 'main',
-						filePath: 'main.lua',
-						content: 'local pad = true\n---@alias SharedMode "a"|"b"\nreturn {}',
-					},
-					{
-						moduleName: 'secondary',
-						filePath: 'vendor/secondary.lua',
-						content: 'local pad = true\nlocal extra = true\n---@alias SharedMode "c"|"d"\nreturn {}',
-					},
-				],
-				externalModules: [],
-				ignoredModules: [],
-				aliases: [],
-				fallbackPolicy: 'external-only',
-				mode: 'typed',
-			})
-		).rejects.toThrow(
-			/Typed declaration conflict for 'SharedMode'.*main\.lua:2.*vendor\/secondary\.lua:3.*Existing:.*Conflicting:/
-		);
 	});
 });

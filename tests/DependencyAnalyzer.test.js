@@ -348,7 +348,6 @@ describe('DependencyAnalyzer', () => {
 							missing: 'error',
 						},
 						bundle: {
-							mode: 'runtime',
 							fallback: 'external-only',
 						},
 					},
@@ -406,7 +405,6 @@ describe('DependencyAnalyzer', () => {
 							rules: {},
 						},
 						bundle: {
-							mode: 'runtime',
 							fallback: 'external-only',
 						},
 					},
@@ -459,7 +457,6 @@ describe('DependencyAnalyzer', () => {
 							},
 						},
 						bundle: {
-							mode: 'runtime',
 							fallback: 'external-only',
 						},
 					},
@@ -507,7 +504,6 @@ describe('DependencyAnalyzer', () => {
 							rules: {},
 						},
 						bundle: {
-							mode: 'runtime',
 							fallback: 'external-only',
 						},
 					},
@@ -555,7 +551,6 @@ describe('DependencyAnalyzer', () => {
 							rules: {},
 						},
 						bundle: {
-							mode: 'runtime',
 							fallback: 'external-only',
 						},
 					},

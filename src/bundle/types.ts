@@ -1,4 +1,4 @@
-import type { BundleMode, FallbackMode } from '../config/loader/types';
+import type { FallbackMode } from '../config/loader/types';
 
 export interface BundledModule {
 	moduleName: string;
@@ -13,5 +13,4 @@ export interface BundlePlan {
 	ignoredModules: string[];
 	aliases: string[];
 	fallbackPolicy: FallbackMode;
-	mode: BundleMode;
 }

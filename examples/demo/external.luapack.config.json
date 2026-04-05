@@ -3,7 +3,6 @@
 	"entry": "./src/entries/external.lua",
 	"output": "../../dist/demo_external_bundle.lua",
 	"bundle": {
-		"mode": "runtime",
 		"fallback": "external-only"
 	},
 	"modules": {

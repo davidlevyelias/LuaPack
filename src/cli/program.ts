@@ -3,7 +3,6 @@ import { Command } from 'commander';
 import type { CliOptions, CommandName } from './types';
 import {
 	collectRepeatableValue,
-	parseBundleMode,
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
@@ -43,11 +42,6 @@ function addCommonOptions(
 			'Environment variable name to inspect for module roots. Repeat to replace the effective env list.',
 			collectRepeatableValue,
 			[]
-		)
-		.option(
-			'--mode <mode>',
-			'Bundle mode (runtime, typed).',
-			parseBundleMode
 		)
 		.option(
 			'--fallback <policy>',

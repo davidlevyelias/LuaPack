@@ -32,10 +32,9 @@ export function loadConfig(cliOptions: CliOptions = {}): LoadedConfig {
 
 	const pathNormalized = normalizePaths(configCopy, cliOptions, baseDir);
 
-	if (cliOptions.mode || cliOptions.fallback) {
+	if (cliOptions.fallback) {
 		pathNormalized.bundle = {
 			...(pathNormalized.bundle || {}),
-			...(cliOptions.mode ? { mode: cliOptions.mode } : {}),
 			...(cliOptions.fallback ? { fallback: cliOptions.fallback } : {}),
 		};
 	}

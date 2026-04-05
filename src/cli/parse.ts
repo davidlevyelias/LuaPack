@@ -1,7 +1,7 @@
 import { InvalidArgumentError } from 'commander';
 
-import { BUNDLE_MODES, FALLBACK_MODES } from '../config/loader/constants';
-import type { BundleMode, FallbackMode } from '../config/loader';
+import { FALLBACK_MODES } from '../config/loader/constants';
+import type { FallbackMode } from '../config/loader';
 import {
 	VALID_LOG_LEVELS,
 	VALID_MISSING_POLICIES,
@@ -61,16 +61,6 @@ export function parseRepeatableValue(value: string): string {
 
 export function collectRepeatableValue(value: string, previous: string[] = []): string[] {
 	return [...previous, parseRepeatableValue(value)];
-}
-
-export function parseBundleMode(value: string): BundleMode {
-	const normalized = String(value).trim().toLowerCase();
-	if (BUNDLE_MODES.has(normalized)) {
-		return normalized as BundleMode;
-	}
-	throw new InvalidArgumentError(
-		`Expected one of: ${Array.from(BUNDLE_MODES).join(', ')}`
-	);
 }
 
 export function parseFallbackMode(value: string): FallbackMode {

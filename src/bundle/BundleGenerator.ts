@@ -1,12 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-import type { WorkflowConfig } from '../analysis/types';
 import type { BundlePlan } from './types';
-import { processTypedModules } from './typedDeclarations';
 
 const TEMPLATE_PLACEHOLDERS = {
-	declarations: '-- __TYPE_DECLARATIONS__',
 	modules: '-- __MODULE_DEFINITIONS__',
 	externals: '-- __EXTERNAL_MODULES__',
 	fallback: '-- __FALLBACK_LOGIC__',
@@ -15,8 +12,8 @@ const TEMPLATE_PLACEHOLDERS = {
 
 const templateCache = new Map<string, string>();
 
-function getTemplate(mode: BundlePlan['mode']): string {
-	const templateName = mode === 'typed' ? 'typed.lua' : 'runtime.lua';
+function getTemplate(): string {
+	const templateName = 'runtime.lua';
 	if (!templateCache.has(templateName)) {
 		const templatePath = path.resolve(__dirname, `../../templates/${templateName}`);
 		templateCache.set(templateName, fs.readFileSync(templatePath, 'utf-8'));
@@ -42,12 +39,7 @@ function buildFallbackLogic(fallbackPolicy: BundlePlan['fallbackPolicy']): strin
 
 export default class BundleGenerator {
 	createBundleTemplate(bundlePlan: BundlePlan): string {
-		const typedModules =
-			bundlePlan.mode === 'typed'
-				? processTypedModules(bundlePlan.bundledModules)
-				: { declarationsBlock: '', modules: bundlePlan.bundledModules };
-
-		const moduleDefinitions = typedModules.modules
+		const moduleDefinitions = bundlePlan.bundledModules
 			.map(({ moduleName, content }) => {
 				const normalizedContent = content
 					.replace(/\r\n/g, '\n')
@@ -67,12 +59,8 @@ end`;
 			bundlePlan.externalModules
 		);
 		const fallbackLogic = buildFallbackLogic(bundlePlan.fallbackPolicy);
-		const declarationsSection = typedModules.declarationsBlock
-			? `${typedModules.declarationsBlock}\n\n`
-			: '';
 
-		return getTemplate(bundlePlan.mode)
-			.replace(TEMPLATE_PLACEHOLDERS.declarations, declarationsSection)
+		return getTemplate()
 			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
 			.replace(TEMPLATE_PLACEHOLDERS.externals, externalModulesSection)
 			.replace(TEMPLATE_PLACEHOLDERS.fallback, fallbackLogic)

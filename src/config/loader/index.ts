@@ -23,7 +23,6 @@ export type {
 	V2Compat,
 	NormalizedRule,
 	MissingPolicy,
-	BundleMode,
 	FallbackMode,
 	RuleMode,
 } from './types';

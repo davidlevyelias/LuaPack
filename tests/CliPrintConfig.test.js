@@ -40,7 +40,6 @@ describe('CLI print-config', () => {
 				rules: {},
 			},
 			bundle: {
-				mode: 'runtime',
 				fallback: 'external-only',
 			},
 			_compat: {

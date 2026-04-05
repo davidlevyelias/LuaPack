@@ -48,13 +48,12 @@ describe('ConfigLoader', () => {
 				missing: 'error',
 			},
 			bundle: {
-				mode: 'runtime',
 				fallback: 'external-only',
 			},
 		});
 	});
 
-	test('applies CLI bundle overrides before v1-to-v2 normalization', () => {
+	test('applies CLI bundle overrides before normalization', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
 		const configContent = {
 			schemaVersion: 2,
@@ -66,12 +65,10 @@ describe('ConfigLoader', () => {
 
 		const config = loadConfig({
 			config: configPath,
-			mode: 'typed',
 			fallback: 'never',
 		});
 
 		expect(config.bundle).toEqual({
-			mode: 'typed',
 			fallback: 'never',
 		});
 	});
@@ -173,7 +170,6 @@ describe('ConfigLoader', () => {
 				},
 			},
 			bundle: {
-				mode: 'typed',
 				fallback: 'never',
 			},
 		};
@@ -198,7 +194,6 @@ describe('ConfigLoader', () => {
 			recursive: true,
 		});
 		expect(config.bundle).toEqual({
-			mode: 'typed',
 			fallback: 'never',
 		});
 	});

@@ -4,7 +4,6 @@ import { version as packageVersion } from '../package.json';
 import {
 	createProgram as createCliProgram,
 	executeCliAction as executeCliWorkflow,
-	parseBundleMode,
 	parseFallbackMode,
 	parseMissingPolicy,
 	parseReportFormat,
@@ -21,7 +20,6 @@ export type { CliOptions, CommandName, LogLevel, ReportFormat } from './cli';
 
 export {
 	parseEnvOption,
-	parseBundleMode,
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
