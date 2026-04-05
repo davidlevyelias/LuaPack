@@ -3,15 +3,10 @@ import {
 	readConfigFile,
 	detectConfigVersion,
 	getValidator,
-	hasObfuscationCliToggles,
 	mergeConfig,
 	normalizePaths,
 	normalizeToV2Config,
-	collectWarnings,
-	emitWarning,
-	getConfigWarnings,
 	setConfigVersion,
-	setConfigWarnings,
 	validateConfig,
 } from './loader';
 import type { CliOptions, LoadedConfig } from './loader';
@@ -29,7 +24,6 @@ export function loadConfig(cliOptions: CliOptions = {}): LoadedConfig {
 	}
 
 	const merged = mergeConfig(fileConfig, cliOptions, configVersion);
-	const hasObfuscationToggles = hasObfuscationCliToggles(cliOptions);
 
 	const validatorInstance = getValidator(configVersion);
 
@@ -51,21 +45,11 @@ export function loadConfig(cliOptions: CliOptions = {}): LoadedConfig {
 		...normalizedV2,
 		[LOADER_INTERNALS]: {
 			analyzeOnly: false,
-			warnings: [],
 			configVersion,
 		},
 	};
 
-	setConfigWarnings(outputConfig, collectWarnings({
-		configVersion,
-		mergedConfig: merged,
-		hasObfuscationToggles,
-	}));
 	setConfigVersion(outputConfig, configVersion);
-
-	for (const warning of getConfigWarnings(outputConfig)) {
-		emitWarning(warning, cliOptions);
-	}
 
 	return outputConfig;
 }

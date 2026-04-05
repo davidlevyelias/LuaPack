@@ -3,7 +3,6 @@ const os = require('os');
 const path = require('path');
 
 const { loadConfig } = require('../src/config/ConfigLoader');
-const { getConfigWarnings } = require('../src/config/loader');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
@@ -214,28 +213,6 @@ describe('ConfigLoader', () => {
 		expect(() => loadConfig({ config: configPath })).toThrow(
 			/v1 configuration is no longer supported/
 		);
-	});
-
-	test('warns and ignores obfuscation CLI toggles', () => {
-		const warnings = [];
-		const configPath = path.join(tempDir, 'luapack.config.json');
-		const configContent = {
-				schemaVersion: 2,
-			entry: './src/main.lua',
-			output: './dist/out.lua',
-		};
-
-		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
-
-		const config = loadConfig({
-			config: configPath,
-			minify: true,
-			renameVariables: true,
-			onWarning: (message) => warnings.push(message),
-		});
-
-		expect(getConfigWarnings(config)).toHaveLength(1);
-		expect(warnings[0]).toMatch(/Obfuscation settings are ignored/);
 	});
 
 	test('throws descriptive error for invalid configuration', () => {

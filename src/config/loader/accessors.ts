@@ -9,7 +9,6 @@ function ensureInternals(config: WorkflowConfigLike): LoaderInternals {
 	if (!config[LOADER_INTERNALS]) {
 		config[LOADER_INTERNALS] = {
 			analyzeOnly: false,
-			warnings: [],
 		};
 	}
 
@@ -30,18 +29,6 @@ export function setAnalyzeOnlyConfig(
 	): LoadedConfig {
 	ensureInternals(config).analyzeOnly = analyzeOnly;
 	return config;
-}
-
-export function setConfigWarnings(
-	config: LoadedConfig,
-	warnings: string[]
-	): LoadedConfig {
-	ensureInternals(config).warnings = [...warnings];
-	return config;
-}
-
-export function getConfigWarnings(config: WorkflowConfigLike): string[] {
-	return config[LOADER_INTERNALS]?.warnings ?? [];
 }
 
 export function setConfigVersion(

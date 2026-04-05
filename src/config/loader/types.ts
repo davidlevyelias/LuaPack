@@ -51,10 +51,6 @@ export interface CliOptions {
 	envVar?: string[];
 	mode?: BundleMode;
 	fallback?: FallbackMode;
-	renameVariables?: boolean;
-	minify?: boolean;
-	ascii?: boolean;
-	onWarning?: (message: string) => void;
 	[key: string]: unknown;
 }
 

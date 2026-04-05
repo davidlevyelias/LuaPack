@@ -13,7 +13,7 @@ function exitOverrideRecursively(program) {
 }
 
 describe('CLI', () => {
-	test('does not expose obfuscation flags in the command surface', () => {
+	test('does not expose removed legacy flags in the command surface', () => {
 		const cli = createProgram(async () => {});
 		const subcommands = cli.commands.map((command) => command.name());
 

@@ -2,12 +2,6 @@ import path from 'path';
 
 import type { CliOptions, ConfigVersion, RawConfig } from './types';
 
-export function hasObfuscationCliToggles(cliOptions: CliOptions): boolean {
-	return (['renameVariables', 'minify', 'ascii'] as const).some(
-		(key) => typeof cliOptions[key] === 'boolean'
-	);
-}
-
 export function mergeConfig(
 	baseConfig: RawConfig,
 	cliOptions: CliOptions,
