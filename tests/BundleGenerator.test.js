@@ -172,6 +172,29 @@ describe('BundleGenerator', () => {
 		}
 	});
 
+	test('reuses analyzed module content when building the bundle plan', () => {
+		const config = { sourceRoot: process.cwd() };
+		const planBuilder = new BundlePlanBuilder(config);
+		const entryModule = {
+			id: 'main',
+			moduleName: 'main',
+			filePath: path.join(process.cwd(), 'missing-main.lua'),
+			sourceContent: 'return { cached = true }',
+			isIgnored: false,
+			isExternal: false,
+			isMissing: false,
+		};
+
+		const bundlePlan = planBuilder.build(entryModule, [entryModule]);
+
+		expect(bundlePlan.bundledModules).toEqual([
+			expect.objectContaining({
+				moduleName: 'main',
+				content: 'return { cached = true }',
+			}),
+		]);
+	});
+
 	test('disables runtime fallback when bundle fallback policy is never', async () => {
 		const config = { sourceRoot: process.cwd() };
 		const generator = new BundleGenerator(config);

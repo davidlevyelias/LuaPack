@@ -11,12 +11,13 @@ import {
 	parseEnvOption,
 	parseLogLevel,
 	printBundleSuccess,
+	printConfigSnapshot,
 	printCliHeader as printCliHeaderMessage,
 	printReportSuccess,
 	runCli as runCliProgram,
 } from './cli';
 
-export type { CliOptions, LogLevel } from './cli';
+export type { CliOptions, CommandName, LogLevel, ReportFormat } from './cli';
 
 export {
 	parseEnvOption,
@@ -26,11 +27,18 @@ export {
 	parseMissingPolicy,
 	parseReportFormat,
 	printBundleSuccess,
+	printConfigSnapshot,
 	printReportSuccess,
 };
 
-export function printCliHeader({ analyzeOnly }: { analyzeOnly: boolean }) {
-	return printCliHeaderMessage({ analyzeOnly, packageVersion });
+export function printCliHeader({
+	analyzeOnly,
+	useColor,
+}: {
+	analyzeOnly: boolean;
+	useColor?: boolean;
+}) {
+	return printCliHeaderMessage({ analyzeOnly, packageVersion, useColor });
 }
 
 export async function executeCliAction(

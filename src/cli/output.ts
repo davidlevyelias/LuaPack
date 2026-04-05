@@ -44,6 +44,6 @@ export function printReportSuccess(reportPath: string, { useColor = true }: { us
 	logger.info(`${label} ${formattedPath}`);
 }
 
-export function printConfigSnapshot(config: V2Config) {
+export function printConfigSnapshot(config: V2Config | null) {
 	process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
 }

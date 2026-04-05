@@ -1,14 +1,16 @@
 import fs from 'fs';
 import type { ModuleRecord } from '../types';
-
-type LoggerLike = {
-	warn?: (...args: unknown[]) => void;
-};
+import type { LoggerLike } from '../modelUtils';
 
 export function computeModuleSizeSum(modules: ModuleRecord[], logger?: LoggerLike): number {
 	let total = 0;
 
 	for (const moduleRecord of modules) {
+		if (Number.isFinite(moduleRecord?.sizeBytes)) {
+			total += moduleRecord.sizeBytes as number;
+			continue;
+		}
+
 		if (!moduleRecord?.filePath) {
 			continue;
 		}

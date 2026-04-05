@@ -1,4 +1,5 @@
 import { resolveExternalEnv } from '../../utils/env';
+import { isAnalyzeOnlyConfig } from '../../config/loader';
 import type {
 	AnalysisContext,
 	FilePath,
@@ -49,7 +50,7 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 		rootDir: config.sourceRoot,
 		entryPath: config.entry,
 		outputPath: config.output,
-		analyzeOnly: Boolean(config._analyzeOnly),
+		analyzeOnly: isAnalyzeOnlyConfig(config),
 		ignoredPatterns,
 		ignoreMissing: Boolean(modulesConfig.ignoreMissing),
 		externals: {

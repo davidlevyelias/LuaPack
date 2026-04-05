@@ -1,5 +1,6 @@
 import path from 'path';
 
+import { LOADER_INTERNALS } from './internals';
 import type { V2Config, LegacyFacadeOutput } from './types';
 
 export function buildLegacyFacade(v2Config: V2Config): LegacyFacadeOutput {
@@ -39,6 +40,11 @@ export function buildLegacyFacade(v2Config: V2Config): LegacyFacadeOutput {
 		schemaVersion: 2,
 		entry: v2Config.entry,
 		output: v2Config.output,
+		[LOADER_INTERNALS]: {
+			normalizedV2: v2Config,
+			analyzeOnly: false,
+			warnings: [],
+		},
 		_analyzeOnly: false,
 		sourceRoot,
 		modules: {

@@ -7,10 +7,6 @@ import type { AnalysisResult, ModuleRecord, WorkflowConfig } from '../analysis/t
 import BundleGenerator from './BundleGenerator';
 import BundlePlanBuilder from './BundlePlanBuilder';
 
-function isModuleRecord(record: ModuleRecord | null | undefined): record is ModuleRecord {
-	return Boolean(record && typeof record.moduleName === 'string' && typeof record.filePath === 'string');
-}
-
 export default class LuaPacker {
 	private readonly config: WorkflowConfig;
 
@@ -41,13 +37,20 @@ export default class LuaPacker {
 		}
 
 		const { entryModule, sortedModules } = analysisResult;
-		if (!isModuleRecord(entryModule) || !Array.isArray(sortedModules)) {
+		const hasEntryModule = Boolean(
+			entryModule &&
+			typeof entryModule.moduleName === 'string' &&
+			typeof entryModule.filePath === 'string'
+		);
+		if (!hasEntryModule || !Array.isArray(sortedModules)) {
 			throw new Error('Analysis result must include entryModule and sortedModules.');
 		}
 
-		const generator = new BundleGenerator(this.config);
+		const entryRecord = entryModule as ModuleRecord;
+
+		const generator = new BundleGenerator();
 		const planBuilder = new BundlePlanBuilder(this.config);
-		const bundlePlan = planBuilder.build(entryModule, sortedModules);
+		const bundlePlan = planBuilder.build(entryRecord, sortedModules);
 		const bundleContent = await generator.generateBundle(bundlePlan);
 
 		const outputDir = path.dirname(this.config.output);

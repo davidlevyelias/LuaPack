@@ -10,6 +10,9 @@ import {
 	buildLegacyFacade,
 	collectWarnings,
 	emitWarning,
+	getConfigWarnings,
+	setConfigVersion,
+	setConfigWarnings,
 	validateConfig,
 } from './loader';
 import type { CliOptions, LegacyFacadeOutput } from './loader';
@@ -50,14 +53,14 @@ export function loadConfig(cliOptions: CliOptions = {}): LegacyFacadeOutput {
 	const normalizedV2 = normalizeToV2Config(pathNormalized, configVersion);
 	const outputConfig: LegacyFacadeOutput = buildLegacyFacade(normalizedV2);
 
-	outputConfig._warnings = collectWarnings({
+	setConfigWarnings(outputConfig, collectWarnings({
 		configVersion,
 		mergedConfig: merged,
 		hasObfuscationToggles,
-	});
-	outputConfig._configVersion = configVersion;
+	}));
+	setConfigVersion(outputConfig, configVersion);
 
-	for (const warning of outputConfig._warnings) {
+	for (const warning of getConfigWarnings(outputConfig)) {
 		emitWarning(warning, cliOptions);
 	}
 

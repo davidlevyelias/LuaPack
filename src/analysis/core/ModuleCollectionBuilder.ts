@@ -5,14 +5,7 @@ import type {
 	ModuleId,
 	ModuleRecord,
 } from '../types';
-
-function isModuleRecord(value: unknown): value is ModuleRecord {
-	if (!value || typeof value !== 'object') {
-		return false;
-	}
-	const record = value as Record<string, unknown>;
-	return typeof record.id === 'string';
-}
+import { isModuleRecord } from '../modelUtils';
 
 export function buildModuleCollections(graph: AnalyzerDependencyGraph): ModuleCollections {
 	const moduleMap = new Map<ModuleId, ModuleRecord>();

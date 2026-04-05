@@ -26,19 +26,14 @@ import {
 	buildDependencyTreeSections as createDependencyTreeSections,
 	type ModuleNode,
 } from './report/utils/dependencyTree';
-
-interface ReporterLogger {
-	info?: (...args: unknown[]) => void;
-	warn?: (...args: unknown[]) => void;
-	error?: (...args: unknown[]) => void;
-}
+import type { LoggerLike } from './modelUtils';
 
 export default class AnalysisReporter {
-	private readonly logger: ReporterLogger;
+	private readonly logger: LoggerLike;
 
 	private readonly useColor: boolean;
 
-	constructor({ logger, useColor }: { logger?: ReporterLogger; useColor?: boolean } = {}) {
+	constructor({ logger, useColor }: { logger?: LoggerLike; useColor?: boolean } = {}) {
 		this.logger = logger || console;
 		this.useColor = typeof useColor === 'boolean' ? useColor : supportsColor();
 	}

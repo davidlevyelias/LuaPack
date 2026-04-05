@@ -2,6 +2,10 @@ import AnalysisPipeline from '../analysis/AnalysisPipeline';
 import AnalysisReporter from '../analysis/AnalysisReporter';
 import { LuaPacker } from '../bundle';
 import { loadConfig } from '../config/ConfigLoader';
+import {
+	getNormalizedV2Config,
+	setAnalyzeOnlyConfig,
+} from '../config/loader';
 import logger from '../Logger';
 
 import type { CliOptions } from './types';
@@ -42,7 +46,7 @@ function createWorkflowContext(
 	const config = loadWorkflowConfig(entry, options);
 
 	if (analyzeOnly) {
-		config._analyzeOnly = true;
+		setAnalyzeOnlyConfig(config, true);
 	}
 
 	const packer = new LuaPacker(config);
@@ -63,7 +67,7 @@ export async function runAnalyzeWorkflow(
 ) {
 	if (options.printConfig) {
 		const config = loadWorkflowConfig(entry, options);
-		printConfigSnapshot(config._v2);
+		printConfigSnapshot(getNormalizedV2Config(config));
 		return;
 	}
 
@@ -103,7 +107,7 @@ export async function runBundleWorkflow(
 ) {
 	if (options.printConfig) {
 		const config = loadWorkflowConfig(entry, options);
-		printConfigSnapshot(config._v2);
+		printConfigSnapshot(getNormalizedV2Config(config));
 		return;
 	}
 

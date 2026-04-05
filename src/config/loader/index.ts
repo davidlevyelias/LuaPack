@@ -1,5 +1,14 @@
 export { readConfigFile, detectConfigVersion } from './configFile';
+export { LOADER_INTERNALS } from './internals';
 export { getValidator } from './schemaValidator';
+export {
+	getConfigWarnings,
+	getNormalizedV2Config,
+	isAnalyzeOnlyConfig,
+	setAnalyzeOnlyConfig,
+	setConfigVersion,
+	setConfigWarnings,
+} from './accessors';
 export { hasObfuscationCliToggles, mergeConfig } from './mergeConfig';
 export { normalizePathsV1, normalizePathsV2 } from './pathNormalization';
 export { normalizeToV2Config } from './v2Normalization';
@@ -24,3 +33,4 @@ export type {
 	LegacyModulesConfig,
 	LegacyExternalConfig,
 } from './types';
+export type { LoaderInternals } from './internals';

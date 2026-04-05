@@ -1,18 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 
+import { getNormalizedV2Config } from '../config/loader';
 import { resolveExternalEnv } from '../utils/env';
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
 import type {
 	MissingPolicy,
 	NormalizedRule,
-	V2Config,
 } from '../config/loader/types';
 
 type OverrideConfig = { path?: string | null; recursive?: boolean };
 
 export default class ModuleResolver {
-	private readonly v2Config: V2Config | null;
+	private readonly v2Config;
 	private readonly sourceRoot: string;
 	private readonly moduleRules: Record<string, NormalizedRule>;
 	private readonly searchRoots: string[];
@@ -22,7 +22,7 @@ export default class ModuleResolver {
 	private readonly envInfo: { allPaths: string[] };
 
 	constructor(config: WorkflowConfig) {
-		this.v2Config = config._v2 ?? null;
+		this.v2Config = getNormalizedV2Config(config);
 		const roots = Array.isArray(this.v2Config?.modules.roots)
 			? this.v2Config!.modules.roots
 			: [config.sourceRoot];

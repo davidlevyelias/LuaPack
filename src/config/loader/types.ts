@@ -1,5 +1,7 @@
 export type ConfigVersion = 'v1' | 'v2';
 
+import type { LOADER_INTERNALS, LoaderInternals } from './internals';
+
 export type MissingPolicy = 'error' | 'warn' | 'ignore';
 export type BundleMode = 'runtime' | 'typed';
 export type FallbackMode = 'never' | 'external-only' | 'always';
@@ -73,6 +75,7 @@ export interface LegacyFacadeOutput {
 	schemaVersion: 2;
 	entry: string;
 	output: string;
+	[LOADER_INTERNALS]?: LoaderInternals;
 	_analyzeOnly: boolean;
 	sourceRoot: string;
 	modules: LegacyModulesConfig;

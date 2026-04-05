@@ -1,6 +1,7 @@
 import fs from 'fs';
 
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
+import { getNormalizedV2Config } from '../config/loader';
 
 import type { BundlePlan } from './types';
 
@@ -18,6 +19,8 @@ export default class BundlePlanBuilder {
 		const bundledModules = [];
 		const externalModules: string[] = [];
 		const ignoredModules: string[] = [];
+
+		const normalizedConfig = getNormalizedV2Config(this.config);
 
 		for (const moduleRecord of sortedModules) {
 			if (!moduleRecord || moduleRecord.isMissing) {
@@ -38,10 +41,15 @@ export default class BundlePlanBuilder {
 				continue;
 			}
 
+			const content =
+				typeof moduleRecord.sourceContent === 'string'
+					? moduleRecord.sourceContent
+					: fs.readFileSync(moduleRecord.filePath, 'utf-8');
+
 			bundledModules.push({
 				moduleName: moduleRecord.moduleName,
 				filePath: moduleRecord.filePath,
-				content: fs.readFileSync(moduleRecord.filePath, 'utf-8'),
+				content,
 			});
 		}
 
@@ -51,8 +59,8 @@ export default class BundlePlanBuilder {
 			externalModules,
 			ignoredModules,
 			aliases: [],
-			fallbackPolicy: this.config._v2?.bundle?.fallback || 'external-only',
-			mode: this.config._v2?.bundle?.mode || 'runtime',
+			fallbackPolicy: normalizedConfig?.bundle?.fallback || 'external-only',
+			mode: normalizedConfig?.bundle?.mode || 'runtime',
 		};
 	}
 }

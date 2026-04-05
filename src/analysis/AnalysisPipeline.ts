@@ -3,6 +3,7 @@ import DependencyAnalyzer from '../dependency';
 import { buildAnalysisContext } from './context/ConfigContextBuilder';
 import { buildModuleCollections } from './core/ModuleCollectionBuilder';
 import { computeModuleSizeSum } from './core/MetricsCalculator';
+import { isModuleRecord, type LoggerLike } from './modelUtils';
 import type {
 	AnalysisContext,
 	AnalysisError,
@@ -14,12 +15,6 @@ import type {
 	ModuleId,
 	WorkflowConfig,
 } from './types';
-
-type PipelineLogger = {
-	info?: (...args: unknown[]) => void;
-	warn?: (...args: unknown[]) => void;
-	error?: (...args: unknown[]) => void;
-};
 
 type DependencyAnalyzerFacade = {
 	buildDependencyGraph(entry: string): DependencyAnalyzerResult;
@@ -43,14 +38,6 @@ interface AnalyzerMissingDependency {
 	fatal?: boolean;
 }
 
-function isModuleRecord(value: unknown): value is ModuleRecord {
-	if (!value || typeof value !== 'object') {
-		return false;
-	}
-	const record = value as Record<string, unknown>;
-	return typeof record.id === 'string';
-}
-
 function normalizeError(error: unknown): AnalysisError {
 	if (error instanceof Error) {
 		return error;
@@ -60,10 +47,10 @@ function normalizeError(error: unknown): AnalysisError {
 
 export default class AnalysisPipeline {
 	private readonly config: WorkflowConfig;
-	private readonly logger: PipelineLogger;
+	private readonly logger: LoggerLike;
 	private readonly analyzer: DependencyAnalyzerFacade;
 
-	constructor(config: WorkflowConfig, { logger }: { logger?: PipelineLogger } = {}) {
+	constructor(config: WorkflowConfig, { logger }: { logger?: LoggerLike } = {}) {
 		this.config = config;
 		this.logger = logger || console;
 		const AnalyzerCtor = DependencyAnalyzer as unknown as DependencyAnalyzerConstructor;

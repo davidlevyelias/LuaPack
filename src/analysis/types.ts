@@ -80,6 +80,7 @@ export interface ModuleRecord {
   id: ModuleId;
   moduleName: string;
   filePath: FilePath | null;
+  sourceContent?: string;
   isExternal: boolean;
   overrideApplied: boolean;
   analyzeDependencies: boolean;

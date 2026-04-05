@@ -104,7 +104,10 @@ export default class DependencyAnalyzer {
 			return;
 		}
 
-		const fileContent = fs.readFileSync(moduleRecord.filePath, 'utf-8');
+		const fileBuffer = fs.readFileSync(moduleRecord.filePath);
+		const fileContent = fileBuffer.toString('utf-8');
+		moduleRecord.sourceContent = fileContent;
+		moduleRecord.sizeBytes = fileBuffer.byteLength;
 		const requires = this.extractor.extract(fileContent);
 		const resolvedDependencies: ModuleRecord[] = [];
 

@@ -41,8 +41,6 @@ function buildFallbackLogic(fallbackPolicy: BundlePlan['fallbackPolicy']): strin
 }
 
 export default class BundleGenerator {
-	constructor(private readonly config: WorkflowConfig) {}
-
 	createBundleTemplate(bundlePlan: BundlePlan): string {
 		const typedModules =
 			bundlePlan.mode === 'typed'
@@ -82,7 +80,6 @@ end`;
 	}
 
 	async generateBundle(bundlePlan: BundlePlan): Promise<string> {
-		void this.config;
 		return this.createBundleTemplate(bundlePlan);
 	}
 }
