@@ -82,10 +82,6 @@ export default class DependencyAnalyzer {
 		return sorted;
 	}
 
-	_findDependencies(content: string): string[] {
-		return this.extractor.extract(content);
-	}
-
 	private buildGraph(moduleRecord: ModuleRecord, graph: AnalyzerDependencyGraph): void {
 		if (!moduleRecord || moduleRecord.isIgnored || !moduleRecord.filePath) {
 			return;

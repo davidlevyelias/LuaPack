@@ -2,7 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { DependencyAnalyzer } = require('../src/dependency');
+const { DependencyAnalyzer, LuaRequireExtractor } = require('../src/dependency');
 const { loadConfig } = require('../src/config/ConfigLoader');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -14,6 +14,10 @@ function loadExampleConfig() {
 			'examples/demo/basic.luapack.config.json'
 		),
 	});
+}
+
+function createRequireExtractor() {
+	return new LuaRequireExtractor();
 }
 
 describe('DependencyAnalyzer', () => {
@@ -251,8 +255,8 @@ describe('DependencyAnalyzer', () => {
 	});
 
 	test('ignores require text inside comments and plain strings', () => {
-		const analyzer = new DependencyAnalyzer(loadExampleConfig());
-		const dependencies = analyzer._findDependencies(
+		const extractor = createRequireExtractor();
+		const dependencies = extractor.extract(
 			[
 				"-- require('comment.only')",
 				"local text = \"require('string.only')\"",
@@ -265,8 +269,8 @@ describe('DependencyAnalyzer', () => {
 	});
 
 	test('parses multiline require calls and long-string arguments', () => {
-		const analyzer = new DependencyAnalyzer(loadExampleConfig());
-		const dependencies = analyzer._findDependencies(
+		const extractor = createRequireExtractor();
+		const dependencies = extractor.extract(
 			[
 				'local one = require(',
 				'  "core.multi"',
@@ -279,8 +283,8 @@ describe('DependencyAnalyzer', () => {
 	});
 
 	test('ignores aliased require calls and dynamic expressions', () => {
-		const analyzer = new DependencyAnalyzer(loadExampleConfig());
-		const dependencies = analyzer._findDependencies(
+		const extractor = createRequireExtractor();
+		const dependencies = extractor.extract(
 			[
 				'local req = require',
 				"local one = req('aliased.module')",
