@@ -1,3 +1,5 @@
+import path from 'path';
+
 import { resolveExternalEnv } from '../../utils/env';
 import { isAnalyzeOnlyConfig } from '../../config/loader';
 import type {
@@ -27,7 +29,7 @@ function clonePathsByEnv(pathsByEnv: Record<string, FilePath[]>): Record<string,
 
 export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 	const modulesConfig = config.modules;
-	const sourceRoot = modulesConfig.roots[0] ?? config.entry;
+	const sourceRoot = modulesConfig.roots[0] ?? path.dirname(config.entry);
 	const ignoredPatterns = Object.entries(modulesConfig.rules)
 		.filter(([, rule]) => rule?.mode === 'ignore')
 		.map(([moduleId]) => moduleId);
