@@ -8,8 +8,6 @@ import type {
 	NormalizedRule,
 } from '../config/loader/types';
 
-type OverrideConfig = { path?: string | null; recursive?: boolean };
-
 export default class ModuleResolver {
 	private readonly sourceRoot: string;
 	private readonly moduleRules: Record<string, NormalizedRule>;
