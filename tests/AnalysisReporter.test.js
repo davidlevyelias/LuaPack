@@ -121,6 +121,21 @@ describe('AnalysisReporter', () => {
 				message: 'Module not found.',
 			},
 		];
+		analysis.dependencyGraph = new Map([
+			[
+				'main',
+				[
+					{
+						id: 'dkjson',
+						moduleName: 'dkjson',
+						filePath: null,
+						isExternal: true,
+						overrideApplied: false,
+						isMissing: true,
+					},
+				],
+			],
+		]);
 		analysis.metrics.missingCount = 1;
 
 		try {
@@ -132,8 +147,21 @@ describe('AnalysisReporter', () => {
 			const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
 			expect(parsed.alerts).toEqual([]);
 			expect(parsed.metrics.missingCount).toBe(0);
-			expect(parsed.sections.externals).toEqual([]);
-			expect(parsed.sections.dependencyGraph.main || []).toEqual([]);
+			expect(parsed.sections.externals).toEqual([
+				expect.objectContaining({
+					id: 'dkjson',
+					name: 'dkjson',
+					status: 'missing',
+				}),
+			]);
+			expect(parsed.sections.dependencyGraph.main || []).toEqual([
+				expect.objectContaining({
+					id: 'dkjson',
+					name: 'dkjson',
+					status: 'missing',
+					type: 'external',
+				}),
+			]);
 		} finally {
 			fs.rmSync(targetDir, { recursive: true, force: true });
 		}

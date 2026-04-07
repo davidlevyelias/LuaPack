@@ -59,7 +59,7 @@ export function buildSerializablePayload(
 
 	if (verbose) {
 		payload.sections = buildJsonSections(analysis, {
-			includeMissing: missingPolicy !== 'ignore',
+			includeMissing: true,
 		});
 	}
 
