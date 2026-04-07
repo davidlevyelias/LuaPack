@@ -34,15 +34,32 @@ function loadWorkflowConfig(entry: string | undefined, options: CliOptions) {
 	});
 }
 
+function loadAnalyzeConfig(entry: string | undefined, options: CliOptions) {
+	return loadConfig({
+		entry,
+		root: options.root,
+		config: options.config,
+		missing: options.missing,
+		envVar: options.envVar,
+		fallback: options.fallback,
+	});
+}
+
+function resolveAnalyzeFormat(options: CliOptions): 'pretty' | 'text' | 'json' {
+	return options.format ?? 'pretty';
+}
+
 function createWorkflowContext(
 	entry: string | undefined,
 	options: CliOptions,
 	packageVersion: string,
-	{ analyzeOnly }: { analyzeOnly: boolean }
+	{ analyzeOnly, showHeader = true }: { analyzeOnly: boolean; showHeader?: boolean }
 ): WorkflowContext {
 	const useColor = options.color !== false;
-	printCliHeader({ analyzeOnly, packageVersion, useColor });
 	const config = loadWorkflowConfig(entry, options);
+	if (showHeader) {
+		printCliHeader({ analyzeOnly, packageVersion, useColor });
+	}
 
 	if (analyzeOnly) {
 		setAnalyzeOnlyConfig(config, true);
@@ -65,14 +82,35 @@ export async function runAnalyzeWorkflow(
 	packageVersion: string
 ) {
 	if (options.printConfig) {
-		const config = loadWorkflowConfig(entry, options);
+		const config = loadAnalyzeConfig(entry, options);
 		printConfigSnapshot(getNormalizedV2Config(config));
 		return;
 	}
 
-	const context = createWorkflowContext(entry, options, packageVersion, {
-		analyzeOnly: true,
-	});
+	const effectiveFormat = resolveAnalyzeFormat(options);
+	if (options.output && !options.format) {
+		throw Object.assign(
+			new Error('Analyze output requires --format text or --format json.'),
+			{ code: 'ANALYZE_OUTPUT_REQUIRES_FORMAT', errorType: 'usage' }
+		);
+	}
+
+	const useColor = options.color !== false;
+	const config = loadAnalyzeConfig(entry, options);
+	if (effectiveFormat === 'pretty') {
+		printCliHeader({ analyzeOnly: true, packageVersion, useColor });
+	}
+	setAnalyzeOnlyConfig(config, true);
+
+	const packer = new LuaPacker(config);
+	const workflowConfig = packer.getConfig();
+	const analysisPipeline = new AnalysisPipeline(workflowConfig, { logger });
+
+	const context = {
+		analysis: analysisPipeline.run(),
+		reporter: new AnalysisReporter({ logger, useColor }),
+		packer,
+	};
 	let reportPath: string | null = null;
 
 	if (options.output) {
@@ -86,16 +124,26 @@ export async function runAnalyzeWorkflow(
 		);
 	}
 
-	context.reporter.printConsoleReport(context.analysis, {
-		verbose: Boolean(options.verbose),
-	});
+	if (effectiveFormat === 'json') {
+		if (!options.output) {
+			context.reporter.printJsonReport(context.analysis, {
+				verbose: Boolean(options.verbose),
+			});
+		}
+	} else if (effectiveFormat === 'text') {
+		if (!options.output) {
+			context.reporter.printTextReport(context.analysis, {
+				verbose: Boolean(options.verbose),
+			});
+		}
+	} else {
+		context.reporter.printConsoleReport(context.analysis, {
+			verbose: Boolean(options.verbose),
+		});
+	}
 
 	if (reportPath) {
 		printReportSuccess(reportPath, { useColor: options.color !== false });
-	}
-
-	if (!context.analysis.success) {
-		process.exitCode = 1;
 	}
 }
 

@@ -21,7 +21,9 @@ type DependencyAnalyzerFacade = {
 	topologicalSort(graph: AnalyzerDependencyGraph): ModuleRecord[];
 };
 
-type DependencyAnalyzerConstructor = new (config: WorkflowConfig) => DependencyAnalyzerFacade;
+type DependencyAnalyzerConstructor = new (
+	config: WorkflowConfig
+) => DependencyAnalyzerFacade;
 
 interface DependencyAnalyzerResult {
 	graph: AnalyzerDependencyGraph;
@@ -50,10 +52,14 @@ export default class AnalysisPipeline {
 	private readonly logger: LoggerLike;
 	private readonly analyzer: DependencyAnalyzerFacade;
 
-	constructor(config: WorkflowConfig, { logger }: { logger?: LoggerLike } = {}) {
+	constructor(
+		config: WorkflowConfig,
+		{ logger }: { logger?: LoggerLike } = {}
+	) {
 		this.config = config;
 		this.logger = logger || console;
-		const AnalyzerCtor = DependencyAnalyzer as unknown as DependencyAnalyzerConstructor;
+		const AnalyzerCtor =
+			DependencyAnalyzer as unknown as DependencyAnalyzerConstructor;
 		this.analyzer = new AnalyzerCtor(config);
 	}
 
@@ -64,13 +70,19 @@ export default class AnalysisPipeline {
 
 		let graph: AnalyzerDependencyGraph | undefined;
 		try {
-			const result = this.analyzer.buildDependencyGraph(this.config.entry);
+			const result = this.analyzer.buildDependencyGraph(
+				this.config.entry
+			);
 			graph = result.graph;
 			analysis.entryModule = isModuleRecord(result.entryModule)
 				? result.entryModule
 				: null;
-			const missingEntries = Array.isArray(result.missing) ? result.missing : [];
-			analysis.missing = missingEntries.map((item) => this.formatMissing(item));
+			const missingEntries = Array.isArray(result.missing)
+				? result.missing
+				: [];
+			analysis.missing = missingEntries.map((item) =>
+				this.formatMissing(item)
+			);
 			analysis.metrics.missingCount = analysis.missing.length;
 			if (Array.isArray(result.errors) && result.errors.length > 0) {
 				analysis.errors.push(...result.errors.map(normalizeError));
@@ -118,7 +130,9 @@ export default class AnalysisPipeline {
 		this.applyMissingWarnings(analysis);
 
 		analysis.durationMs = performance.now() - start;
-		analysis.success = analysis.errors.length === 0;
+		analysis.success =
+			analysis.errors.length === 0 &&
+			!analysis.missing.some((missingEntry) => missingEntry.fatal);
 
 		return analysis;
 	}
@@ -149,16 +163,24 @@ export default class AnalysisPipeline {
 		};
 	}
 
-	private formatMissing(item: AnalyzerMissingDependency): MissingModuleRecord {
-		const requiredByRecord = isModuleRecord(item.requiredBy) ? item.requiredBy : null;
+	private formatMissing(
+		item: AnalyzerMissingDependency
+	): MissingModuleRecord {
+		const requiredByRecord = isModuleRecord(item.requiredBy)
+			? item.requiredBy
+			: null;
 		const missingRecord = isModuleRecord(item.record) ? item.record : null;
-		const messageSource = item.error ?? (missingRecord?.missingError ?? null);
-		const message = messageSource instanceof Error && messageSource.message
-			? messageSource.message
-			: 'Module was marked missing.';
+		const messageSource = item.error ?? missingRecord?.missingError ?? null;
+		const message =
+			messageSource instanceof Error && messageSource.message
+				? messageSource.message
+				: 'Module not found.';
 		const code =
-			messageSource && typeof messageSource === 'object' && 'code' in messageSource
-				? String((messageSource as { code?: unknown }).code ?? '') || undefined
+			messageSource &&
+			typeof messageSource === 'object' &&
+			'code' in messageSource
+				? String((messageSource as { code?: unknown }).code ?? '') ||
+					undefined
 				: undefined;
 
 		return {
@@ -179,7 +201,9 @@ export default class AnalysisPipeline {
 		const warningSet = new Set(analysis.warnings);
 		for (const missingEntry of analysis.missing) {
 			const isOverrideWarning =
-				missingEntry.overrideApplied && !missingEntry.fatal && missingEntry.message;
+				missingEntry.overrideApplied &&
+				!missingEntry.fatal &&
+				missingEntry.message;
 			if (isOverrideWarning && !warningSet.has(missingEntry.message)) {
 				analysis.warnings.push(missingEntry.message);
 				warningSet.add(missingEntry.message);

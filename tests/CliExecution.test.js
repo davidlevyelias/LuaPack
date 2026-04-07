@@ -11,7 +11,20 @@ const {
 } = require('../src/cli/workflows');
 
 describe('CLI execution', () => {
+	const originalWrite = process.stdout.write;
+	let writes;
+
+	beforeEach(() => {
+		writes = [];
+		process.stdout.write = jest.fn((chunk) => {
+			writes.push(String(chunk));
+			return true;
+		});
+	});
+
 	afterEach(() => {
+		process.stdout.write = originalWrite;
+		process.exitCode = undefined;
 		logger.setLevel('info');
 		jest.clearAllMocks();
 	});
@@ -50,5 +63,29 @@ describe('CLI execution', () => {
 			expect.objectContaining({ printConfig: true }),
 			'1.0.0'
 		);
+	});
+
+	test('analyze emits structured json errors when json format is requested', async () => {
+		runAnalyzeWorkflow.mockRejectedValueOnce(
+			Object.assign(new Error('Invalid configuration:\n- configuration root: must have required property \'entry\''), {
+				code: 'CONFIG_INVALID',
+				errorType: 'config',
+			})
+		);
+
+		await executeCliAction('analyze', 'main.lua', { format: 'json' }, '1.0.0');
+
+		expect(JSON.parse(writes.join(''))).toEqual({
+			type: 'command-error',
+			status: 'error',
+			command: 'analyze',
+			error: {
+				type: 'config',
+				code: 'config-invalid',
+				message: 'Invalid configuration:',
+				details: ['- configuration root: must have required property \'entry\''],
+			},
+		});
+		expect(process.exitCode).toBe(1);
 	});
 });

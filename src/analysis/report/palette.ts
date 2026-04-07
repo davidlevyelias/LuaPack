@@ -1,5 +1,7 @@
 import ansiColors from 'ansi-colors';
 
+type MissingPolicy = 'error' | 'warn' | 'ignore';
+
 export interface Palette {
 	heading(value: string): string;
 	divider: string;
@@ -11,7 +13,10 @@ export interface Palette {
 	subDash: string;
 	dot: string;
 	muted(value: string): string;
-	externals(label: string, params: { ignoreMissing: boolean; hasMissing: boolean }): string;
+	externals(
+		label: string,
+		params: { missingPolicy?: MissingPolicy; hasMissing: boolean }
+	): string;
 	envName(name: string, hasPaths: boolean): string;
 	module(value: string): string;
 	folder(value: string): string;
@@ -23,7 +28,11 @@ export interface Palette {
 	errorHeader(value: string): string;
 	errorBullet(value: string): string;
 	override(value: string): string;
-	moduleLabel(label: string, tags?: string[], options?: { ignoreMissing?: boolean }): string;
+	moduleLabel(
+		label: string,
+		tags?: string[],
+		options?: { missingPolicy?: MissingPolicy }
+	): string;
 }
 
 export interface PaletteOptions {
@@ -32,33 +41,57 @@ export interface PaletteOptions {
 
 type ColorFn = (value: string) => string;
 
-type ExternalsParams = { ignoreMissing: boolean; hasMissing: boolean };
+type ExternalsParams = { missingPolicy?: MissingPolicy; hasMissing: boolean };
 
-type ModuleLabelOptions = { ignoreMissing?: boolean };
+type ModuleLabelOptions = { missingPolicy?: MissingPolicy };
 
-export function createPalette({ useColor = true }: PaletteOptions = {}): Palette {
-	const apply = (fn: ColorFn, value: string): string => (useColor ? fn(value) : value);
-	const wrap = (fn: ColorFn): ColorFn => (value) => apply(fn, value);
+export function createPalette({
+	useColor = true,
+}: PaletteOptions = {}): Palette {
+	const apply = (fn: ColorFn, value: string): string =>
+		useColor ? fn(value) : value;
+	const wrap =
+		(fn: ColorFn): ColorFn =>
+		(value) =>
+			apply(fn, value);
+	const colorizeMissing = (
+		value: string,
+		missingPolicy: MissingPolicy = 'error'
+	): string => {
+		if (missingPolicy === 'ignore') {
+			return apply(ansiColors.gray, value);
+		}
+		if (missingPolicy === 'warn') {
+			return apply(ansiColors.yellow, value);
+		}
+		return apply(ansiColors.red, value);
+	};
 
 	const palette: Palette = {
 		heading: wrap(ansiColors.white.bold),
 		divider: apply(ansiColors.gray, '-----------------'),
 		key: wrap(ansiColors.cyan),
 		value: wrap(ansiColors.white),
-		bool: (flag: boolean) => (flag ? apply(ansiColors.green, 'on') : apply(ansiColors.red, 'off')),
+		bool: (flag: boolean) =>
+			flag ? apply(ansiColors.green, 'on') : apply(ansiColors.red, 'off'),
 		bullet: '   •',
 		subBullet: '      •',
 		subDash: '         -',
 		dot: useColor ? ansiColors.gray('•') : '•',
 		muted: wrap(ansiColors.gray),
-		externals: (label: string, { ignoreMissing, hasMissing }: ExternalsParams): string => {
+		externals: (
+			label: string,
+			{ missingPolicy = 'error', hasMissing }: ExternalsParams
+		): string => {
 			if (!hasMissing) {
 				return apply(ansiColors.yellow, label);
 			}
-			return ignoreMissing ? apply(ansiColors.gray, label) : apply(ansiColors.red, label);
+			return colorizeMissing(label, missingPolicy);
 		},
 		envName: (name: string, hasPaths: boolean): string =>
-			hasPaths ? apply(ansiColors.green, name) : apply(ansiColors.red, name),
+			hasPaths
+				? apply(ansiColors.green, name)
+				: apply(ansiColors.red, name),
 		module: wrap(ansiColors.blue),
 		folder: wrap(ansiColors.white),
 		entry: wrap(ansiColors.green),
@@ -69,17 +102,21 @@ export function createPalette({ useColor = true }: PaletteOptions = {}): Palette
 		errorHeader: wrap(ansiColors.red.bold),
 		errorBullet: wrap(ansiColors.red),
 		override: wrap(ansiColors.magenta),
-		moduleLabel: (label: string, tags: string[] = [], options: ModuleLabelOptions = {}): string => {
+		moduleLabel: (
+			label: string,
+			tags: string[] = [],
+			options: ModuleLabelOptions = {}
+		): string => {
 			const suffix = tags.length > 0 ? ` (${tags.join(', ')})` : '';
 			const joined = `${label}${suffix}`;
-			const ignoreMissing = Boolean(options.ignoreMissing);
+			const missingPolicy = options.missingPolicy ?? 'error';
 			const hasMissing = tags.includes('missing');
 			const hasExternal = tags.includes('external');
 			if (hasMissing && hasExternal) {
-				return ignoreMissing ? apply(ansiColors.gray, joined) : apply(ansiColors.red, joined);
+				return colorizeMissing(joined, missingPolicy);
 			}
 			if (hasMissing) {
-				return ignoreMissing ? apply(ansiColors.gray, joined) : apply(ansiColors.red, joined);
+				return colorizeMissing(joined, missingPolicy);
 			}
 			if (hasExternal) {
 				return apply(ansiColors.yellow, joined);

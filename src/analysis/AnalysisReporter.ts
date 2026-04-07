@@ -19,6 +19,7 @@ import {
 	buildTextReport as buildTextReportContent,
 	type PaletteOverride,
 } from './report/builders/TextReportBuilder';
+import { normalizePathSlashes } from './report/utils/format';
 import type { ReporterAnalysis } from './report/types';
 import { buildExternalSummary as buildExternalSummaryDetails } from './report/builders/ExternalSummaryBuilder';
 import { collectModuleTags, formatModuleLabel } from './report/utils/labels';
@@ -28,14 +29,20 @@ import {
 } from './report/utils/dependencyTree';
 import type { LoggerLike } from './modelUtils';
 
+type MissingPolicy = 'error' | 'warn' | 'ignore';
+
 export default class AnalysisReporter {
 	private readonly logger: LoggerLike;
 
 	private readonly useColor: boolean;
 
-	constructor({ logger, useColor }: { logger?: LoggerLike; useColor?: boolean } = {}) {
+	constructor({
+		logger,
+		useColor,
+	}: { logger?: LoggerLike; useColor?: boolean } = {}) {
 		this.logger = logger || console;
-		this.useColor = typeof useColor === 'boolean' ? useColor : supportsColor();
+		this.useColor =
+			typeof useColor === 'boolean' ? useColor : supportsColor();
 	}
 
 	printConsoleReport(
@@ -45,12 +52,29 @@ export default class AnalysisReporter {
 		this.printSummary(analysis, { verbose });
 
 		if (verbose) {
-			const ignoreMissing = this.getIgnoreMissing(analysis);
-			this.printDependencyTree(analysis, { ignoreMissing });
-			this.printTopologicalOrder(analysis, { ignoreMissing });
+			const missingPolicy = this.getMissingPolicy(analysis);
+			this.printDependencyTree(analysis, { missingPolicy });
+			this.printTopologicalOrder(analysis, { missingPolicy });
 		}
 
 		this.printWarningsAndErrors(analysis, { verbose });
+	}
+
+	printJsonReport(
+		analysis: ReporterAnalysis,
+		{ verbose = false }: { verbose?: boolean } = {}
+	): void {
+		const serializable = buildSerializablePayload(analysis, { verbose });
+		process.stdout.write(`${JSON.stringify(serializable, null, 2)}\n`);
+	}
+
+	printTextReport(
+		analysis: ReporterAnalysis,
+		{ verbose = false }: { verbose?: boolean } = {}
+	): void {
+		process.stdout.write(
+			`${this.buildTextReportString(analysis, { verbose })}\n`
+		);
 	}
 
 	printSummary(
@@ -73,14 +97,14 @@ export default class AnalysisReporter {
 
 	printDependencyTree(
 		analysis: ReporterAnalysis,
-		{ ignoreMissing }: { ignoreMissing: boolean }
+		{ missingPolicy }: { missingPolicy: MissingPolicy }
 	): void {
 		const sections = this.buildDependencyTreeSections(analysis);
 		const palette = this.getPalette();
 		const lines = buildDependencyTreeSection(sections, {
 			palette,
 			renderSection: (section) =>
-				this.buildTreeLines(section, { ignoreMissing }),
+				this.buildTreeLines(section, { missingPolicy }),
 		});
 		if (lines.length === 0) {
 			return;
@@ -91,7 +115,7 @@ export default class AnalysisReporter {
 
 	printTopologicalOrder(
 		analysis: ReporterAnalysis,
-		{ ignoreMissing }: { ignoreMissing: boolean }
+		{ missingPolicy }: { missingPolicy: MissingPolicy }
 	): void {
 		const modules = this.buildTopologicalList(analysis);
 		const palette = this.getPalette();
@@ -102,7 +126,7 @@ export default class AnalysisReporter {
 					palette,
 					name: item.name,
 					tags: item.tags,
-					ignoreMissing,
+					missingPolicy,
 					isEntry: item.isEntry,
 					displayTags: false,
 				}),
@@ -119,7 +143,7 @@ export default class AnalysisReporter {
 		{ verbose = false }: { verbose?: boolean } = {}
 	): void {
 		const palette = this.getPalette();
-		const ignoreMissing = this.getIgnoreMissing(analysis);
+		const missingPolicy = this.getMissingPolicy(analysis);
 
 		const warningLines = buildWarningsSection(analysis.warnings, palette);
 		if (warningLines.length > 0) {
@@ -129,14 +153,18 @@ export default class AnalysisReporter {
 
 		const missingLines = buildMissingSection(analysis.missing, {
 			palette,
-			ignoreMissing,
+			missingPolicy,
 		});
 		if (missingLines.length > 0) {
 			this.logger.warn?.('');
 			missingLines.forEach((line) => this.logger.warn?.(line));
 		}
 
-		const errorLines = buildErrorsSection(analysis.errors, palette);
+		const errorLines = buildErrorsSection(analysis.errors, palette, {
+			excludeMessages: (analysis.missing || []).map(
+				(item) => item.message
+			),
+		});
 		if (errorLines.length > 0) {
 			this.logger.error?.('');
 			errorLines.forEach((line) => this.logger.error?.(line));
@@ -152,8 +180,7 @@ export default class AnalysisReporter {
 		}: { verbose?: boolean; format?: 'text' | 'json' } = {}
 	): Promise<string> {
 		const resolvedPath = path.resolve(filePath);
-		const ext = path.extname(resolvedPath).toLowerCase();
-		const effectiveFormat = format || (ext === '.json' ? 'json' : 'text');
+		const effectiveFormat = format || 'text';
 
 		if (effectiveFormat === 'json') {
 			const serializable = buildSerializablePayload(analysis, {
@@ -167,7 +194,16 @@ export default class AnalysisReporter {
 			return resolvedPath;
 		}
 
-		const ignoreMissing = this.getIgnoreMissing(analysis);
+		const text = this.buildTextReportString(analysis, { verbose });
+		await fsPromises.writeFile(resolvedPath, text, 'utf-8');
+		return resolvedPath;
+	}
+
+	buildTextReportString(
+		analysis: ReporterAnalysis,
+		{ verbose = false }: { verbose?: boolean } = {}
+	): string {
+		const missingPolicy = this.getMissingPolicy(analysis);
 		const externalsSummary = buildExternalSummaryDetails(analysis, {
 			formatPath: (value: string | null | undefined) =>
 				this.formatPath(value),
@@ -185,22 +221,21 @@ export default class AnalysisReporter {
 		const topologicalItems = verbose
 			? this.buildTopologicalList(analysis)
 			: [];
-		const text = buildTextReportContent({
+
+		return buildTextReportContent({
 			analysis,
 			verbose,
 			palette,
-			ignoreMissing,
+			missingPolicy,
 			externalsSummary,
 			dependencySections,
 			renderDependencySection: (section) =>
 				this.buildTreeLines(section as ModuleNode, {
-					ignoreMissing,
+					missingPolicy,
 					useColor: false,
 				}),
 			topologicalItems,
 		});
-		await fsPromises.writeFile(resolvedPath, text, 'utf-8');
-		return resolvedPath;
 	}
 
 	buildDependencyTreeSections(analysis: ReporterAnalysis): ModuleNode[] {
@@ -224,9 +259,9 @@ export default class AnalysisReporter {
 	buildTreeLines(
 		node: ModuleNode,
 		{
-			ignoreMissing,
+			missingPolicy,
 			useColor,
-		}: { ignoreMissing?: boolean; useColor?: boolean } = {}
+		}: { missingPolicy?: MissingPolicy; useColor?: boolean } = {}
 	): string[] {
 		const lines: string[] = [];
 		const palette = this.getPalette({
@@ -244,7 +279,7 @@ export default class AnalysisReporter {
 				palette,
 				name: current.name,
 				tags: current.tags || [],
-				ignoreMissing,
+				missingPolicy,
 				isFolder: current.type === 'folder',
 				isEntry: Boolean(current.isEntry),
 				displayTags: current.displayTags !== false,
@@ -275,7 +310,7 @@ export default class AnalysisReporter {
 			return 'N/A';
 		}
 		if (!path.isAbsolute(targetPath)) {
-			return targetPath.replace(/\\/g, '/');
+			return normalizePathSlashes(targetPath);
 		}
 		const cwd = process.cwd();
 		const relative = path.relative(cwd, targetPath);
@@ -283,8 +318,8 @@ export default class AnalysisReporter {
 			return '.';
 		}
 		return relative.startsWith('..')
-			? targetPath.replace(/\\/g, '/')
-			: relative.replace(/\\/g, '/');
+			? normalizePathSlashes(targetPath)
+			: normalizePathSlashes(relative);
 	}
 
 	getDisplayName(moduleRecord: ModuleRecord, rootDir: string | null): string {
@@ -293,7 +328,7 @@ export default class AnalysisReporter {
 		}
 		if (rootDir && this.isWithinRoot(moduleRecord.filePath, rootDir)) {
 			const relative = path.relative(rootDir, moduleRecord.filePath);
-			return relative.replace(/\\/g, '/');
+			return normalizePathSlashes(relative);
 		}
 		return this.formatPath(moduleRecord.filePath);
 	}
@@ -309,8 +344,8 @@ export default class AnalysisReporter {
 		return !relative.startsWith('..') && !path.isAbsolute(relative);
 	}
 
-	getIgnoreMissing(analysis: ReporterAnalysis): boolean {
-		return Boolean(analysis.context?.ignoreMissing);
+	getMissingPolicy(analysis: ReporterAnalysis): MissingPolicy {
+		return analysis.context?.missingPolicy ?? 'error';
 	}
 
 	getPalette({

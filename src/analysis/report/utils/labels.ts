@@ -1,11 +1,13 @@
 import type { ModuleRecord } from '../../types';
 import type { Palette } from '../palette';
 
+type MissingPolicy = 'error' | 'warn' | 'ignore';
+
 export interface FormatModuleLabelOptions {
 	palette: Palette;
 	name: string;
 	tags?: string[];
-	ignoreMissing?: boolean;
+	missingPolicy?: MissingPolicy;
 	isFolder?: boolean;
 	isEntry?: boolean;
 	displayTags?: boolean;
@@ -28,7 +30,10 @@ export function collectModuleTags(
 	if (moduleRecord.overrideApplied) {
 		tags.push('override');
 	}
-	if (moduleRecord.analyzeDependencies === false && !moduleRecord.isExternal) {
+	if (
+		moduleRecord.analyzeDependencies === false &&
+		!moduleRecord.isExternal
+	) {
 		tags.push('skipped');
 	}
 	return tags;
@@ -38,12 +43,13 @@ export function formatModuleLabel({
 	palette,
 	name,
 	tags = [],
-	ignoreMissing = false,
+	missingPolicy = 'error',
 	isFolder = false,
 	isEntry = false,
 	displayTags = true,
 }: FormatModuleLabelOptions): string {
-	const suffix = displayTags && tags.length > 0 ? ` (${tags.join(', ')})` : '';
+	const suffix =
+		displayTags && tags.length > 0 ? ` (${tags.join(', ')})` : '';
 	const label = `${name}${suffix}`;
 
 	if (isEntry) {
@@ -62,11 +68,11 @@ export function formatModuleLabel({
 	const hasExternal = tags.includes('external');
 
 	if (hasMissing && hasExternal) {
-		return ignoreMissing ? palette.muted(label) : palette.error(label);
+		return palette.moduleLabel(label, [], { missingPolicy });
 	}
 
 	if (hasMissing) {
-		return ignoreMissing ? palette.muted(label) : palette.error(label);
+		return palette.moduleLabel(label, [], { missingPolicy });
 	}
 
 	if (hasExternal) {

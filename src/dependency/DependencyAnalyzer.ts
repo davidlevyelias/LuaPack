@@ -82,7 +82,10 @@ export default class DependencyAnalyzer {
 		return sorted;
 	}
 
-	private buildGraph(moduleRecord: ModuleRecord, graph: AnalyzerDependencyGraph): void {
+	private buildGraph(
+		moduleRecord: ModuleRecord,
+		graph: AnalyzerDependencyGraph
+	): void {
 		if (!moduleRecord || moduleRecord.isIgnored || !moduleRecord.filePath) {
 			return;
 		}
@@ -110,14 +113,21 @@ export default class DependencyAnalyzer {
 		for (const requireId of requires) {
 			let resolved: ModuleRecord;
 			try {
-				resolved = this.resolver.resolve(requireId, path.dirname(moduleRecord.filePath));
+				resolved = this.resolver.resolve(
+					requireId,
+					path.dirname(moduleRecord.filePath)
+				);
 			} catch (error) {
 				const typedError = error as Error & { code?: string };
-				if (typedError?.code === 'MODULE_NOT_FOUND') {
-					const missingRecord = this.resolver.createMissingRecordForRequire(
-						requireId,
-						typedError
-					);
+				if (
+					typedError?.code === 'MODULE_NOT_FOUND' ||
+					typedError?.code === 'MODULE_OVERRIDE_NOT_FOUND'
+				) {
+					const missingRecord =
+						this.resolver.createMissingRecordForRequire(
+							requireId,
+							typedError
+						);
 					this.missingRecords.push({
 						requiredBy: moduleRecord,
 						requireId,
@@ -125,7 +135,10 @@ export default class DependencyAnalyzer {
 						error: typedError,
 						fatal: !this.resolver.ignoreMissing,
 					});
-					if (!this.resolver.ignoreMissing) {
+					if (
+						typedError?.code === 'MODULE_NOT_FOUND' &&
+						!this.resolver.ignoreMissing
+					) {
 						this.errors.push(typedError);
 					}
 					resolvedDependencies.push(missingRecord);

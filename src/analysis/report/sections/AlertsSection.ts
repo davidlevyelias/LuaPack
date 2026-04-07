@@ -2,6 +2,8 @@ import type { MissingModuleRecord } from '../../types';
 import type { Palette } from '../palette';
 import type { ReporterError, ReporterWarning } from '../types';
 
+type MissingPolicy = 'error' | 'warn' | 'ignore';
+
 export interface WarningData {
 	message: string;
 }
@@ -24,7 +26,7 @@ export interface MissingAlert {
 
 export interface MissingSectionOptions {
 	palette: Palette;
-	ignoreMissing?: boolean;
+	missingPolicy?: MissingPolicy;
 }
 
 function normalizeMessage(value: unknown): string {
@@ -48,7 +50,9 @@ function normalizeMessage(value: unknown): string {
 export function getWarningsData(
 	warnings: ReporterWarning[] | null | undefined
 ): WarningData[] {
-	return (warnings || []).map((entry) => ({ message: normalizeMessage(entry) }));
+	return (warnings || []).map((entry) => ({
+		message: normalizeMessage(entry),
+	}));
 }
 
 export function buildWarningsSection(
@@ -75,7 +79,9 @@ export function getMissingData(
 		const fatal = Boolean(item?.fatal);
 		const requireId = item?.requireId || 'unknown';
 		const severity: MissingAlert['severity'] = fatal ? 'ERROR' : 'WARN';
-		const prefix = item?.requiredBy ? `${item.requiredBy} -> ${requireId}` : requireId;
+		const prefix = item?.requiredBy
+			? `${item.requiredBy} -> ${requireId}`
+			: requireId;
 		return {
 			severity,
 			message: normalizeMessage(item?.message),
@@ -92,42 +98,59 @@ export function getMissingData(
 
 export function buildMissingSection(
 	missing: MissingModuleRecord[] | null | undefined,
-	{ palette, ignoreMissing = false }: MissingSectionOptions
+	{ palette, missingPolicy = 'error' }: MissingSectionOptions
 ): string[] {
 	const missingData = getMissingData(missing);
 	if (missingData.length === 0) {
 		return [];
 	}
-	const headingColor: (value: string) => string = ignoreMissing ? palette.muted : palette.warning;
-	const bullet = ignoreMissing ? palette.muted('-') : palette.error('-');
+	const headingColor: (value: string) => string =
+		missingPolicy === 'ignore'
+			? palette.muted
+			: missingData.some((item) => item.fatal)
+				? palette.error
+				: palette.warning;
 	const lines: string[] = [];
 	lines.push(headingColor('Missing Modules'));
 	lines.push(headingColor('---------------'));
 	missingData.forEach((item) => {
-		const colorFn: (value: string) => string = item.fatal && !ignoreMissing ? palette.error : headingColor;
-		const fallbackMessage = ignoreMissing ? 'Module not found ignored.' : 'Module not found.';
-		const rawMessage = item.message && item.message.trim().length > 0
-			? item.message.trim()
-			: fallbackMessage;
+		const colorFn: (value: string) => string =
+			missingPolicy === 'ignore'
+				? palette.muted
+				: item.fatal
+					? palette.error
+					: palette.warning;
+		const bullet = colorFn('-');
+		const fallbackMessage =
+			missingPolicy === 'ignore'
+				? 'Module not found ignored.'
+				: 'Module not found.';
+		const rawMessage =
+			item.message && item.message.trim().length > 0
+				? item.message.trim()
+				: fallbackMessage;
 		const prefixedMessage = rawMessage.startsWith(item.prefix)
 			? rawMessage
 			: `${item.prefix}: ${rawMessage}`;
-		const message = ignoreMissing && !prefixedMessage.endsWith('(ignored)')
-			? `${prefixedMessage} (ignored)`
-			: prefixedMessage;
+		const message =
+			missingPolicy === 'ignore' && !prefixedMessage.endsWith('(ignored)')
+				? `${prefixedMessage} (ignored)`
+				: prefixedMessage;
 		lines.push(`${bullet} ${colorFn(message)}`);
 	});
 	return lines;
 }
 
 export function getErrorsData(
-	errors: ReporterError[] | null | undefined
+	errors: ReporterError[] | null | undefined,
+	{ excludeMessages = [] }: { excludeMessages?: string[] } = {}
 ): ErrorData[] {
 	const seen = new Set<string>();
+	const excluded = new Set(excludeMessages);
 	const results: ErrorData[] = [];
 	for (const error of errors || []) {
 		const message = normalizeMessage(error);
-		if (seen.has(message)) {
+		if (seen.has(message) || excluded.has(message)) {
 			continue;
 		}
 		seen.add(message);
@@ -138,9 +161,10 @@ export function getErrorsData(
 
 export function buildErrorsSection(
 	errors: ReporterError[] | null | undefined,
-	palette: Palette
+	palette: Palette,
+	{ excludeMessages = [] }: { excludeMessages?: string[] } = {}
 ): string[] {
-	const errorsData = getErrorsData(errors);
+	const errorsData = getErrorsData(errors, { excludeMessages });
 	if (errorsData.length === 0) {
 		return [];
 	}

@@ -4,6 +4,7 @@ const {
 	parseLogLevel,
 	parseMissingPolicy,
 	parseReportFormat,
+	runCli,
 } = require('../src/index');
 
 function exitOverrideRecursively(program) {
@@ -12,6 +13,22 @@ function exitOverrideRecursively(program) {
 }
 
 describe('CLI', () => {
+	const originalWrite = process.stdout.write;
+	let writes;
+
+	beforeEach(() => {
+		writes = [];
+		process.stdout.write = jest.fn((chunk) => {
+			writes.push(String(chunk));
+			return true;
+		});
+	});
+
+	afterEach(() => {
+		process.stdout.write = originalWrite;
+		process.exitCode = undefined;
+	});
+
 	test('does not expose removed legacy flags in the command surface', () => {
 		const cli = createProgram(async () => {});
 		const subcommands = cli.commands.map((command) => command.name());
@@ -152,5 +169,28 @@ describe('CLI', () => {
 			code: 'luapack.subcommandRequired',
 			exitCode: 2,
 		});
+	});
+
+	test('runCli emits json command errors for analyze parse failures when json format is requested', async () => {
+		await runCli([
+			'node',
+			'luapack',
+			'analyze',
+			'--format',
+			'json',
+			'--missing',
+			'skip',
+		]);
+
+		expect(JSON.parse(writes.join(''))).toMatchObject({
+			type: 'command-error',
+			status: 'error',
+			command: 'analyze',
+			error: {
+				type: 'usage',
+				code: 'commander-invalidargument',
+			},
+		});
+		expect(process.exitCode).toBe(1);
 	});
 });

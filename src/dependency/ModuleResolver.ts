@@ -3,10 +3,7 @@ import path from 'path';
 
 import { resolveExternalEnv } from '../utils/env';
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
-import type {
-	MissingPolicy,
-	NormalizedRule,
-} from '../config/loader/types';
+import type { MissingPolicy, NormalizedRule } from '../config/loader/types';
 
 export default class ModuleResolver {
 	private readonly sourceRoot: string;
@@ -18,9 +15,11 @@ export default class ModuleResolver {
 	private readonly envInfo: { allPaths: string[] };
 
 	constructor(config: WorkflowConfig) {
-		const roots = Array.isArray(config.modules?.roots) && config.modules.roots.length > 0
-			? config.modules.roots
-			: [path.dirname(config.entry)];
+		const roots =
+			Array.isArray(config.modules?.roots) &&
+			config.modules.roots.length > 0
+				? config.modules.roots
+				: [path.dirname(config.entry)];
 		this.sourceRoot = roots[0] ?? path.dirname(config.entry);
 		this.moduleRules = config.modules?.rules ?? {};
 		this.missingPolicy = config.modules?.missing ?? 'error';
@@ -40,6 +39,10 @@ export default class ModuleResolver {
 		return moduleId.replace(/\\/g, '/');
 	}
 
+	normalizePath(targetPath = ''): string {
+		return targetPath.replace(/\\/g, '/');
+	}
+
 	resolve(requirePath: string, currentDir: string): ModuleRecord {
 		const moduleId = this.normalizeModuleId(requirePath);
 		const rule = this.getRule(moduleId);
@@ -54,7 +57,7 @@ export default class ModuleResolver {
 			if (!resolvedPath) {
 				const overrideError = Object.assign(
 					new Error(
-						`Override path for module '${moduleId}' not found: ${rule.path}`
+						`Override path for module '${moduleId}' not found: ${this.normalizePath(rule.path)}`
 					),
 					{ code: 'MODULE_OVERRIDE_NOT_FOUND' }
 				);

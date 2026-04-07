@@ -1,4 +1,4 @@
-import { formatBytes } from '../utils/format';
+import { formatBytes, normalizePathSlashes } from '../utils/format';
 import type { Palette } from '../palette';
 import { formatModuleLabel } from '../utils/labels';
 import type {
@@ -13,9 +13,10 @@ export function buildSummarySection(
 	palette: Palette
 ): string[] {
 	const lines: string[] = [];
-	const ignoreMissing = Boolean(analysis.context?.ignoreMissing);
+	const missingPolicy = analysis.context?.missingPolicy ?? 'error';
 	const rootDir = formatPath(analysis.context?.rootDir);
 	const entryPath = formatPath(analysis.context?.entryPath);
+	const outputPath = formatPath(analysis.context?.outputPath);
 	const moduleCount = analysis.metrics.moduleCount;
 	const ignored = analysis.context?.ignoredPatterns ?? [];
 	const effectiveExternalsSummary = externalsSummary;
@@ -30,7 +31,10 @@ export function buildSummarySection(
 	lines.push(palette.divider);
 	lines.push(`${palette.key('Root Dir:')} ${palette.value(rootDir)}`);
 	lines.push(`${palette.key('Entry:')} ${palette.value(entryPath)}`);
-	lines.push(`${palette.key('Modules:')} ${palette.value(String(moduleCount))}`);
+	lines.push(`${palette.key('Output:')} ${palette.value(outputPath)}`);
+	lines.push(
+		`${palette.key('Modules:')} ${palette.value(String(moduleCount))}`
+	);
 
 	if (ignored.length > 0) {
 		lines.push(`${palette.bullet} ${palette.key('Ignored:')}`);
@@ -38,18 +42,25 @@ export function buildSummarySection(
 			lines.push(`${palette.subDash} ${palette.value(pattern)}`);
 		});
 	} else {
-		lines.push(`${palette.bullet} ${palette.key('Ignored:')} ${palette.muted('none')}`);
+		lines.push(
+			`${palette.bullet} ${palette.key('Ignored:')} ${palette.muted('none')}`
+		);
 	}
 
 	lines.push(
-		`${palette.bullet} ${palette.key('Ignore Missing:')} ${palette.bool(ignoreMissing)}`
+		`${palette.bullet} ${palette.key('Missing:')} ${palette.value(missingPolicy)}`
 	);
 
-	const externalsLabel = palette.externals(effectiveExternalsSummary.countLabel, {
-		ignoreMissing,
-		hasMissing: effectiveExternalsSummary.missingCount > 0,
-	});
-	lines.push(`${palette.bullet} ${palette.key('Externals:')} ${externalsLabel}`);
+	const externalsLabel = palette.externals(
+		effectiveExternalsSummary.countLabel,
+		{
+			missingPolicy,
+			hasMissing: effectiveExternalsSummary.missingCount > 0,
+		}
+	);
+	lines.push(
+		`${palette.bullet} ${palette.key('Externals:')} ${externalsLabel}`
+	);
 
 	if (verbose && effectiveExternalsSummary.verboseDetails) {
 		lines.push(
@@ -74,19 +85,26 @@ export function buildSummarySection(
 					palette,
 					name: module.name,
 					tags: module.tags,
-					ignoreMissing,
+					missingPolicy,
 				})
 		);
 		lines.push(...moduleLines);
 
-		const envLines = buildEnvSection(effectiveExternalsSummary.verboseDetails.env, palette);
+		const envLines = buildEnvSection(
+			effectiveExternalsSummary.verboseDetails.env,
+			palette
+		);
 		lines.push(...envLines);
 	}
 
-	lines.push(`${palette.key('Module Size Sum:')} ${palette.value(moduleSize)}`);
+	lines.push(
+		`${palette.key('Module Size Sum:')} ${palette.value(moduleSize)}`
+	);
 
 	if (!analysis.context?.analyzeOnly) {
-		lines.push(`${palette.key('Bundle Size:')} ${palette.value(bundleSize)}`);
+		lines.push(
+			`${palette.key('Bundle Size:')} ${palette.value(bundleSize)}`
+		);
 	}
 
 	lines.push(
@@ -120,10 +138,12 @@ function buildEnvSection(
 		return [];
 	}
 
-	const total = Number.isFinite(envVerbose.totalPaths) ? envVerbose.totalPaths : 0;
-	const header = `${palette.subBullet} ${palette.key('Env Paths:')} ${palette.muted(`(${total} ${
-		total === 1 ? 'path' : 'paths'
-	})`)}`;
+	const total = Number.isFinite(envVerbose.totalPaths)
+		? envVerbose.totalPaths
+		: 0;
+	const header = `${palette.subBullet} ${palette.key('Env Paths:')} ${palette.muted(
+		`(${total} ${total === 1 ? 'path' : 'paths'})`
+	)}`;
 
 	if (!envVerbose.entries || envVerbose.entries.length === 0) {
 		return [header, `${palette.subDash} ${palette.muted('none')}`];
@@ -134,7 +154,9 @@ function buildEnvSection(
 		const hasPaths = Array.isArray(entry.paths) && entry.paths.length > 0;
 		const nameLabel = palette.envName(entry.name, hasPaths);
 		if (!hasPaths) {
-			lines.push(`${palette.subDash} ${nameLabel} ${palette.muted('(none)')}`);
+			lines.push(
+				`${palette.subDash} ${nameLabel} ${palette.muted('(none)')}`
+			);
 			return;
 		}
 		lines.push(`${palette.subDash} ${nameLabel}`);
@@ -149,5 +171,7 @@ function formatPath(targetPath: string | null | undefined): string {
 	if (!targetPath) {
 		return 'N/A';
 	}
-	return typeof targetPath === 'string' ? targetPath.replace(/\\/g, '/') : 'N/A';
+	return typeof targetPath === 'string'
+		? normalizePathSlashes(targetPath)
+		: 'N/A';
 }

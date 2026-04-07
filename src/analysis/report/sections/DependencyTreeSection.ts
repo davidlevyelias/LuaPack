@@ -21,7 +21,10 @@ export function buildDependencyTreeSection<TSection>(
 	if (!sections || sections.length === 0) {
 		return [];
 	}
-	const lines: string[] = [palette.heading('Dependency Tree'), palette.divider];
+	const lines: string[] = [
+		palette.heading('Dependency Tree'),
+		palette.divider,
+	];
 	sections.forEach((section, index) => {
 		const rendered = renderSection(section, index);
 		rendered.forEach((line) => {

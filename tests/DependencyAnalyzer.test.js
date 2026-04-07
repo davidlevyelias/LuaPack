@@ -570,4 +570,85 @@ describe('DependencyAnalyzer', () => {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}
 	});
+
+	test('keeps invalid rule paths inside analysis errors instead of aborting graph build', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-invalid-rule-path-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				[
+					"local json = require('dkjson')",
+					"local text = require('util.text')",
+					'return json, text',
+				].join('\n')
+			);
+			fs.mkdirSync(path.join(srcDir, 'util'), { recursive: true });
+			fs.writeFileSync(
+				path.join(srcDir, 'util', 'text.lua'),
+				'return { value = true }\n'
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						modules: {
+							roots: ['./src'],
+							missing: 'error',
+							rules: {
+								dkjson: {
+									mode: 'external',
+									path: './external/dkjson-missing',
+									recursive: false,
+								},
+							},
+						},
+						bundle: {
+							fallback: 'never',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const result = analyzer.buildDependencyGraph(config.entry);
+
+			expect(result.errors).toHaveLength(0);
+			expect(result.missing).toHaveLength(1);
+			expect(result.missing[0]).toMatchObject({
+				requireId: 'dkjson',
+				fatal: true,
+			});
+			expect(result.missing[0].error.message).toContain(
+				"Override path for module 'dkjson' not found"
+			);
+			expect(result.missing[0].error.message).not.toContain('\\');
+			expect(result.graph.size).toBe(2);
+			expect(result.graph.get(path.join(srcDir, 'main.lua')).dependencies).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						moduleName: 'dkjson',
+						isMissing: true,
+						isExternal: true,
+						overrideApplied: true,
+					}),
+					expect.objectContaining({ moduleName: 'util.text' }),
+				])
+			);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
 });

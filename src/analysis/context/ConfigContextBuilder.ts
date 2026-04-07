@@ -2,11 +2,7 @@ import path from 'path';
 
 import { resolveExternalEnv } from '../../utils/env';
 import { isAnalyzeOnlyConfig } from '../../config/loader';
-import type {
-	AnalysisContext,
-	FilePath,
-	WorkflowConfig,
-} from '../types';
+import type { AnalysisContext, FilePath, WorkflowConfig } from '../types';
 
 type ResolvedExternalEnv = {
 	hasExplicitConfig: boolean;
@@ -20,7 +16,9 @@ type ResolveExternalEnvOptions = {
 	sourceRoot: FilePath;
 };
 
-function clonePathsByEnv(pathsByEnv: Record<string, FilePath[]>): Record<string, FilePath[]> {
+function clonePathsByEnv(
+	pathsByEnv: Record<string, FilePath[]>
+): Record<string, FilePath[]> {
 	const entries: Array<[string, FilePath[]]> = Object.entries(pathsByEnv).map(
 		([envName, paths]) => [envName, [...paths]]
 	);
@@ -29,11 +27,15 @@ function clonePathsByEnv(pathsByEnv: Record<string, FilePath[]>): Record<string,
 
 export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 	const modulesConfig = config.modules;
-	const sourceRoot = modulesConfig.roots[0] ?? path.dirname(config.entry);
+	const configuredRoots =
+		Array.isArray(modulesConfig.roots) && modulesConfig.roots.length > 0
+			? modulesConfig.roots
+			: [path.dirname(config.entry)];
+	const sourceRoot = configuredRoots[0] ?? path.dirname(config.entry);
 	const ignoredPatterns = Object.entries(modulesConfig.rules)
 		.filter(([, rule]) => rule?.mode === 'ignore')
 		.map(([moduleId]) => moduleId);
-	const externalPaths = modulesConfig.roots.slice(1);
+	const externalPaths = configuredRoots.slice(1);
 	const hasExplicitExternalRules = Object.values(modulesConfig.rules).some(
 		(rule) => rule?.mode === 'external'
 	);
@@ -50,10 +52,13 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 
 	return {
 		rootDir: sourceRoot,
+		roots: [...configuredRoots],
 		entryPath: config.entry,
 		outputPath: config.output,
 		analyzeOnly: isAnalyzeOnlyConfig(config),
 		ignoredPatterns,
+		missingPolicy: modulesConfig.missing,
+		fallbackPolicy: config.bundle.fallback,
 		ignoreMissing: modulesConfig.missing !== 'error',
 		externals: {
 			enabled:

@@ -15,6 +15,8 @@ import {
 import type { ExternalSummary, ReporterAnalysis } from '../types';
 import type { Palette } from '../palette';
 
+type MissingPolicy = 'error' | 'warn' | 'ignore';
+
 export interface PaletteOverride extends Palette {
 	bullet: string;
 	subBullet: string;
@@ -26,7 +28,7 @@ export interface TextReportBuilderOptions {
 	analysis: ReporterAnalysis;
 	verbose: boolean;
 	palette: PaletteOverride;
-	ignoreMissing: boolean;
+	missingPolicy: MissingPolicy;
 	externalsSummary: ExternalSummary;
 	dependencySections: DependencyTreeNode[];
 	renderDependencySection: (section: DependencyTreeNode) => string[];
@@ -37,7 +39,7 @@ export function buildTextReport({
 	analysis,
 	verbose,
 	palette,
-	ignoreMissing,
+	missingPolicy,
 	externalsSummary,
 	dependencySections,
 	renderDependencySection,
@@ -46,11 +48,7 @@ export function buildTextReport({
 	const lines: string[] = [];
 
 	lines.push(
-		...buildSummarySection(
-			analysis,
-			{ verbose, externalsSummary },
-			palette
-		)
+		...buildSummarySection(analysis, { verbose, externalsSummary }, palette)
 	);
 
 	if (verbose) {
@@ -63,10 +61,13 @@ export function buildTextReport({
 			lines.push(...dependencyLines);
 		}
 
-		const topologicalLines = buildTopologicalOrderSection(topologicalItems, {
-			palette,
-			formatItem: (item) => item.name,
-		});
+		const topologicalLines = buildTopologicalOrderSection(
+			topologicalItems,
+			{
+				palette,
+				formatItem: (item) => item.name,
+			}
+		);
 		if (topologicalLines.length > 0) {
 			lines.push('');
 			lines.push(...topologicalLines);
@@ -81,14 +82,16 @@ export function buildTextReport({
 
 	const missingLines = buildMissingSection(analysis.missing, {
 		palette,
-		ignoreMissing,
+		missingPolicy,
 	});
 	if (missingLines.length > 0) {
 		lines.push('');
 		lines.push(...missingLines);
 	}
 
-	const errorLines = buildErrorsSection(analysis.errors, palette);
+	const errorLines = buildErrorsSection(analysis.errors, palette, {
+		excludeMessages: (analysis.missing || []).map((item) => item.message),
+	});
 	if (errorLines.length > 0) {
 		lines.push('');
 		lines.push(...errorLines);
