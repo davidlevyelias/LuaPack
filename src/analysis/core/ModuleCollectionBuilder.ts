@@ -7,7 +7,9 @@ import type {
 } from '../types';
 import { isModuleRecord } from '../modelUtils';
 
-export function buildModuleCollections(graph: AnalyzerDependencyGraph): ModuleCollections {
+export function buildModuleCollections(
+	graph: AnalyzerDependencyGraph
+): ModuleCollections {
 	const moduleMap = new Map<ModuleId, ModuleRecord>();
 	const dependencyGraph = new Map<ModuleId, ModuleDependencyEdge[]>();
 
@@ -43,7 +45,9 @@ export function buildModuleCollections(graph: AnalyzerDependencyGraph): ModuleCo
 		dependencyGraph.set(moduleRecord.id, dependencies);
 	}
 
-	const modules = Array.from(moduleMap.values()).filter((moduleRecord) => !moduleRecord.isMissing);
+	const modules = Array.from(moduleMap.values()).filter(
+		(moduleRecord) => !moduleRecord.isMissing
+	);
 	const externals = modules.filter((module) => module.isExternal === true);
 
 	return {

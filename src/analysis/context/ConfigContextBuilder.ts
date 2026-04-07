@@ -59,7 +59,6 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 		ignoredPatterns,
 		missingPolicy: modulesConfig.missing,
 		fallbackPolicy: config.bundle.fallback,
-		ignoreMissing: modulesConfig.missing !== 'error',
 		externals: {
 			enabled:
 				hasExplicitExternalRules ||

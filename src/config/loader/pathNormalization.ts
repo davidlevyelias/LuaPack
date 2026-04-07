@@ -30,7 +30,9 @@ export function normalizePaths(
 
 	if (Array.isArray(modules.roots)) {
 		modules.roots = modules.roots.map((rootPath) =>
-			path.isAbsolute(rootPath) ? rootPath : path.resolve(baseDir, rootPath)
+			path.isAbsolute(rootPath)
+				? rootPath
+				: path.resolve(baseDir, rootPath)
 		);
 	}
 

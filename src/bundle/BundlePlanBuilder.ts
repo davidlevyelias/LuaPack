@@ -7,9 +7,14 @@ import type { BundlePlan } from './types';
 export default class BundlePlanBuilder {
 	constructor(private readonly config: WorkflowConfig) {}
 
-	build(entryModule: ModuleRecord, sortedModules: ModuleRecord[]): BundlePlan {
+	build(
+		entryModule: ModuleRecord,
+		sortedModules: ModuleRecord[]
+	): BundlePlan {
 		if (!entryModule || !entryModule.moduleName) {
-			throw new Error('Bundle plan requires an entry module with a module name.');
+			throw new Error(
+				'Bundle plan requires an entry module with a module name.'
+			);
 		}
 		if (!Array.isArray(sortedModules)) {
 			throw new Error('Bundle plan requires a sorted module list.');

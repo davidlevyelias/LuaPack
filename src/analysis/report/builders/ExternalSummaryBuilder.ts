@@ -1,26 +1,23 @@
 import type { ExternalSummary, ReporterAnalysis } from '../types';
+import { normalizeExternalSummaryData } from '../utils/externalSummary';
 
 export interface BuildExternalSummaryOptions {
 	formatPath: (targetPath: string | null | undefined) => string;
-}
-
-type StringArray = string[];
-
-function toStringArray(value: unknown): StringArray {
-	if (!Array.isArray(value)) {
-		return [];
-	}
-	return value.filter((item): item is string => typeof item === 'string');
 }
 
 export function buildExternalSummary(
 	analysis: ReporterAnalysis,
 	{ formatPath }: BuildExternalSummaryOptions
 ): ExternalSummary {
-	const externals = Array.isArray(analysis.externals) ? analysis.externals : [];
-	const missingExternals = (analysis.missing || []).filter((missing) => missing.isExternal);
-	const context = analysis.context;
-	const externalsContext = context?.externals;
+	const {
+		externals,
+		missingExternals,
+		externalPaths,
+		recursive,
+		envNames,
+		resolvedEnvPaths,
+		pathsByEnv,
+	} = normalizeExternalSummaryData(analysis);
 
 	const baseLabel = `${externals.length} ${externals.length === 1 ? 'module' : 'modules'}`;
 	const displayLabel =
@@ -28,14 +25,8 @@ export function buildExternalSummary(
 			? `${baseLabel} (${missingExternals.length} missing)`
 			: baseLabel;
 
-	const envContext = externalsContext?.env;
-	const envNames = toStringArray(envContext?.names);
-	const rawPathsByEnv = envContext?.pathsByEnv ?? {};
-	const resolvedEnvPaths = toStringArray(envContext?.resolvedPaths);
-
 	const envEntries = envNames.map((envName) => {
-		const value = rawPathsByEnv[envName];
-		const envPaths = toStringArray(value);
+		const envPaths = pathsByEnv[envName] ?? [];
 		return {
 			name: envName,
 			paths: envPaths.map((envPath) => formatPath(envPath)),
@@ -49,20 +40,21 @@ export function buildExternalSummary(
 			})`
 		: 'none';
 
-	const recursiveFlag = externalsContext?.recursive;
-	const rawExternalPaths = externalsContext?.paths;
-
 	return {
 		countLabel: displayLabel,
 		missingCount: missingExternals.length,
 		envLabel,
 		verboseDetails: {
-			recursive: typeof recursiveFlag === 'boolean' ? recursiveFlag : true,
-			paths: toStringArray(rawExternalPaths).map((externalPath) => formatPath(externalPath)),
+			recursive,
+			paths: externalPaths.map((externalPath) =>
+				formatPath(externalPath)
+			),
 			modules: [
 				...externals.map((module) => ({
 					name: module.moduleName,
-					tags: module.overrideApplied ? ['external', 'override'] : ['external'],
+					tags: module.overrideApplied
+						? ['external', 'override']
+						: ['external'],
 				})),
 				...missingExternals.map((missing) => ({
 					name: missing.moduleName || missing.requireId,

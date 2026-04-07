@@ -1,11 +1,12 @@
-import { formatBytes, normalizePathSlashes } from '../utils/format';
+import { formatBytes } from '../utils/format';
 import type { Palette } from '../palette';
 import { formatModuleLabel } from '../utils/labels';
-import type {
-	ExternalSummaryEnvDetails,
-	ReportCoreAnalysis,
-	SummarySectionOptions,
-} from '../types';
+import { formatReportPath } from '../utils/pathDisplay';
+import type { ReportCoreAnalysis, SummarySectionOptions } from '../types';
+import {
+	buildSummaryEnvSection,
+	buildSummaryListSection,
+} from './SummarySectionHelpers';
 
 export function buildSummarySection(
 	analysis: ReportCoreAnalysis,
@@ -14,9 +15,9 @@ export function buildSummarySection(
 ): string[] {
 	const lines: string[] = [];
 	const missingPolicy = analysis.context?.missingPolicy ?? 'error';
-	const rootDir = formatPath(analysis.context?.rootDir);
-	const entryPath = formatPath(analysis.context?.entryPath);
-	const outputPath = formatPath(analysis.context?.outputPath);
+	const rootDir = formatReportPath(analysis.context?.rootDir);
+	const entryPath = formatReportPath(analysis.context?.entryPath);
+	const outputPath = formatReportPath(analysis.context?.outputPath);
 	const moduleCount = analysis.metrics.moduleCount;
 	const ignored = analysis.context?.ignoredPatterns ?? [];
 	const effectiveExternalsSummary = externalsSummary;
@@ -69,14 +70,14 @@ export function buildSummarySection(
 			)}`
 		);
 
-		const pathLines = buildListSection(
+		const pathLines = buildSummaryListSection(
 			`${palette.subBullet} ${palette.key('Paths:')}`,
 			effectiveExternalsSummary.verboseDetails.paths,
 			palette
 		);
 		lines.push(...pathLines);
 
-		const moduleLines = buildListSection(
+		const moduleLines = buildSummaryListSection(
 			`${palette.subBullet} ${palette.key('Modules:')}`,
 			effectiveExternalsSummary.verboseDetails.modules,
 			palette,
@@ -90,7 +91,7 @@ export function buildSummarySection(
 		);
 		lines.push(...moduleLines);
 
-		const envLines = buildEnvSection(
+		const envLines = buildSummaryEnvSection(
 			effectiveExternalsSummary.verboseDetails.env,
 			palette
 		);
@@ -112,66 +113,4 @@ export function buildSummarySection(
 	);
 
 	return lines;
-}
-
-function buildListSection<T>(
-	headerLine: string,
-	items: T[] | undefined,
-	palette: Palette,
-	formatItem: (item: T) => string = (item) => palette.value(String(item))
-): string[] {
-	if (!items || items.length === 0) {
-		return [headerLine, `${palette.subDash} ${palette.muted('none')}`];
-	}
-	const result = [headerLine];
-	items.forEach((item) => {
-		result.push(`${palette.subDash} ${formatItem(item)}`);
-	});
-	return result;
-}
-
-function buildEnvSection(
-	envVerbose: ExternalSummaryEnvDetails | null | undefined,
-	palette: Palette
-): string[] {
-	if (!envVerbose) {
-		return [];
-	}
-
-	const total = Number.isFinite(envVerbose.totalPaths)
-		? envVerbose.totalPaths
-		: 0;
-	const header = `${palette.subBullet} ${palette.key('Env Paths:')} ${palette.muted(
-		`(${total} ${total === 1 ? 'path' : 'paths'})`
-	)}`;
-
-	if (!envVerbose.entries || envVerbose.entries.length === 0) {
-		return [header, `${palette.subDash} ${palette.muted('none')}`];
-	}
-
-	const lines = [header];
-	envVerbose.entries.forEach((entry) => {
-		const hasPaths = Array.isArray(entry.paths) && entry.paths.length > 0;
-		const nameLabel = palette.envName(entry.name, hasPaths);
-		if (!hasPaths) {
-			lines.push(
-				`${palette.subDash} ${nameLabel} ${palette.muted('(none)')}`
-			);
-			return;
-		}
-		lines.push(`${palette.subDash} ${nameLabel}`);
-		entry.paths.forEach((envPath) => {
-			lines.push(`${palette.subDash}   ${palette.value(envPath)}`);
-		});
-	});
-	return lines;
-}
-
-function formatPath(targetPath: string | null | undefined): string {
-	if (!targetPath) {
-		return 'N/A';
-	}
-	return typeof targetPath === 'string'
-		? normalizePathSlashes(targetPath)
-		: 'N/A';
 }

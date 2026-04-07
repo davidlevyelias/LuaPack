@@ -56,7 +56,10 @@ export interface RawModules {
 	missing?: string;
 	roots?: string[];
 	env?: string[];
-	rules?: Record<string, { mode?: string; path?: string; recursive?: boolean } | undefined>;
+	rules?: Record<
+		string,
+		{ mode?: string; path?: string; recursive?: boolean } | undefined
+	>;
 }
 
 /** Raw canonical v2 config as read from file or merged with CLI options. */

@@ -12,10 +12,9 @@ import {
 	buildMissingSection,
 	buildErrorsSection,
 } from '../sections/AlertsSection';
+import type { MissingPolicy } from '../../types';
 import type { ExternalSummary, ReporterAnalysis } from '../types';
 import type { Palette } from '../palette';
-
-type MissingPolicy = 'error' | 'warn' | 'ignore';
 
 export interface PaletteOverride extends Palette {
 	bullet: string;

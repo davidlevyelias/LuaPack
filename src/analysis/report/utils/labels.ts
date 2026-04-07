@@ -1,7 +1,5 @@
-import type { ModuleRecord } from '../../types';
+import type { MissingPolicy, ModuleRecord } from '../../types';
 import type { Palette } from '../palette';
-
-type MissingPolicy = 'error' | 'warn' | 'ignore';
 
 export interface FormatModuleLabelOptions {
 	palette: Palette;

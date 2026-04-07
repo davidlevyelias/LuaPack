@@ -2,11 +2,8 @@ import AnalysisPipeline from '../analysis/AnalysisPipeline';
 import AnalysisReporter from '../analysis/AnalysisReporter';
 import { LuaPacker } from '../bundle';
 import { loadConfig } from '../config/ConfigLoader';
-import {
-	getNormalizedV2Config,
-	setAnalyzeOnlyConfig,
-} from '../config/loader';
-import logger from '../Logger';
+import { getNormalizedV2Config, setAnalyzeOnlyConfig } from '../config/loader';
+import logger from '../utils/Logger';
 
 import type { CliOptions } from './types';
 import {
@@ -53,7 +50,10 @@ function createWorkflowContext(
 	entry: string | undefined,
 	options: CliOptions,
 	packageVersion: string,
-	{ analyzeOnly, showHeader = true }: { analyzeOnly: boolean; showHeader?: boolean }
+	{
+		analyzeOnly,
+		showHeader = true,
+	}: { analyzeOnly: boolean; showHeader?: boolean }
 ): WorkflowContext {
 	const useColor = options.color !== false;
 	const config = loadWorkflowConfig(entry, options);
@@ -90,7 +90,9 @@ export async function runAnalyzeWorkflow(
 	const effectiveFormat = resolveAnalyzeFormat(options);
 	if (options.output && !options.format) {
 		throw Object.assign(
-			new Error('Analyze output requires --format text or --format json.'),
+			new Error(
+				'Analyze output requires --format text or --format json.'
+			),
 			{ code: 'ANALYZE_OUTPUT_REQUIRES_FORMAT', errorType: 'usage' }
 		);
 	}

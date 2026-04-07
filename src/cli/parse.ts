@@ -21,7 +21,9 @@ export function parseLogLevel(value: string): LogLevel {
 	);
 }
 
-export function parseEnvOption(value: string | undefined): string[] | undefined {
+export function parseEnvOption(
+	value: string | undefined
+): string[] | undefined {
 	if (value === undefined) {
 		return undefined;
 	}
@@ -59,7 +61,10 @@ export function parseRepeatableValue(value: string): string {
 	return normalized;
 }
 
-export function collectRepeatableValue(value: string, previous: string[] = []): string[] {
+export function collectRepeatableValue(
+	value: string,
+	previous: string[] = []
+): string[] {
 	return [...previous, parseRepeatableValue(value)];
 }
 

@@ -1,7 +1,7 @@
 import colors from 'ansi-colors';
 import type { V2Config } from '../config/loader/types';
 
-import logger from '../Logger';
+import logger from '../utils/Logger';
 
 function applyColor(
 	useColor: boolean,

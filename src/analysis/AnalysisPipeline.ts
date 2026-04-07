@@ -16,22 +16,6 @@ import type {
 	WorkflowConfig,
 } from './types';
 
-type DependencyAnalyzerFacade = {
-	buildDependencyGraph(entry: string): DependencyAnalyzerResult;
-	topologicalSort(graph: AnalyzerDependencyGraph): ModuleRecord[];
-};
-
-type DependencyAnalyzerConstructor = new (
-	config: WorkflowConfig
-) => DependencyAnalyzerFacade;
-
-interface DependencyAnalyzerResult {
-	graph: AnalyzerDependencyGraph;
-	entryModule: ModuleRecord | null;
-	missing: AnalyzerMissingDependency[];
-	errors: AnalysisError[];
-}
-
 interface AnalyzerMissingDependency {
 	requiredBy?: ModuleRecord | null;
 	requireId: string;
@@ -50,7 +34,7 @@ function normalizeError(error: unknown): AnalysisError {
 export default class AnalysisPipeline {
 	private readonly config: WorkflowConfig;
 	private readonly logger: LoggerLike;
-	private readonly analyzer: DependencyAnalyzerFacade;
+	private readonly analyzer: DependencyAnalyzer;
 
 	constructor(
 		config: WorkflowConfig,
@@ -58,9 +42,7 @@ export default class AnalysisPipeline {
 	) {
 		this.config = config;
 		this.logger = logger || console;
-		const AnalyzerCtor =
-			DependencyAnalyzer as unknown as DependencyAnalyzerConstructor;
-		this.analyzer = new AnalyzerCtor(config);
+		this.analyzer = new DependencyAnalyzer(config);
 	}
 
 	run(): AnalysisResult {

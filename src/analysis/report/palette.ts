@@ -1,6 +1,5 @@
 import ansiColors from 'ansi-colors';
-
-type MissingPolicy = 'error' | 'warn' | 'ignore';
+import type { MissingPolicy } from '../types';
 
 export interface Palette {
 	heading(value: string): string;

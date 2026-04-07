@@ -1,4 +1,4 @@
-import logger from '../Logger';
+import logger from '../utils/Logger';
 
 import type { CliOptions, CommandName } from './types';
 import { printJsonErrorPayload } from './output';

@@ -4,6 +4,8 @@ import type {
 	MissingPolicy,
 } from '../config/loader/types';
 
+export type { FallbackMode, MissingPolicy } from '../config/loader/types';
+
 /**
  * Core TypeScript domain types describing the analysis pipeline output.
  * These will be adopted incrementally by the JS implementation until the
@@ -49,7 +51,6 @@ export interface AnalysisContext {
 	ignoredPatterns: string[];
 	missingPolicy: MissingPolicy;
 	fallbackPolicy: FallbackMode;
-	ignoreMissing: boolean;
 	externals: ExternalConfigInfo;
 }
 

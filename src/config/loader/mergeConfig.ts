@@ -10,7 +10,9 @@ export function mergeConfig(
 	void configVersion;
 	const merged: RawConfig = { ...baseConfig, schemaVersion: 2 };
 	const cliRoots = Array.isArray(cliOptions.root)
-		? cliOptions.root.map((rootPath) => path.resolve(process.cwd(), rootPath))
+		? cliOptions.root.map((rootPath) =>
+				path.resolve(process.cwd(), rootPath)
+			)
 		: undefined;
 	const cliEnvVars = cliOptions.envVar;
 	const cliMissingPolicy = cliOptions.missing;

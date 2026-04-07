@@ -3,7 +3,7 @@ jest.mock('../src/cli/workflows', () => ({
 	runBundleWorkflow: jest.fn().mockResolvedValue(undefined),
 }));
 
-const logger = require('../src/Logger');
+const logger = require('../src/utils/Logger');
 const { executeCliAction } = require('../src/cli/executeCliAction');
 const {
 	runAnalyzeWorkflow,

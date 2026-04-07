@@ -1,8 +1,6 @@
-import type { MissingModuleRecord } from '../../types';
+import type { MissingModuleRecord, MissingPolicy } from '../../types';
 import type { Palette } from '../palette';
 import type { ReporterError, ReporterWarning } from '../types';
-
-type MissingPolicy = 'error' | 'warn' | 'ignore';
 
 export interface WarningData {
 	message: string;
@@ -22,6 +20,8 @@ export interface MissingAlert {
 	moduleName: string | null;
 	isExternal: boolean;
 	overrideApplied: boolean;
+	code?: string;
+	filePath?: string | null;
 }
 
 export interface MissingSectionOptions {
@@ -92,6 +92,8 @@ export function getMissingData(
 			moduleName: item?.moduleName || null,
 			isExternal: Boolean(item?.isExternal),
 			overrideApplied: Boolean(item?.overrideApplied),
+			code: item?.code,
+			filePath: item?.filePath ?? null,
 		};
 	});
 }

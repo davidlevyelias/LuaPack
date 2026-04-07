@@ -15,7 +15,9 @@ function ensureInternals(config: WorkflowConfigLike): LoaderInternals {
 	return config[LOADER_INTERNALS]!;
 }
 
-export function getNormalizedV2Config(config: WorkflowConfigLike): V2Config | null {
+export function getNormalizedV2Config(
+	config: WorkflowConfigLike
+): V2Config | null {
 	return config ?? null;
 }
 
@@ -26,7 +28,7 @@ export function isAnalyzeOnlyConfig(config: WorkflowConfigLike): boolean {
 export function setAnalyzeOnlyConfig(
 	config: LoadedConfig,
 	analyzeOnly: boolean
-	): LoadedConfig {
+): LoadedConfig {
 	ensureInternals(config).analyzeOnly = analyzeOnly;
 	return config;
 }
@@ -34,7 +36,7 @@ export function setAnalyzeOnlyConfig(
 export function setConfigVersion(
 	config: LoadedConfig,
 	configVersion: LoaderInternals['configVersion']
-	): LoadedConfig {
+): LoadedConfig {
 	ensureInternals(config).configVersion = configVersion;
 	return config;
 }

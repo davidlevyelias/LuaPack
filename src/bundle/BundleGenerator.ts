@@ -15,17 +15,24 @@ const templateCache = new Map<string, string>();
 function getTemplate(): string {
 	const templateName = 'runtime.lua';
 	if (!templateCache.has(templateName)) {
-		const templatePath = path.resolve(__dirname, `../../templates/${templateName}`);
+		const templatePath = path.resolve(
+			__dirname,
+			`../../templates/${templateName}`
+		);
 		templateCache.set(templateName, fs.readFileSync(templatePath, 'utf-8'));
 	}
 	return templateCache.get(templateName)!;
 }
 
 function buildExternalModuleSection(externalModules: string[]): string {
-	return externalModules.map((moduleName) => `	["${moduleName}"] = true,`).join('\n');
+	return externalModules
+		.map((moduleName) => `	["${moduleName}"] = true,`)
+		.join('\n');
 }
 
-function buildFallbackLogic(fallbackPolicy: BundlePlan['fallbackPolicy']): string {
+function buildFallbackLogic(
+	fallbackPolicy: BundlePlan['fallbackPolicy']
+): string {
 	if (fallbackPolicy === 'never') {
 		return '    return false';
 	}
@@ -54,7 +61,9 @@ end`;
 			})
 			.join('\n\n');
 
-		const definitionsSection = moduleDefinitions ? `${moduleDefinitions}\n` : '';
+		const definitionsSection = moduleDefinitions
+			? `${moduleDefinitions}\n`
+			: '';
 		const externalModulesSection = buildExternalModuleSection(
 			bundlePlan.externalModules
 		);

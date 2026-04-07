@@ -30,14 +30,18 @@ function splitEnvValue(value: string | undefined): string[] {
 	return value.split(';');
 }
 
-function normalizeEnvEntry(entry: string, sourceRoot?: string | null): string | null {
+function normalizeEnvEntry(
+	entry: string,
+	sourceRoot?: string | null
+): string | null {
 	const trimmed = entry.trim();
 	if (!trimmed) {
 		return null;
 	}
 
 	const questionIndex = trimmed.indexOf('?');
-	let withoutPattern = questionIndex === -1 ? trimmed : trimmed.slice(0, questionIndex);
+	let withoutPattern =
+		questionIndex === -1 ? trimmed : trimmed.slice(0, questionIndex);
 	if (!withoutPattern) {
 		return null;
 	}

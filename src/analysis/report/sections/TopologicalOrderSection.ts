@@ -18,7 +18,10 @@ export function buildTopologicalOrderSection<TItem>(
 	if (!items || items.length === 0) {
 		return [];
 	}
-	const lines: string[] = [palette.heading('Topological Order'), palette.divider];
+	const lines: string[] = [
+		palette.heading('Topological Order'),
+		palette.divider,
+	];
 	items.forEach((item, index) => {
 		const indexLabel = palette.muted(String(index + 1).padStart(2, '0'));
 		lines.push(`${indexLabel}. ${formatItem(item, index)}`);

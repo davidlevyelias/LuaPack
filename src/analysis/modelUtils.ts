@@ -13,5 +13,7 @@ export function isModuleRecord(value: unknown): value is ModuleRecord {
 	}
 
 	const record = value as Record<string, unknown>;
-	return typeof record.id === 'string' && typeof record.moduleName === 'string';
+	return (
+		typeof record.id === 'string' && typeof record.moduleName === 'string'
+	);
 }

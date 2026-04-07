@@ -1,8 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 
-import logger from '../Logger';
-import type { AnalysisResult, ModuleRecord, WorkflowConfig } from '../analysis/types';
+import logger from '../utils/Logger';
+import type {
+	AnalysisResult,
+	ModuleRecord,
+	WorkflowConfig,
+} from '../analysis/types';
 
 import BundleGenerator from './BundleGenerator';
 import BundlePlanBuilder from './BundlePlanBuilder';
@@ -16,10 +20,14 @@ export default class LuaPacker {
 
 	private normalizeConfig(config: WorkflowConfig): WorkflowConfig {
 		const entry = path.resolve(config.entry);
-		const output = config.output ? path.resolve(config.output) : path.resolve('bundle.lua');
-		const roots = Array.isArray(config.modules?.roots) && config.modules.roots.length > 0
-			? config.modules.roots
-			: [path.dirname(entry)];
+		const output = config.output
+			? path.resolve(config.output)
+			: path.resolve('bundle.lua');
+		const roots =
+			Array.isArray(config.modules?.roots) &&
+			config.modules.roots.length > 0
+				? config.modules.roots
+				: [path.dirname(entry)];
 
 		return {
 			...config,
@@ -28,7 +36,9 @@ export default class LuaPacker {
 			modules: {
 				...config.modules,
 				roots: roots.map((rootPath) => path.resolve(rootPath)),
-				env: Array.isArray(config.modules?.env) ? [...config.modules.env] : [],
+				env: Array.isArray(config.modules?.env)
+					? [...config.modules.env]
+					: [],
 				missing: config.modules?.missing || 'error',
 				rules: config.modules?.rules || {},
 			},
@@ -54,7 +64,9 @@ export default class LuaPacker {
 			typeof entryModule.filePath === 'string'
 		);
 		if (!hasEntryModule || !Array.isArray(sortedModules)) {
-			throw new Error('Analysis result must include entryModule and sortedModules.');
+			throw new Error(
+				'Analysis result must include entryModule and sortedModules.'
+			);
 		}
 
 		const entryRecord = entryModule as ModuleRecord;

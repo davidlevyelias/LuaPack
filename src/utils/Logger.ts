@@ -56,7 +56,10 @@ export class Logger {
 		}
 
 		const normalized = String(levelName).toLowerCase();
-		const handler = Object.prototype.hasOwnProperty.call(this.handlers, normalized)
+		const handler = Object.prototype.hasOwnProperty.call(
+			this.handlers,
+			normalized
+		)
 			? this.handlers[normalized as LogLevelName]
 			: console.log.bind(console);
 		handler(...args);

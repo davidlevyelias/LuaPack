@@ -60,7 +60,6 @@ function uniquePaths(paths: unknown[]): string[] {
 	return output;
 }
 
-
 export function normalizeToV2Config(config: RawConfig): V2Config {
 	const modules = config.modules || {};
 	const roots = uniquePaths(
@@ -69,16 +68,20 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 			: [path.dirname(config.entry!)]
 	);
 	const env = Array.isArray(modules.env)
-		? modules.env.filter((value) => typeof value === 'string' && value.length > 0)
+		? modules.env.filter(
+				(value) => typeof value === 'string' && value.length > 0
+			)
 		: [];
 	const missing = (
-		typeof modules.missing === 'string' && MISSING_POLICIES.has(modules.missing)
+		typeof modules.missing === 'string' &&
+		MISSING_POLICIES.has(modules.missing)
 			? modules.missing
 			: 'error'
 	) as MissingPolicy;
 	const bundle = config.bundle || {};
 	const fallback = (
-		typeof bundle.fallback === 'string' && FALLBACK_MODES.has(bundle.fallback)
+		typeof bundle.fallback === 'string' &&
+		FALLBACK_MODES.has(bundle.fallback)
 			? bundle.fallback
 			: 'external-only'
 	) as FallbackMode;
