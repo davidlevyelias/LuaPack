@@ -44,7 +44,6 @@ describe('ConfigLoader', () => {
 			output: path.resolve(tempDir, 'dist/out.lua'),
 			modules: {
 				roots: [path.resolve(tempDir, 'src')],
-				env: [],
 				missing: 'error',
 			},
 			bundle: {
@@ -156,7 +155,6 @@ describe('ConfigLoader', () => {
 			output: './dist/v2.lua',
 			modules: {
 				roots: ['./src', './vendor'],
-				env: ['SDK_PATH'],
 				missing: 'warn',
 				rules: {
 					dkjson: {
@@ -182,7 +180,6 @@ describe('ConfigLoader', () => {
 			path.resolve(tempDir, 'src'),
 			path.resolve(tempDir, 'vendor'),
 		]);
-		expect(config.modules.env).toEqual(['SDK_PATH']);
 		expect(config.modules.missing).toBe('warn');
 		expect(config.modules.rules.dkjson).toEqual({
 			mode: 'bundle',

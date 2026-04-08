@@ -21,28 +21,6 @@ export function parseLogLevel(value: string): LogLevel {
 	);
 }
 
-export function parseEnvOption(
-	value: string | undefined
-): string[] | undefined {
-	if (value === undefined) {
-		return undefined;
-	}
-	if (typeof value !== 'string') {
-		return [];
-	}
-	const trimmed = value.trim();
-	if (!trimmed) {
-		return [];
-	}
-	const tokens = trimmed.split(',').map((token) => token.trim());
-	if (tokens.some((token) => token.length === 0)) {
-		throw new InvalidArgumentError(
-			'Expected a comma-separated list of non-empty environment variable names, or an empty string to disable env lookup.'
-		);
-	}
-	return tokens;
-}
-
 export function parseMissingPolicy(value: string): CliMissingPolicy {
 	const normalized = String(value).trim().toLowerCase();
 	if ((VALID_MISSING_POLICIES as readonly string[]).includes(normalized)) {

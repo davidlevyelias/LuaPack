@@ -7,7 +7,6 @@
 	},
 	"modules": {
 		"roots": ["./src", "./external_modules"],
-		"env": ["LUA_PATH", "SDK_PATH"],
 		"missing": "warn",
 		"rules": {
 			"dkjson": {

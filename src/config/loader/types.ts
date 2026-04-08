@@ -14,7 +14,6 @@ export interface NormalizedRule {
 
 export interface V2Modules {
 	roots: string[];
-	env: string[];
 	missing: MissingPolicy;
 	rules: Record<string, NormalizedRule>;
 }
@@ -46,7 +45,6 @@ export interface CliOptions {
 	output?: string;
 	root?: string[];
 	missing?: MissingPolicy;
-	envVar?: string[];
 	fallback?: FallbackMode;
 	[key: string]: unknown;
 }
@@ -55,7 +53,6 @@ export interface CliOptions {
 export interface RawModules {
 	missing?: string;
 	roots?: string[];
-	env?: string[];
 	rules?: Record<
 		string,
 		{ mode?: string; path?: string; recursive?: boolean } | undefined

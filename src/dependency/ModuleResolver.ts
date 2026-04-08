@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-import { resolveExternalEnv } from '../utils/env';
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
 import type { MissingPolicy, NormalizedRule } from '../config/loader/types';
 
@@ -12,7 +11,6 @@ export default class ModuleResolver {
 	private readonly missingPolicy: MissingPolicy;
 	private readonly externalRecursiveDefault: boolean;
 	readonly ignoreMissing: boolean;
-	private readonly envInfo: { allPaths: string[] };
 
 	constructor(config: WorkflowConfig) {
 		const roots =
@@ -28,10 +26,6 @@ export default class ModuleResolver {
 			typeof config._compat?.externalRecursive === 'boolean'
 				? config._compat.externalRecursive
 				: true;
-		this.envInfo = resolveExternalEnv({
-			envConfig: config.modules?.env ?? [],
-			sourceRoot: this.sourceRoot,
-		}) as { allPaths: string[] };
 		this.searchRoots = this.computeSearchRoots(roots);
 	}
 
@@ -245,10 +239,6 @@ export default class ModuleResolver {
 				? configured
 				: path.resolve(this.sourceRoot, configured);
 			resolvedPaths.add(normalized);
-		}
-
-		for (const envPath of this.envInfo.allPaths) {
-			resolvedPaths.add(envPath);
 		}
 
 		return Array.from(resolvedPaths);

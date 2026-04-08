@@ -9,15 +9,8 @@ export function buildExternalSummary(
 	analysis: ReporterAnalysis,
 	{ formatPath }: BuildExternalSummaryOptions
 ): ExternalSummary {
-	const {
-		externals,
-		missingExternals,
-		externalPaths,
-		recursive,
-		envNames,
-		resolvedEnvPaths,
-		pathsByEnv,
-	} = normalizeExternalSummaryData(analysis);
+	const { externals, missingExternals, externalPaths, recursive } =
+		normalizeExternalSummaryData(analysis);
 
 	const baseLabel = `${externals.length} ${externals.length === 1 ? 'module' : 'modules'}`;
 	const displayLabel =
@@ -25,25 +18,9 @@ export function buildExternalSummary(
 			? `${baseLabel} (${missingExternals.length} missing)`
 			: baseLabel;
 
-	const envEntries = envNames.map((envName) => {
-		const envPaths = pathsByEnv[envName] ?? [];
-		return {
-			name: envName,
-			paths: envPaths.map((envPath) => formatPath(envPath)),
-		};
-	});
-	const envHasPaths = envEntries.some((entry) => entry.paths.length > 0);
-	const envNameLabel = envNames.length > 0 ? envNames.join(', ') : 'env';
-	const envLabel = envHasPaths
-		? `${envNameLabel} (${resolvedEnvPaths.length} ${
-				resolvedEnvPaths.length === 1 ? 'path' : 'paths'
-			})`
-		: 'none';
-
 	return {
 		countLabel: displayLabel,
 		missingCount: missingExternals.length,
-		envLabel,
 		verboseDetails: {
 			recursive,
 			paths: externalPaths.map((externalPath) =>
@@ -61,11 +38,6 @@ export function buildExternalSummary(
 					tags: ['external', 'missing'],
 				})),
 			],
-			env: {
-				hasPaths: envHasPaths,
-				totalPaths: resolvedEnvPaths.length,
-				entries: envEntries,
-			},
 		},
 	};
 }

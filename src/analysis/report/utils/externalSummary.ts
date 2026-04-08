@@ -7,9 +7,6 @@ export interface NormalizedExternalSummaryData {
 	missingExternals: NonNullable<ReporterAnalysis['missing']>;
 	externalPaths: string[];
 	recursive: boolean;
-	envNames: string[];
-	resolvedEnvPaths: string[];
-	pathsByEnv: Record<string, string[]>;
 }
 
 export function normalizeExternalSummaryData(
@@ -22,7 +19,6 @@ export function normalizeExternalSummaryData(
 		(missing) => missing.isExternal
 	);
 	const externalsContext = analysis.context?.externals;
-	const envContext = externalsContext?.env;
 
 	return {
 		externals,
@@ -32,23 +28,7 @@ export function normalizeExternalSummaryData(
 			typeof externalsContext?.recursive === 'boolean'
 				? externalsContext.recursive
 				: true,
-		envNames: toStringArray(envContext?.names),
-		resolvedEnvPaths: toStringArray(envContext?.resolvedPaths),
-		pathsByEnv: normalizePathsByEnv(envContext?.pathsByEnv),
 	};
-}
-
-function normalizePathsByEnv(pathsByEnv: unknown): Record<string, string[]> {
-	if (!pathsByEnv || typeof pathsByEnv !== 'object') {
-		return {};
-	}
-
-	return Object.fromEntries(
-		Object.entries(pathsByEnv).map(([envName, value]) => [
-			envName,
-			toStringArray(value),
-		])
-	);
 }
 
 function toStringArray(value: unknown): StringArray {

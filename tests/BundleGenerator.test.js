@@ -135,7 +135,6 @@ describe('BundleGenerator', () => {
 				output: path.join(dir, 'bundle.lua'),
 				modules: {
 					roots: [srcDir],
-					env: [],
 					missing: 'error',
 					rules: {},
 				},

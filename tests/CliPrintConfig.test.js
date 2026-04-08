@@ -35,7 +35,6 @@ describe('CLI print-config', () => {
 			output: 'out.lua',
 			modules: {
 				roots: ['src'],
-				env: [],
 				missing: 'error',
 				rules: {},
 			},

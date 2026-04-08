@@ -16,7 +16,6 @@ export interface CliOptions {
 	config?: string;
 	root?: string[];
 	missing?: MissingPolicy;
-	envVar?: string[];
 	color?: boolean;
 	quiet?: boolean;
 	printConfig?: boolean;

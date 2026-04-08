@@ -14,7 +14,6 @@ export function mergeConfig(
 				path.resolve(process.cwd(), rootPath)
 			)
 		: undefined;
-	const cliEnvVars = cliOptions.envVar;
 	const cliMissingPolicy = cliOptions.missing;
 
 	if (cliOptions.entry) {
@@ -36,13 +35,6 @@ export function mergeConfig(
 		merged.modules = {
 			...(merged.modules || {}),
 			missing: cliMissingPolicy,
-		};
-	}
-
-	if (cliEnvVars !== undefined) {
-		merged.modules = {
-			...(merged.modules || {}),
-			env: cliEnvVars,
 		};
 	}
 

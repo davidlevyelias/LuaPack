@@ -52,13 +52,6 @@ function createAnalysisResult() {
 				enabled: false,
 				recursive: true,
 				paths: [],
-				env: {
-					hasExplicitConfig: false,
-					names: [],
-					pathsByEnv: {},
-					resolvedPaths: [],
-					entries: [],
-				},
 			},
 		},
 	};
@@ -201,12 +194,19 @@ describe('AnalysisReporter', () => {
 				expect.objectContaining({
 					type: 'missing',
 					severity: 'error',
+					message: 'Module not found.',
 					requireId: 'sdk.logger',
 					name: 'sdk.logger',
 					dependencyType: 'module',
 					ruleApplied: false,
 				}),
 			]);
+			expect(parsed.alerts).not.toContainEqual(
+				expect.objectContaining({
+					type: 'error',
+					message: 'Module not found: sdk.logger',
+				})
+			);
 			expect(parsed.sections).toBeUndefined();
 		} finally {
 			fs.rmSync(targetDir, { recursive: true, force: true });

@@ -67,11 +67,6 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 			? modules.roots
 			: [path.dirname(config.entry!)]
 	);
-	const env = Array.isArray(modules.env)
-		? modules.env.filter(
-				(value) => typeof value === 'string' && value.length > 0
-			)
-		: [];
 	const missing = (
 		typeof modules.missing === 'string' &&
 		MISSING_POLICIES.has(modules.missing)
@@ -92,7 +87,6 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 		output: config.output!,
 		modules: {
 			roots,
-			env,
 			missing,
 			rules: normalizeModuleRules(modules.rules),
 		},

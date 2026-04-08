@@ -82,13 +82,6 @@ function createAnalysisResult() {
 				enabled: false,
 				recursive: true,
 				paths: [],
-				env: {
-					hasExplicitConfig: false,
-					names: [],
-					pathsByEnv: {},
-					resolvedPaths: [],
-					entries: [],
-				},
 			},
 		},
 	};
@@ -111,7 +104,6 @@ describe('CLI analyze json output', () => {
 			output: 'dist/out.lua',
 			modules: {
 				roots: ['src'],
-				env: [],
 				missing: 'error',
 				rules: {},
 			},
@@ -138,6 +130,12 @@ describe('CLI analyze json output', () => {
 			type: 'report',
 			command: 'analyze',
 			status: 'failed',
+			alerts: [
+				expect.objectContaining({
+					type: 'missing',
+					message: 'Module not found.',
+				}),
+			],
 			summary: {
 				missingPolicy: 'error',
 			},

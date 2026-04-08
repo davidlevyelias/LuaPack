@@ -3,10 +3,7 @@ import type { Palette } from '../palette';
 import { formatModuleLabel } from '../utils/labels';
 import { formatReportPath } from '../utils/pathDisplay';
 import type { ReportCoreAnalysis, SummarySectionOptions } from '../types';
-import {
-	buildSummaryEnvSection,
-	buildSummaryListSection,
-} from './SummarySectionHelpers';
+import { buildSummaryListSection } from './SummarySectionHelpers';
 
 export function buildSummarySection(
 	analysis: ReportCoreAnalysis,
@@ -91,11 +88,6 @@ export function buildSummarySection(
 		);
 		lines.push(...moduleLines);
 
-		const envLines = buildSummaryEnvSection(
-			effectiveExternalsSummary.verboseDetails.env,
-			palette
-		);
-		lines.push(...envLines);
 	}
 
 	lines.push(

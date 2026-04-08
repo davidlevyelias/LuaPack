@@ -75,10 +75,6 @@ describe('CLI', () => {
 			'luapack',
 			'bundle',
 			'main.lua',
-			'--env-var',
-			'LUA_PATH',
-			'--env-var',
-			'LUA_CPATH',
 			'--root',
 			'src',
 			'--missing',
@@ -98,7 +94,6 @@ describe('CLI', () => {
 			expect.objectContaining({
 				color: false,
 				command: 'bundle',
-				envVar: ['LUA_PATH', 'LUA_CPATH'],
 				fallback: 'always',
 				logLevel: 'debug',
 				missing: 'warn',

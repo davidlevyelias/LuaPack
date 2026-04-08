@@ -39,19 +39,12 @@ function addCommonOptions(
 		.option(
 			'--root <path>',
 			'Module search root. Repeat to replace the effective root set.',
-			collectRepeatableValue,
-			[]
+			collectRepeatableValue
 		)
 		.option(
 			'--missing <policy>',
 			'Missing-module policy (error, warn, ignore).',
 			parseMissingPolicy
-		)
-		.option(
-			'--env-var <name>',
-			'Environment variable name to inspect for module roots. Repeat to replace the effective env list.',
-			collectRepeatableValue,
-			[]
 		)
 		.option(
 			'--fallback <policy>',

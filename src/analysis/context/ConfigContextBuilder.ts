@@ -1,29 +1,7 @@
 import path from 'path';
 
-import { resolveExternalEnv } from '../../utils/env';
 import { isAnalyzeOnlyConfig } from '../../config/loader';
-import type { AnalysisContext, FilePath, WorkflowConfig } from '../types';
-
-type ResolvedExternalEnv = {
-	hasExplicitConfig: boolean;
-	envNames: string[];
-	pathsByEnv: Record<string, FilePath[]>;
-	allPaths: FilePath[];
-};
-
-type ResolveExternalEnvOptions = {
-	envConfig: string[];
-	sourceRoot: FilePath;
-};
-
-function clonePathsByEnv(
-	pathsByEnv: Record<string, FilePath[]>
-): Record<string, FilePath[]> {
-	const entries: Array<[string, FilePath[]]> = Object.entries(pathsByEnv).map(
-		([envName, paths]) => [envName, [...paths]]
-	);
-	return Object.fromEntries(entries);
-}
+import type { AnalysisContext, WorkflowConfig } from '../types';
 
 export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 	const modulesConfig = config.modules;
@@ -40,16 +18,6 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 		(rule) => rule?.mode === 'external'
 	);
 
-	const envInfo = resolveExternalEnv({
-		envConfig: modulesConfig.env,
-		sourceRoot,
-	} as ResolveExternalEnvOptions) as ResolvedExternalEnv;
-
-	const envEntries = envInfo.envNames.map((envName) => ({
-		name: envName,
-		paths: [...(envInfo.pathsByEnv[envName] ?? [])],
-	}));
-
 	return {
 		rootDir: sourceRoot,
 		roots: [...configuredRoots],
@@ -60,22 +28,12 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 		missingPolicy: modulesConfig.missing,
 		fallbackPolicy: config.bundle.fallback,
 		externals: {
-			enabled:
-				hasExplicitExternalRules ||
-				externalPaths.length > 0 ||
-				envInfo.allPaths.length > 0,
+			enabled: hasExplicitExternalRules || externalPaths.length > 0,
 			recursive:
 				typeof config._compat?.externalRecursive === 'boolean'
 					? config._compat.externalRecursive
 					: true,
 			paths: externalPaths,
-			env: {
-				hasExplicitConfig: Boolean(envInfo.hasExplicitConfig),
-				names: [...envInfo.envNames],
-				pathsByEnv: clonePathsByEnv(envInfo.pathsByEnv),
-				resolvedPaths: [...envInfo.allPaths],
-				entries: envEntries,
-			},
 		},
 	};
 }

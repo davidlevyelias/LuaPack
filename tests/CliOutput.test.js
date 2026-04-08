@@ -43,13 +43,6 @@ function createAnalysisResult() {
 				enabled: false,
 				recursive: true,
 				paths: [],
-				env: {
-					hasExplicitConfig: false,
-					names: [],
-					pathsByEnv: {},
-					resolvedPaths: [],
-					entries: [],
-				},
 			},
 		},
 	};

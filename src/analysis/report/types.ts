@@ -15,28 +15,15 @@ export interface ExternalSummaryModule {
 	tags: string[];
 }
 
-export interface ExternalSummaryEnvEntry {
-	name: string;
-	paths: string[];
-}
-
-export interface ExternalSummaryEnvDetails {
-	hasPaths: boolean;
-	totalPaths: number;
-	entries: ExternalSummaryEnvEntry[];
-}
-
 export interface ExternalSummaryVerboseDetails {
 	recursive: boolean;
 	paths: string[];
 	modules: ExternalSummaryModule[];
-	env: ExternalSummaryEnvDetails | null;
 }
 
 export interface ExternalSummary {
 	countLabel: string;
 	missingCount: number;
-	envLabel: string;
 	verboseDetails?: ExternalSummaryVerboseDetails | null;
 }
 

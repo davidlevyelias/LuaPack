@@ -22,24 +22,10 @@ export interface ResolverOverrideInfo {
 	recursive: boolean | null;
 }
 
-export interface EnvironmentEntry {
-	name: string;
-	paths: FilePath[];
-}
-
-export interface EnvironmentInfo {
-	hasExplicitConfig: boolean;
-	names: string[];
-	pathsByEnv: Record<string, FilePath[]>;
-	resolvedPaths: FilePath[];
-	entries: EnvironmentEntry[];
-}
-
 export interface ExternalConfigInfo {
 	enabled: boolean;
 	recursive: boolean;
 	paths: FilePath[];
-	env: EnvironmentInfo;
 }
 
 export interface AnalysisContext {

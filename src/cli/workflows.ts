@@ -26,7 +26,6 @@ function loadWorkflowConfig(entry: string | undefined, options: CliOptions) {
 		root: options.root,
 		config: options.config,
 		missing: options.missing,
-		envVar: options.envVar,
 		fallback: options.fallback,
 	});
 }
@@ -37,7 +36,6 @@ function loadAnalyzeConfig(entry: string | undefined, options: CliOptions) {
 		root: options.root,
 		config: options.config,
 		missing: options.missing,
-		envVar: options.envVar,
 		fallback: options.fallback,
 	});
 }

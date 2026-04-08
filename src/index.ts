@@ -7,7 +7,6 @@ import {
 	parseFallbackMode,
 	parseMissingPolicy,
 	parseReportFormat,
-	parseEnvOption,
 	parseLogLevel,
 	printBundleSuccess,
 	printConfigSnapshot,
@@ -19,7 +18,6 @@ import {
 export type { CliOptions, CommandName, LogLevel, ReportFormat } from './cli';
 
 export {
-	parseEnvOption,
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,

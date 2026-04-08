@@ -36,9 +36,6 @@ export default class LuaPacker {
 			modules: {
 				...config.modules,
 				roots: roots.map((rootPath) => path.resolve(rootPath)),
-				env: Array.isArray(config.modules?.env)
-					? [...config.modules.env]
-					: [],
 				missing: config.modules?.missing || 'error',
 				rules: config.modules?.rules || {},
 			},

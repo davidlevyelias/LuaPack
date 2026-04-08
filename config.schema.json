@@ -5,6 +5,10 @@
 	"additionalProperties": false,
 	"required": ["schemaVersion", "entry"],
 	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "Optional JSON Schema URI for editor integration."
+		},
 		"schemaVersion": {
 			"type": "integer",
 			"const": 2,
@@ -27,14 +31,6 @@
 				"roots": {
 					"type": "array",
 					"description": "Ordered search roots for module resolution. When omitted, the entry file directory should be used as the default root.",
-					"items": {
-						"type": "string"
-					},
-					"default": []
-				},
-				"env": {
-					"type": "array",
-					"description": "Environment variables that contribute additional search roots. This is opt-in in v2.",
 					"items": {
 						"type": "string"
 					},

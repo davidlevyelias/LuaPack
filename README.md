@@ -35,7 +35,6 @@ Common options:
 - `-o, --output <file>`: Override the bundle path or report path.
 - `--root <path>`: Add a module search root. Repeat to replace the effective root set.
 - `--missing <policy>`: Missing-module policy: `error`, `warn`, or `ignore`.
-- `--env-var <name>`: Add an environment variable to inspect for module roots. Repeatable.
 - `--fallback <policy>`: Runtime fallback policy: `never`, `external-only`, or `always`.
 - `--print-config`: Print the effective normalized v2 config and exit.
 - `--no-color`: Disable ANSI color output.
@@ -91,7 +90,6 @@ Minimal example:
 {
 	"modules": {
 		"roots": ["./src", "./external_modules"],
-		"env": ["LUA_PATH", "SDK_PATH"],
 		"missing": "warn",
 		"rules": {
 			"socket.core": {
@@ -111,7 +109,6 @@ Minimal example:
 ```
 
 - `roots`: Ordered search roots for resolving modules.
-- `env`: Environment variables whose values contribute additional roots.
 - `missing`: Global missing-module policy.
 - `rules`: Per-module policy keyed by module identifier.
 

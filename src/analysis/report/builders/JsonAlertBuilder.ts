@@ -24,15 +24,17 @@ export function buildJsonAlerts(
 		severity: 'warn',
 		message: entry.message,
 	}));
+	const missingData = getMissingData(analysis.missing || []);
+	const rawMissingMessages = new Set(missingData.map((item) => item.message));
 
 	const missingAlerts =
 		missingPolicy === 'ignore'
 			? []
-			: getMissingData(analysis.missing || []).map<JsonMissingAlert>(
+			: missingData.map<JsonMissingAlert>(
 					(item) => ({
 						type: 'missing',
 						severity: item.fatal ? 'error' : 'warn',
-						message: item.message,
+						message: normalizeJsonMissingMessage(item),
 						requireId: item.requireId,
 						requiredBy: item.requiredBy,
 						name: item.moduleName,
@@ -45,7 +47,11 @@ export function buildJsonAlerts(
 
 	const missingMessages = new Set(missingAlerts.map((item) => item.message));
 	const errorAlerts = getErrorsData(analysis.errors || [])
-		.filter((entry) => !missingMessages.has(entry.message))
+		.filter(
+			(entry) =>
+				!missingMessages.has(entry.message) &&
+				!rawMissingMessages.has(entry.message)
+		)
 		.map<JsonErrorAlert>((entry) => ({
 			type: 'error',
 			severity: 'error',
@@ -53,6 +59,21 @@ export function buildJsonAlerts(
 		}));
 
 	return [...warningAlerts, ...missingAlerts, ...errorAlerts];
+}
+
+function normalizeJsonMissingMessage(item: {
+	message: string;
+	code?: string;
+}): string {
+	const message = item.message?.trim();
+	if (
+		item.code === 'MODULE_NOT_FOUND' &&
+		typeof message === 'string' &&
+		message.startsWith('Module not found:')
+	) {
+		return 'Module not found.';
+	}
+	return message;
 }
 
 function normalizeSerializablePath(
