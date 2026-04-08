@@ -1,13 +1,13 @@
 # LuaPack
 
-LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and producing a single distributable runtime bundle. It follows explicit `require` statements, resolves project and external module roots, and emits a self-contained runtime artifact.
+LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and producing a single distributable runtime bundle. It follows explicit `require` statements, resolves modules through declared package roots and local rules, and emits a self-contained runtime artifact.
 
 ## Features
 
 - Resolves static `require` statements starting from an entry Lua file.
 - Builds dependency analysis output in text or JSON form.
 - Generates self-contained runtime bundles with controlled fallback behavior.
-- Supports per-module rules for bundled, external, and ignored modules.
+- Supports package-scoped dependency policies and local module rules.
 - Validates configuration against the canonical v2 schema before execution.
 
 ## Installation
@@ -33,7 +33,7 @@ Common options:
 
 - `-c, --config <file>`: Point to a `luapack.config.json` file.
 - `-o, --output <file>`: Override the bundle path or report path.
-- `--root <path>`: Add a module search root. Repeat to replace the effective root set.
+- `--root <path>`: Override the default package root for the current run.
 - `--missing <policy>`: Missing-module policy: `error`, `warn`, or `ignore`.
 - `--fallback <policy>`: Runtime fallback policy: `never`, `external-only`, or `always`.
 - `--print-config`: Print the effective normalized v2 config and exit.
@@ -73,8 +73,10 @@ Minimal example:
 	"schemaVersion": 2,
 	"entry": "./src/main.lua",
 	"output": "./dist/app.bundle.lua",
-	"modules": {
-		"roots": ["./src"]
+	"packages": {
+		"default": {
+			"root": "./src"
+		}
 	}
 }
 ```
@@ -82,37 +84,54 @@ Minimal example:
 - `schemaVersion`: Must be `2`.
 - `entry`: Entry Lua file.
 - `output`: Optional output path. Defaults to `<entry-name>_packed.lua` alongside the entry file.
-- `modules.roots`: Ordered search roots. If omitted, LuaPack uses the entry file directory.
+- `missing`: Optional global missing-module policy.
+- `packages.default.root`: Root directory for the default package. If omitted, LuaPack uses the entry file directory.
 
-### `modules`
+### `packages`
 
 ```json
 {
-	"modules": {
-		"roots": ["./src", "./external_modules"],
-		"missing": "warn",
-		"rules": {
-			"socket.core": {
-				"mode": "ignore"
+	"missing": "warn",
+	"packages": {
+		"default": {
+			"root": "./src",
+			"dependencies": {
+				"sdk": {
+					"mode": "external"
+				}
 			},
-			"dkjson": {
-				"mode": "bundle",
-				"path": "./vendor/dkjson.lua",
-				"recursive": false
-			},
-			"sdk": {
-				"mode": "external"
+			"rules": {
+				"socket.core": {
+					"mode": "ignore"
+				},
+				"dkjson": {
+					"mode": "bundle",
+					"path": "./vendor/dkjson.lua",
+					"recursive": false
+				}
+			}
+		},
+		"sdk": {
+			"root": "./external_modules/sdk"
 			}
 		}
 	}
 }
 ```
 
-- `roots`: Ordered search roots for resolving modules.
 - `missing`: Global missing-module policy.
-- `rules`: Per-module policy keyed by module identifier.
+- `packages`: Declared package scopes keyed by Lua require prefix.
+- `dependencies`: Per-package dependency policy for other declared packages.
+- `rules`: Local-module policy keyed by module identifier inside the package.
 
-Each rule supports:
+Each dependency supports:
+
+- `mode: "bundle"`: Include modules from that package in the bundle.
+- `mode: "external"`: Treat that package as runtime-provided.
+- `mode: "ignore"`: Skip that package entirely.
+- `recursive: false`: Resolve the package entry module but skip dependency traversal below it.
+
+Each local rule supports:
 
 - `mode: "bundle"`: Include the module in the bundle.
 - `mode: "external"`: Treat the module as runtime-provided.
@@ -134,7 +153,7 @@ Each rule supports:
 
 ## Breaking Change
 
-LuaPack v1 configuration is no longer supported. Legacy fields such as `sourceRoot`, `modules.external`, `modules.overrides`, `modules.ignoreMissing`, `--sourceroot`, and `--ignore-missing` have been removed from the active config and CLI surface. Migrate configs to `schemaVersion: 2` before publishing or upgrading.
+LuaPack v1 configuration is no longer supported. Legacy fields such as `sourceRoot`, `modules.external`, `modules.overrides`, `modules.ignoreMissing`, `--sourceroot`, and `--ignore-missing` have been removed from the active config and CLI surface. Public v2 configs should now use top-level `missing` and `packages` instead of a `modules` block.
 
 
 

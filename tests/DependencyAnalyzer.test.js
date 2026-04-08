@@ -75,13 +75,15 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
-							rules: {
-								dkjson: {
-									mode: 'bundle',
-									path: './src/vendor/dkjson.lua',
-									recursive: false,
+						packages: {
+							default: {
+								root: './src',
+								rules: {
+									dkjson: {
+										mode: 'bundle',
+										path: './src/vendor/dkjson.lua',
+										recursive: false,
+									},
 								},
 							},
 						},
@@ -132,8 +134,10 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
+						packages: {
+							default: {
+								root: './src',
+							},
 						},
 					},
 					null,
@@ -183,8 +187,10 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
+						packages: {
+							default: {
+								root: './src',
+							},
 						},
 					},
 					null,
@@ -242,8 +248,10 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
+						packages: {
+							default: {
+								root: './src',
+							},
 						},
 					},
 					null,
@@ -315,9 +323,8 @@ describe('DependencyAnalyzer', () => {
 		try {
 			const srcDir = path.join(tempDir, 'src');
 			const externalDir = path.join(tempDir, 'external');
-			const externalModuleDir = path.join(externalDir, 'external');
 			fs.mkdirSync(srcDir, { recursive: true });
-			fs.mkdirSync(externalModuleDir, { recursive: true });
+			fs.mkdirSync(externalDir, { recursive: true });
 
 			fs.writeFileSync(
 				path.join(srcDir, 'main.lua'),
@@ -325,7 +332,7 @@ describe('DependencyAnalyzer', () => {
 			);
 
 			fs.writeFileSync(
-				path.join(externalModuleDir, 'module.lua'),
+				path.join(externalDir, 'module.lua'),
 				"local missing = require('missing.module')\nreturn missing\n"
 			);
 
@@ -337,15 +344,20 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src', './external'],
-							rules: {
-								'external.module': {
-									mode: 'external',
-									recursive: false,
+						missing: 'error',
+						packages: {
+							default: {
+								root: './src',
+								dependencies: {
+									external: {
+										mode: 'external',
+										recursive: false,
+									},
 								},
 							},
-							missing: 'error',
+							external: {
+								root: './external',
+							},
 						},
 						bundle: {
 							fallback: 'external-only',
@@ -361,7 +373,7 @@ describe('DependencyAnalyzer', () => {
 			const { graph } = analyzer.buildDependencyGraph(config.entry);
 
 			const externalModulePath = path.join(
-				externalModuleDir,
+				externalDir,
 				'module.lua'
 			);
 			const node = graph.get(externalModulePath);
@@ -399,10 +411,21 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src', './vendor'],
-							missing: 'error',
-							rules: {},
+						missing: 'error',
+						packages: {
+							default: {
+								root: './src',
+								dependencies: {
+									shared: {
+										mode: 'bundle',
+										recursive: true,
+									},
+								},
+								rules: {},
+							},
+							shared: {
+								root: './vendor/shared',
+							},
 						},
 						bundle: {
 							fallback: 'external-only',
@@ -447,12 +470,14 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
-							missing: 'error',
-							rules: {
-								'legacy.temp': {
-									mode: 'ignore',
+						missing: 'error',
+						packages: {
+							default: {
+								root: './src',
+								rules: {
+									'legacy.temp': {
+										mode: 'ignore',
+									},
 								},
 							},
 						},
@@ -498,10 +523,12 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
-							missing: 'warn',
-							rules: {},
+						missing: 'warn',
+						packages: {
+							default: {
+								root: './src',
+								rules: {},
+							},
 						},
 						bundle: {
 							fallback: 'external-only',
@@ -545,10 +572,12 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
-							missing: 'error',
-							rules: {},
+						missing: 'error',
+						packages: {
+							default: {
+								root: './src',
+								rules: {},
+							},
 						},
 						bundle: {
 							fallback: 'external-only',
@@ -601,14 +630,16 @@ describe('DependencyAnalyzer', () => {
 						schemaVersion: 2,
 						entry: './src/main.lua',
 						output: './dist/out.lua',
-						modules: {
-							roots: ['./src'],
-							missing: 'error',
-							rules: {
-								dkjson: {
-									mode: 'external',
-									path: './external/dkjson-missing',
-									recursive: false,
+						missing: 'error',
+						packages: {
+							default: {
+								root: './src',
+								rules: {
+									dkjson: {
+										mode: 'external',
+										path: './external/dkjson-missing',
+										recursive: false,
+									},
 								},
 							},
 						},

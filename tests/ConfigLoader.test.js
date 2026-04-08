@@ -26,8 +26,10 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
-			modules: {
-				roots: ['./src'],
+				packages: {
+					default: {
+						root: './src',
+					},
 			},
 		};
 
@@ -77,8 +79,10 @@ describe('ConfigLoader', () => {
 		const configContent = {
 			schemaVersion: 2,
 			entry: './src/main.lua',
-			modules: {
-				roots: ['./src'],
+				packages: {
+					default: {
+						root: './src',
+					},
 			},
 		};
 
@@ -97,8 +101,10 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
-			modules: {
-				roots: ['./src'],
+				packages: {
+					default: {
+						root: './src',
+					},
 			},
 		};
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
@@ -125,15 +131,17 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
-			modules: {
-				roots: ['./src'],
-				rules: {
-					'my.module': {
-						mode: 'bundle',
-						path: './vendor/my/module.lua',
-						recursive: false,
+				packages: {
+					default: {
+						root: './src',
+						rules: {
+							'my.module': {
+								mode: 'bundle',
+								path: './vendor/my/module.lua',
+								recursive: false,
+							},
+						},
 					},
-				},
 			},
 		};
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
@@ -153,19 +161,24 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/v2.lua',
-			modules: {
-				roots: ['./src', './vendor'],
 				missing: 'warn',
-				rules: {
-					dkjson: {
-						mode: 'bundle',
-						path: './vendor/dkjson.lua',
-						recursive: false,
+				packages: {
+					default: {
+						root: './src',
+						rules: {
+							dkjson: {
+								mode: 'bundle',
+								path: './vendor/dkjson.lua',
+								recursive: false,
+							},
+							socket: {
+								mode: 'external',
+							},
+						},
 					},
-					socket: {
-						mode: 'external',
+					vendor: {
+						root: './vendor',
 					},
-				},
 			},
 			bundle: {
 				fallback: 'never',

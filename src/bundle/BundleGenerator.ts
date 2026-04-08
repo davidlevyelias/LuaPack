@@ -6,8 +6,10 @@ import type { BundlePlan } from './types';
 const TEMPLATE_PLACEHOLDERS = {
 	modules: '-- __MODULE_DEFINITIONS__',
 	externals: '-- __EXTERNAL_MODULES__',
+	packagePrefixes: '-- __PACKAGE_PREFIXES__',
 	fallback: '-- __FALLBACK_LOGIC__',
 	entry: /__ENTRY_MODULE__/g,
+	entryPackage: /__ENTRY_PACKAGE__/g,
 };
 
 const templateCache = new Map<string, string>();
@@ -30,6 +32,12 @@ function buildExternalModuleSection(externalModules: string[]): string {
 		.join('\n');
 }
 
+function buildPackagePrefixSection(packagePrefixes: string[]): string {
+	return packagePrefixes
+		.map((packageName) => `	"${packageName}",`)
+		.join('\n');
+}
+
 function buildFallbackLogic(
 	fallbackPolicy: BundlePlan['fallbackPolicy']
 ): string {
@@ -46,12 +54,24 @@ function buildFallbackLogic(
 
 export default class BundleGenerator {
 	createBundleTemplate(bundlePlan: BundlePlan): string {
-		const moduleDefinitions = bundlePlan.bundledModules
-			.map(({ moduleName, content }) => {
+		const bundledModules = Array.isArray(bundlePlan.bundledModules)
+			? bundlePlan.bundledModules
+			: [];
+		const externalModules = Array.isArray(bundlePlan.externalModules)
+			? bundlePlan.externalModules
+			: [];
+		const packagePrefixes = Array.isArray(bundlePlan.packagePrefixes)
+			? bundlePlan.packagePrefixes
+			: [];
+		const entryPackageName = bundlePlan.entryPackageName || 'default';
+		const moduleDefinitions = bundledModules
+			.map(({ moduleName, packageName, content }) => {
 				const normalizedContent = content
 					.replace(/\r\n/g, '\n')
 					.replace(/\r/g, '\n');
-				const indentedContent = normalizedContent
+				const scopedRequirePrelude = `local require = __lp_require_scoped("${packageName || 'default'}")`;
+				const moduleBody = `${scopedRequirePrelude}\n${normalizedContent}`;
+				const indentedContent = moduleBody
 					.split('\n')
 					.map((line) => (line.length ? `\t${line}` : ''))
 					.join('\n');
@@ -65,15 +85,23 @@ end`;
 			? `${moduleDefinitions}\n`
 			: '';
 		const externalModulesSection = buildExternalModuleSection(
-			bundlePlan.externalModules
+			externalModules
+		);
+		const packagePrefixSection = buildPackagePrefixSection(
+			packagePrefixes
 		);
 		const fallbackLogic = buildFallbackLogic(bundlePlan.fallbackPolicy);
 
 		return getTemplate()
 			.replace(TEMPLATE_PLACEHOLDERS.modules, definitionsSection)
 			.replace(TEMPLATE_PLACEHOLDERS.externals, externalModulesSection)
+			.replace(TEMPLATE_PLACEHOLDERS.packagePrefixes, packagePrefixSection)
 			.replace(TEMPLATE_PLACEHOLDERS.fallback, fallbackLogic)
-			.replace(TEMPLATE_PLACEHOLDERS.entry, bundlePlan.entryModuleName);
+			.replace(TEMPLATE_PLACEHOLDERS.entry, bundlePlan.entryModuleName)
+			.replace(
+				TEMPLATE_PLACEHOLDERS.entryPackage,
+				entryPackageName
+			);
 	}
 
 	async generateBundle(bundlePlan: BundlePlan): Promise<string> {

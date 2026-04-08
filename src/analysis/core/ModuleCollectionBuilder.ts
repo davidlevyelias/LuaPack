@@ -31,6 +31,9 @@ export function buildModuleCollections(
 			dependencies.push({
 				id: dependencyRecord.id,
 				moduleName: dependencyRecord.moduleName,
+				packageName: dependencyRecord.packageName,
+				localModuleId: dependencyRecord.localModuleId,
+				canonicalModuleId: dependencyRecord.canonicalModuleId,
 				isExternal: Boolean(dependencyRecord.isExternal),
 				isMissing: Boolean(dependencyRecord.isMissing),
 				filePath: dependencyRecord.filePath ?? null,

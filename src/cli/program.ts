@@ -38,7 +38,7 @@ function addCommonOptions(
 		)
 		.option(
 			'--root <path>',
-			'Module search root. Repeat to replace the effective root set.',
+			'Default package root for this run. Repeat to replace the effective value.',
 			collectRepeatableValue
 		)
 		.option(

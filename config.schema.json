@@ -23,37 +23,21 @@
 			"type": "string",
 			"description": "Optional destination path for the generated bundle. When omitted, LuaPack should emit '<entry-name>_packed.lua' alongside the entry file."
 		},
-		"modules": {
+		"missing": {
+			"type": "string",
+			"description": "Policy for unresolved static dependencies.",
+			"enum": ["error", "warn", "ignore"],
+			"default": "error"
+		},
+		"packages": {
 			"type": "object",
-			"description": "Module discovery and per-module bundling policy.",
-			"additionalProperties": false,
-			"properties": {
-				"roots": {
-					"type": "array",
-					"description": "Ordered search roots for module resolution. When omitted, the entry file directory should be used as the default root.",
-					"items": {
-						"type": "string"
-					},
-					"default": []
-				},
-				"missing": {
-					"type": "string",
-					"description": "Policy for unresolved static dependencies.",
-					"enum": ["error", "warn", "ignore"],
-					"default": "error"
-				},
-				"rules": {
-					"type": "object",
-					"description": "Per-module policy keyed by module identifier.",
-					"propertyNames": {
-						"type": "string",
-						"pattern": "^[\\w\\.\\-/]+$"
-					},
-					"additionalProperties": {
-						"$ref": "#/definitions/moduleRule"
-					},
-					"default": {}
-				}
+			"description": "Declared package scopes keyed by Lua require prefix.",
+			"propertyNames": {
+				"type": "string",
+				"pattern": "^[\\w\\.-]+$"
+			},
+			"additionalProperties": {
+				"$ref": "#/definitions/packageConfig"
 			},
 			"default": {}
 		},
@@ -75,6 +59,25 @@
 		}
 	},
 	"definitions": {
+		"dependencyPolicy": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"mode": {
+					"type": "string",
+					"description": "How a package dependency should be handled.",
+					"enum": ["bundle", "external", "ignore"],
+					"default": "bundle"
+				},
+				"recursive": {
+					"type": "boolean",
+					"description": "When false, do not traverse into dependencies of this package.",
+					"default": true
+				}
+			},
+			"required": ["mode"],
+			"default": {}
+		},
 		"moduleRule": {
 			"type": "object",
 			"additionalProperties": false,
@@ -96,6 +99,42 @@
 				}
 			},
 			"required": ["mode"],
+			"default": {}
+		},
+		"packageConfig": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"root": {
+					"type": "string",
+					"description": "Root directory for modules owned by this package."
+				},
+				"dependencies": {
+					"type": "object",
+					"description": "Dependency policy for declared package dependencies.",
+					"propertyNames": {
+						"type": "string",
+						"pattern": "^[\\w\\.-]+$"
+					},
+					"additionalProperties": {
+						"$ref": "#/definitions/dependencyPolicy"
+					},
+					"default": {}
+				},
+				"rules": {
+					"type": "object",
+					"description": "Local module rules scoped to this package.",
+					"propertyNames": {
+						"type": "string",
+						"pattern": "^[\\w\\.\\-/]+$"
+					},
+					"additionalProperties": {
+						"$ref": "#/definitions/moduleRule"
+					},
+					"default": {}
+				}
+			},
+			"required": ["root"],
 			"default": {}
 		}
 	}

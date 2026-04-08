@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 
 import ModuleResolver from './ModuleResolver';
 import LuaRequireExtractor from './LuaRequireExtractor';
@@ -113,10 +112,7 @@ export default class DependencyAnalyzer {
 		for (const requireId of requires) {
 			let resolved: ModuleRecord;
 			try {
-				resolved = this.resolver.resolve(
-					requireId,
-					path.dirname(moduleRecord.filePath)
-				);
+				resolved = this.resolver.resolve(requireId, moduleRecord);
 			} catch (error) {
 				const typedError = error as Error & { code?: string };
 				if (
@@ -125,6 +121,7 @@ export default class DependencyAnalyzer {
 				) {
 					const missingRecord =
 						this.resolver.createMissingRecordForRequire(
+							moduleRecord,
 							requireId,
 							typedError
 						);

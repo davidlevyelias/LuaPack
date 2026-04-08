@@ -5,7 +5,7 @@ The `examples/simple` directory contains small scenarios intended for fast live 
 ## Available Configurations
 
 - `basic.luapack.config.json` – Small runtime bundle with one local dependency chain.
-- `missing-warn.luapack.config.json` – Small analysis case that intentionally leaves one dependency unresolved with `modules.missing: "warn"`.
+- `missing-warn.luapack.config.json` – Small analysis case that intentionally leaves one dependency unresolved with top-level `missing: "warn"`.
 
 ## Running a Scenario
 

@@ -14,8 +14,8 @@ The `examples/demo` directory contains a single Lua project exercised by multipl
 ## Available Configurations
 
 - `basic.luapack.config.json` – Runs `src/main.lua`, showcasing local modules, analytics helpers, and reporting utilities.
-- `external.luapack.config.json` – Demonstrates additional module roots and per-module rules by loading SDK utilities and a stub `dkjson` parser from `external_modules/`.
-- `ignore-missing.luapack.config.json` – Shows how `modules.missing: "warn"` records unresolved modules without aborting the build.
+- `external.luapack.config.json` – Demonstrates declared package roots and local rules by loading SDK utilities and a stub `dkjson` parser from `external_modules/`.
+- `ignore-missing.luapack.config.json` – Shows how top-level `missing: "warn"` records unresolved modules without aborting the build.
 
 Each config writes its bundle to the shared `dist/` folder with a descriptive file name.
 

@@ -1,7 +1,69 @@
 import path from 'path';
 
 import { buildDefaultOutputPath } from './utils';
-import type { CliOptions, RawConfig, RawModules } from './types';
+import type {
+	CliOptions,
+	RawConfig,
+	RawModules,
+	RawPackage,
+	RawPackages,
+} from './types';
+
+function normalizeRulePaths(
+	rules: RawModules['rules'] | undefined,
+	baseDir: string
+): RawModules['rules'] {
+	if (!rules || typeof rules !== 'object') {
+		return rules;
+	}
+
+	const normalizedRules: NonNullable<RawModules['rules']> = {};
+	for (const [moduleId, rule] of Object.entries(rules)) {
+		if (!rule) {
+			continue;
+		}
+		if (typeof rule.path === 'string') {
+			normalizedRules[moduleId] = {
+				...rule,
+				path: path.isAbsolute(rule.path)
+					? rule.path
+					: path.resolve(baseDir, rule.path),
+			};
+		} else {
+			normalizedRules[moduleId] = rule;
+		}
+	}
+
+	return normalizedRules;
+}
+
+function normalizePackages(
+	rawPackages: RawPackages | undefined,
+	baseDir: string
+): RawPackages | undefined {
+	if (!rawPackages || typeof rawPackages !== 'object') {
+		return rawPackages;
+	}
+
+	const normalized: RawPackages = {};
+	for (const [packageName, rawPackage] of Object.entries(rawPackages)) {
+		if (!rawPackage || typeof rawPackage !== 'object') {
+			continue;
+		}
+
+		const packageConfig: RawPackage = { ...rawPackage };
+		if (typeof packageConfig.root === 'string' && packageConfig.root) {
+			packageConfig.root = path.isAbsolute(packageConfig.root)
+				? packageConfig.root
+				: path.resolve(baseDir, packageConfig.root);
+		}
+
+		packageConfig.rules = normalizeRulePaths(packageConfig.rules, baseDir);
+		normalized[packageName] = packageConfig;
+	}
+
+	return normalized;
+}
 
 export function normalizePaths(
 	config: RawConfig,
@@ -36,26 +98,9 @@ export function normalizePaths(
 		);
 	}
 
-	if (modules.rules && typeof modules.rules === 'object') {
-		const normalizedRules: NonNullable<RawModules['rules']> = {};
-		for (const [moduleId, rule] of Object.entries(modules.rules)) {
-			if (!rule) {
-				continue;
-			}
-			if (typeof rule.path === 'string') {
-				normalizedRules[moduleId] = {
-					...rule,
-					path: path.isAbsolute(rule.path)
-						? rule.path
-						: path.resolve(baseDir, rule.path),
-				};
-			} else {
-				normalizedRules[moduleId] = rule;
-			}
-		}
-		modules.rules = normalizedRules;
-	}
+	modules.rules = normalizeRulePaths(modules.rules, baseDir);
 
 	finalConfig.modules = modules;
+	finalConfig.packages = normalizePackages(finalConfig.packages, baseDir);
 	return finalConfig;
 }

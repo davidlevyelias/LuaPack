@@ -2,8 +2,10 @@
   "schemaVersion": 2,
   "entry": "./src/entries/ignore_missing.lua",
   "output": "../../dist/demo_ignore_missing_bundle.lua",
-  "modules": {
-    "roots": ["./src"],
-    "missing": "warn"
+  "missing": "warn",
+  "packages": {
+    "default": {
+    "root": "./src"
+    }
   }
 }

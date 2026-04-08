@@ -2,31 +2,48 @@ import fs from 'fs';
 import path from 'path';
 
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
-import type { MissingPolicy, NormalizedRule } from '../config/loader/types';
+import type {
+	MissingPolicy,
+	NormalizedDependencyPolicy,
+	NormalizedRule,
+	V2Package,
+} from '../config/loader/types';
+
+interface ResolvedRequest {
+	packageName: string;
+	localModuleId: string;
+	runtimeModuleName: string;
+}
+
+interface ResolvedPolicy {
+	mode: NormalizedRule['mode'];
+	recursive: boolean;
+	path?: string;
+	overrideApplied: boolean;
+	isExternal: boolean;
+}
 
 export default class ModuleResolver {
-	private readonly sourceRoot: string;
-	private readonly moduleRules: Record<string, NormalizedRule>;
-	private readonly searchRoots: string[];
+	private readonly defaultPackageName = 'default';
+	private readonly packages: Record<string, V2Package>;
+	private readonly packageNamesByLength: string[];
+	private readonly legacyRoots: string[];
 	private readonly missingPolicy: MissingPolicy;
 	private readonly externalRecursiveDefault: boolean;
 	readonly ignoreMissing: boolean;
 
 	constructor(config: WorkflowConfig) {
-		const roots =
-			Array.isArray(config.modules?.roots) &&
-			config.modules.roots.length > 0
-				? config.modules.roots
-				: [path.dirname(config.entry)];
-		this.sourceRoot = roots[0] ?? path.dirname(config.entry);
-		this.moduleRules = config.modules?.rules ?? {};
+		this.packages = this.buildPackageMap(config);
+		this.packageNamesByLength = Object.keys(this.packages).sort(
+			(a, b) => b.length - a.length
+		);
+		this.legacyRoots = this.computeLegacyRoots(config);
 		this.missingPolicy = config.modules?.missing ?? 'error';
 		this.ignoreMissing = this.missingPolicy !== 'error';
 		this.externalRecursiveDefault =
 			typeof config._compat?.externalRecursive === 'boolean'
 				? config._compat.externalRecursive
 				: true;
-		this.searchRoots = this.computeSearchRoots(roots);
 	}
 
 	normalizeModuleId(moduleId = ''): string {
@@ -37,32 +54,37 @@ export default class ModuleResolver {
 		return targetPath.replace(/\\/g, '/');
 	}
 
-	resolve(requirePath: string, currentDir: string): ModuleRecord {
+	resolve(requirePath: string, currentModule: ModuleRecord): ModuleRecord {
 		const moduleId = this.normalizeModuleId(requirePath);
-		const rule = this.getRule(moduleId);
+		const currentPackageName = currentModule.packageName || this.defaultPackageName;
+		const request = this.resolveRequest(currentPackageName, moduleId);
+		const policy = this.resolvePolicy(currentPackageName, request);
 
-		if (rule.mode === 'ignore') {
-			return this.createIgnoredRecord(moduleId);
+		if (policy.mode === 'ignore') {
+			return this.createIgnoredRecord(request);
 		}
 
-		if (rule.path) {
-			const overrideCandidate = this.resolveRulePath(rule.path);
+		if (policy.path) {
+			const packageConfig = this.getPackageConfig(request.packageName);
+			const overrideCandidate = this.resolveRulePath(
+				policy.path,
+				packageConfig.root
+			);
 			const resolvedPath = this.tryPath(overrideCandidate);
 			if (!resolvedPath) {
 				const overrideError = Object.assign(
 					new Error(
-						`Override path for module '${moduleId}' not found: ${this.normalizePath(rule.path)}`
+						`Override path for module '${moduleId}' not found: ${this.normalizePath(policy.path)}`
 					),
 					{ code: 'MODULE_OVERRIDE_NOT_FOUND' }
 				);
 
 				if (this.ignoreMissing) {
-					return this.createMissingRecord(moduleId, {
-						isExternal: rule.mode === 'external',
+					return this.createMissingRecord(request, {
+						isExternal: policy.isExternal,
 						overrideApplied: true,
 						error: overrideError,
-						filePath:
-							this.buildSyntheticOverridePath(overrideCandidate),
+						filePath: this.buildSyntheticOverridePath(overrideCandidate),
 					});
 				}
 
@@ -70,41 +92,37 @@ export default class ModuleResolver {
 			}
 
 			return this.createRecord({
-				moduleId,
+				request,
 				filePath: resolvedPath,
 				overrideApplied: true,
-				rule,
+				policy,
 			});
 		}
 
-		const pathFromRequire = moduleId.replace(/\./g, path.sep);
-		const candidates: string[] = [];
-
-		const pushCandidate = (basePath: string) => {
-			if (!candidates.includes(basePath)) {
-				candidates.push(basePath);
-			}
-		};
-
-		pushCandidate(path.resolve(currentDir, pathFromRequire));
-		for (const root of this.searchRoots) {
-			pushCandidate(path.resolve(root, pathFromRequire));
-		}
+		const currentDir = currentModule.filePath
+			? path.dirname(currentModule.filePath)
+			: this.getPackageConfig(currentPackageName).root;
+		const candidates = this.computeCandidates(
+			request,
+			currentPackageName,
+			currentDir
+		);
 
 		for (const candidate of candidates) {
 			const resolvedPath = this.tryPath(candidate);
 			if (resolvedPath) {
 				return this.createRecord({
-					moduleId,
+					request,
 					filePath: resolvedPath,
-					rule,
+					policy,
 				});
 			}
 		}
 
 		if (this.ignoreMissing) {
-			return this.createMissingRecord(moduleId, {
-				isExternal: rule.mode === 'external',
+			return this.createMissingRecord(request, {
+				isExternal: policy.isExternal,
+				overrideApplied: policy.overrideApplied,
 			});
 		}
 
@@ -114,43 +132,80 @@ export default class ModuleResolver {
 				code: 'MODULE_NOT_FOUND',
 				moduleId,
 				requester: currentDir,
+				requestPackage: request.packageName,
 			}
 		);
 		throw error;
 	}
 
 	createEntryRecord(filePath: string): ModuleRecord {
-		return this.createRecord({
+		const packageConfig = this.getPackageConfig(this.defaultPackageName);
+		const fallbackLocal = path.basename(filePath, '.lua');
+		const localModuleId = this.deriveLocalModuleId(
 			filePath,
-			moduleId: this.deriveModuleName(filePath),
-			rule: { mode: 'bundle' },
+			packageConfig.root,
+			fallbackLocal
+		);
+		const request: ResolvedRequest = {
+			packageName: this.defaultPackageName,
+			localModuleId,
+			runtimeModuleName: this.toRuntimeModuleName(
+				this.defaultPackageName,
+				localModuleId
+			),
+		};
+		return this.createRecord({
+			request,
+			filePath,
+			overrideApplied: false,
+			policy: {
+				mode: 'bundle',
+				recursive: true,
+				overrideApplied: false,
+				isExternal: false,
+			},
 		});
 	}
 
 	createMissingRecordForRequire(
-		moduleId: string,
+		currentModule: ModuleRecord,
+		requireId: string,
 		error?: Error | null
 	): ModuleRecord {
-		const rule = this.getRule(moduleId);
-		return this.createMissingRecord(moduleId, {
-			isExternal: rule.mode === 'external',
+		const request = this.resolveRequest(
+			currentModule.packageName || this.defaultPackageName,
+			this.normalizeModuleId(requireId)
+		);
+		const policy = this.resolvePolicy(
+			currentModule.packageName || this.defaultPackageName,
+			request
+		);
+		return this.createMissingRecord(request, {
+			isExternal: policy.isExternal,
 			error: error ?? null,
-			overrideApplied: typeof rule.path === 'string',
+			overrideApplied: policy.overrideApplied,
 		});
 	}
 
-	private resolveRulePath(overridePath: string): string {
+	private resolveRulePath(overridePath: string, packageRoot: string): string {
 		const candidate = overridePath.replace(/\.lua$/, '');
 		if (path.isAbsolute(candidate)) {
 			return candidate;
 		}
-		return path.resolve(this.sourceRoot, candidate);
+		return path.resolve(packageRoot, candidate);
 	}
 
-	private createIgnoredRecord(moduleId: string): ModuleRecord {
+	private createIgnoredRecord(request: ResolvedRequest): ModuleRecord {
+		const canonicalModuleId = this.toCanonicalId(
+			request.packageName,
+			request.localModuleId
+		);
 		return {
-			id: moduleId,
-			moduleName: moduleId,
+			id: canonicalModuleId,
+			canonicalModuleId,
+			moduleName: request.runtimeModuleName,
+			packageName: request.packageName,
+			localModuleId: request.localModuleId,
 			filePath: null,
 			isIgnored: true,
 			isMissing: false,
@@ -161,7 +216,7 @@ export default class ModuleResolver {
 	}
 
 	createMissingRecord(
-		moduleId: string,
+		request: ResolvedRequest,
 		{
 			isExternal = false,
 			overrideApplied = false,
@@ -174,9 +229,16 @@ export default class ModuleResolver {
 			filePath?: string | null;
 		} = {}
 	): ModuleRecord {
+		const canonicalModuleId = this.toCanonicalId(
+			request.packageName,
+			request.localModuleId
+		);
 		return {
-			id: moduleId,
-			moduleName: moduleId,
+			id: canonicalModuleId,
+			canonicalModuleId,
+			moduleName: request.runtimeModuleName,
+			packageName: request.packageName,
+			localModuleId: request.localModuleId,
 			filePath,
 			isIgnored: false,
 			isMissing: true,
@@ -199,90 +261,252 @@ export default class ModuleResolver {
 	}
 
 	private createRecord({
-		moduleId,
+		request,
 		filePath,
 		overrideApplied = false,
-		rule,
+		policy,
 	}: {
-		moduleId?: string;
+		request: ResolvedRequest;
 		filePath: string;
 		overrideApplied?: boolean;
-		rule: NormalizedRule;
+		policy: ResolvedPolicy;
 	}): ModuleRecord {
-		const moduleName = this.deriveModuleName(filePath, moduleId);
-		const isExternal = rule.mode === 'external';
-		let analyzeDependencies = true;
-
-		if (typeof rule.recursive === 'boolean') {
-			analyzeDependencies = rule.recursive !== false;
-		} else if (isExternal) {
-			analyzeDependencies = this.externalRecursiveDefault;
-		}
+		const packageConfig = this.getPackageConfig(request.packageName);
+		const localModuleId = this.deriveLocalModuleId(
+			filePath,
+			packageConfig.root,
+			request.localModuleId
+		);
+		const canonicalModuleId = this.toCanonicalId(
+			request.packageName,
+			localModuleId
+		);
+		const moduleName = this.toRuntimeModuleName(
+			request.packageName,
+			localModuleId
+		);
 
 		return {
-			id: moduleId ?? moduleName,
+			id: canonicalModuleId,
+			canonicalModuleId,
 			moduleName,
+			packageName: request.packageName,
+			localModuleId,
 			filePath,
 			isIgnored: false,
 			isMissing: false,
-			isExternal,
-			overrideApplied: overrideApplied || typeof rule.path === 'string',
-			analyzeDependencies,
+			isExternal: policy.isExternal,
+			overrideApplied: overrideApplied || policy.overrideApplied,
+			analyzeDependencies: policy.recursive,
 		};
 	}
 
-	private computeSearchRoots(roots: string[]): string[] {
-		const resolvedPaths = new Set<string>();
+	private buildPackageMap(config: WorkflowConfig): Record<string, V2Package> {
+		const packages: Record<string, V2Package> = {
+			...(config.packages || {}),
+		};
 
-		for (const configured of roots) {
-			const normalized = path.isAbsolute(configured)
-				? configured
-				: path.resolve(this.sourceRoot, configured);
-			resolvedPaths.add(normalized);
+		const defaultRoot =
+			typeof packages.default?.root === 'string' && packages.default.root
+				? packages.default.root
+				: Array.isArray(config.modules?.roots) &&
+				  config.modules.roots.length > 0
+					? config.modules.roots[0]
+					: path.dirname(config.entry);
+		const defaultPackage = packages.default || {
+			root: defaultRoot,
+			dependencies: {},
+			rules: {},
+		};
+
+		packages.default = {
+			root: defaultPackage.root,
+			dependencies: { ...(defaultPackage.dependencies || {}) },
+			rules: {
+				...(config.modules?.rules || {}),
+				...(defaultPackage.rules || {}),
+			},
+		};
+
+		for (const [packageName, packageConfig] of Object.entries(packages)) {
+			packages[packageName] = {
+				root: packageConfig.root,
+				dependencies: { ...(packageConfig.dependencies || {}) },
+				rules: { ...(packageConfig.rules || {}) },
+			};
 		}
 
-		return Array.from(resolvedPaths);
+		return packages;
 	}
 
-	private getRule(moduleId: string): NormalizedRule {
-		const rule = this.moduleRules[moduleId];
-		if (!rule) {
-			return { mode: 'bundle' };
+	private computeLegacyRoots(config: WorkflowConfig): string[] {
+		const roots =
+			Array.isArray(config.modules?.roots) && config.modules.roots.length > 0
+				? config.modules.roots
+				: [this.getPackageConfig(this.defaultPackageName).root];
+
+		const unique = new Set<string>();
+		for (const rootPath of roots) {
+			const absolute = path.isAbsolute(rootPath)
+				? rootPath
+				: path.resolve(this.getPackageConfig(this.defaultPackageName).root, rootPath);
+			unique.add(absolute);
+		}
+		return Array.from(unique);
+	}
+
+	private resolveRequest(
+		currentPackageName: string,
+		requireId: string
+	): ResolvedRequest {
+		const matchedPackage = this.matchPackagePrefix(requireId);
+		if (matchedPackage) {
+			const localModuleId =
+				requireId === matchedPackage
+					? 'init'
+					: requireId.slice(matchedPackage.length + 1);
+			return {
+				packageName: matchedPackage,
+				localModuleId,
+				runtimeModuleName: this.toRuntimeModuleName(
+					matchedPackage,
+					localModuleId
+				),
+			};
 		}
 
 		return {
-			mode: rule.mode,
-			path: rule.path,
-			recursive: rule.recursive,
+			packageName: currentPackageName,
+			localModuleId: requireId,
+			runtimeModuleName: this.toRuntimeModuleName(
+				currentPackageName,
+				requireId
+			),
 		};
 	}
 
-	private deriveModuleName(filePath: string, fallbackId?: string): string {
-		if (filePath && this.isWithinSource(filePath)) {
+	private resolvePolicy(
+		currentPackageName: string,
+		request: ResolvedRequest
+	): ResolvedPolicy {
+		const targetPackage = this.getPackageConfig(request.packageName);
+		const currentPackage = this.getPackageConfig(currentPackageName);
+		const dependencyPolicy: NormalizedDependencyPolicy | undefined =
+			currentPackageName === request.packageName
+				? undefined
+				: currentPackage.dependencies[request.packageName];
+		const localRule: NormalizedRule =
+			targetPackage.rules[request.localModuleId] || { mode: 'bundle' };
+		const mode = dependencyPolicy?.mode || localRule.mode;
+		const isExternal = mode === 'external';
+		const recursive =
+			typeof dependencyPolicy?.recursive === 'boolean'
+				? dependencyPolicy.recursive
+				: typeof localRule.recursive === 'boolean'
+					? localRule.recursive
+					: isExternal
+						? this.externalRecursiveDefault
+						: true;
+
+		return {
+			mode,
+			recursive,
+			path: dependencyPolicy ? undefined : localRule.path,
+			overrideApplied: Boolean(!dependencyPolicy && localRule.path),
+			isExternal,
+		};
+	}
+
+	private computeCandidates(
+		request: ResolvedRequest,
+		currentPackageName: string,
+		currentDir: string
+	): string[] {
+		const candidates: string[] = [];
+		const seen = new Set<string>();
+		const packageConfig = this.getPackageConfig(request.packageName);
+		const pathFromRequire = request.localModuleId.replace(/\./g, path.sep);
+		const pushCandidate = (basePath: string) => {
+			if (!seen.has(basePath)) {
+				seen.add(basePath);
+				candidates.push(basePath);
+			}
+		};
+
+		if (request.packageName === currentPackageName) {
+			pushCandidate(path.resolve(currentDir, pathFromRequire));
+		}
+
+		pushCandidate(path.resolve(packageConfig.root, pathFromRequire));
+
+		if (request.packageName === this.defaultPackageName) {
+			for (const root of this.legacyRoots) {
+				pushCandidate(path.resolve(root, pathFromRequire));
+			}
+		}
+
+		return candidates;
+	}
+
+	private getPackageConfig(packageName: string): V2Package {
+		const config = this.packages[packageName];
+		if (config) {
+			return config;
+		}
+		return this.packages[this.defaultPackageName];
+	}
+
+	private matchPackagePrefix(moduleId: string): string | null {
+		for (const packageName of this.packageNamesByLength) {
+			if (moduleId === packageName) {
+				return packageName;
+			}
+			if (moduleId.startsWith(`${packageName}.`)) {
+				return packageName;
+			}
+		}
+		return null;
+	}
+
+	private toCanonicalId(packageName: string, localModuleId: string): string {
+		return `@${packageName}/${localModuleId}`;
+	}
+
+	private toRuntimeModuleName(packageName: string, localModuleId: string): string {
+		if (packageName === this.defaultPackageName) {
+			return localModuleId;
+		}
+		if (localModuleId === 'init') {
+			return packageName;
+		}
+		return `${packageName}.${localModuleId}`;
+	}
+
+	private deriveLocalModuleId(
+		filePath: string,
+		packageRoot: string,
+		fallbackLocalId: string
+	): string {
+		if (filePath && this.isWithinRoot(filePath, packageRoot)) {
 			const relativePath = path
-				.relative(this.sourceRoot, filePath)
+				.relative(packageRoot, filePath)
 				.replace(/\\/g, '/');
 			const withoutExtension = relativePath.replace(/\.lua$/, '');
 			if (withoutExtension.endsWith('/init')) {
 				const parentPath = withoutExtension.slice(0, -5);
 				if (parentPath.length === 0) {
-					return fallbackId ?? 'init';
+					return 'init';
 				}
 				return parentPath.replace(/\//g, '.');
 			}
 			return withoutExtension.replace(/\//g, '.');
 		}
 
-		if (fallbackId) {
-			return fallbackId;
-		}
-
-		const normalized = filePath.replace(/\.lua$/, '');
-		return normalized.replace(/[\\/]/g, '.');
+		return fallbackLocalId;
 	}
 
-	private isWithinSource(filePath: string): boolean {
-		const relative = path.relative(this.sourceRoot, filePath);
+	private isWithinRoot(filePath: string, rootPath: string): boolean {
+		const relative = path.relative(rootPath, filePath);
 		return !relative.startsWith('..') && !path.isAbsolute(relative);
 	}
 

@@ -23,10 +23,21 @@ export default class BundlePlanBuilder {
 		const bundledModules = [];
 		const externalModules: string[] = [];
 		const ignoredModules: string[] = [];
+		const packagePrefixSet = new Set<string>();
+		for (const packageName of Object.keys(this.config.packages || {})) {
+			if (packageName && packageName !== 'default') {
+				packagePrefixSet.add(packageName);
+			}
+		}
 
 		for (const moduleRecord of sortedModules) {
 			if (!moduleRecord || moduleRecord.isMissing) {
 				continue;
+			}
+
+			const packageName = moduleRecord.packageName || 'default';
+			if (packageName !== 'default') {
+				packagePrefixSet.add(packageName);
 			}
 
 			if (moduleRecord.isIgnored) {
@@ -49,6 +60,7 @@ export default class BundlePlanBuilder {
 					: fs.readFileSync(moduleRecord.filePath, 'utf-8');
 			const bundledModule = {
 				moduleName: moduleRecord.moduleName,
+				packageName,
 				filePath: moduleRecord.filePath,
 				content,
 			};
@@ -58,6 +70,10 @@ export default class BundlePlanBuilder {
 
 		return {
 			entryModuleName: entryModule.moduleName,
+			entryPackageName: entryModule.packageName || 'default',
+			packagePrefixes: Array.from(packagePrefixSet).sort(
+				(a, b) => b.length - a.length
+			),
 			bundledModules,
 			externalModules,
 			ignoredModules,

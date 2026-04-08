@@ -2,12 +2,18 @@ import path from 'path';
 
 import { MISSING_POLICIES, FALLBACK_MODES, RULE_MODES } from './constants';
 import type {
+	EntryKind,
 	MissingPolicy,
 	FallbackMode,
 	RuleMode,
 	NormalizedRule,
+	NormalizedDependencyPolicy,
 	RawConfig,
 	RawModules,
+	RawPackage,
+	RawPackages,
+	V2Package,
+	V2Packages,
 	V2Config,
 } from './types';
 
@@ -44,6 +50,31 @@ function normalizeModuleRules(
 	return normalized;
 }
 
+function normalizeDependencies(
+	dependencies: RawPackage['dependencies'] | undefined
+): Record<string, NormalizedDependencyPolicy> {
+	if (!dependencies || typeof dependencies !== 'object') {
+		return {};
+	}
+
+	const normalized: Record<string, NormalizedDependencyPolicy> = {};
+	for (const [packageName, policy] of Object.entries(dependencies)) {
+		if (!policy || typeof policy !== 'object') {
+			continue;
+		}
+
+		normalized[packageName] = {
+			mode: normalizeRuleMode(policy.mode),
+			recursive:
+				typeof policy.recursive === 'boolean'
+					? policy.recursive
+					: true,
+		};
+	}
+
+	return normalized;
+}
+
 function uniquePaths(paths: unknown[]): string[] {
 	const output: string[] = [];
 	const seen = new Set<string>();
@@ -60,17 +91,98 @@ function uniquePaths(paths: unknown[]): string[] {
 	return output;
 }
 
+function normalizePackages(
+	rawPackages: RawPackages | undefined,
+	defaultRoot: string,
+	legacyRules: Record<string, NormalizedRule>
+): V2Packages {
+	const normalized: V2Packages = {};
+	for (const [packageName, rawPackage] of Object.entries(rawPackages || {})) {
+		if (!rawPackage || typeof rawPackage !== 'object') {
+			continue;
+		}
+
+		if (typeof rawPackage.root !== 'string' || rawPackage.root.length === 0) {
+			continue;
+		}
+
+		normalized[packageName] = {
+			root: rawPackage.root,
+			dependencies: normalizeDependencies(rawPackage.dependencies),
+			rules: normalizeModuleRules(rawPackage.rules),
+		};
+	}
+
+	if (!normalized.default) {
+		normalized.default = {
+			root: defaultRoot,
+			dependencies: {},
+			rules: { ...legacyRules },
+		};
+	} else {
+		normalized.default = {
+			...normalized.default,
+			dependencies: normalized.default.dependencies || {},
+			rules: {
+				...legacyRules,
+				...normalized.default.rules,
+			},
+		};
+	}
+
+	return normalized;
+}
+
+function normalizeModulesRoots(
+	modules: RawModules,
+	defaultRoot: string,
+	packages: V2Packages
+): string[] {
+	const configuredRoots = Array.isArray(modules.roots) ? modules.roots : [];
+	const packageRoots = Object.values(packages)
+		.map((packageConfig) => packageConfig.root)
+		.filter((rootPath): rootPath is string =>
+			typeof rootPath === 'string' && rootPath.length > 0
+		);
+	const roots = uniquePaths(
+		configuredRoots.length > 0
+			? configuredRoots
+			: [defaultRoot, ...packageRoots]
+	);
+	if (roots.length === 0) {
+		return [defaultRoot];
+	}
+	return roots;
+}
+
+function resolveEntryKind(entryPath: string, defaultRoot: string): EntryKind {
+	const relative = path.relative(defaultRoot, entryPath);
+	const isWithinRoot =
+		!relative.startsWith('..') &&
+		!path.isAbsolute(relative) &&
+		relative.length > 0;
+	return isWithinRoot ? 'package-module' : 'bootstrap';
+}
+
 export function normalizeToV2Config(config: RawConfig): V2Config {
 	const modules = config.modules || {};
-	const roots = uniquePaths(
-		Array.isArray(modules.roots) && modules.roots.length > 0
-			? modules.roots
-			: [path.dirname(config.entry!)]
+	const defaultRootCandidate =
+		(typeof config.packages?.default?.root === 'string' &&
+		config.packages?.default?.root.length > 0
+			? config.packages.default.root
+				: path.dirname(config.entry!)) ?? path.dirname(config.entry!);
+	const legacyRules = normalizeModuleRules(modules.rules);
+	const packages = normalizePackages(
+		config.packages,
+		defaultRootCandidate,
+		legacyRules
 	);
+	const defaultRoot = packages.default?.root || defaultRootCandidate;
+	const roots = normalizeModulesRoots(modules, defaultRoot, packages);
 	const missing = (
-		typeof modules.missing === 'string' &&
-		MISSING_POLICIES.has(modules.missing)
-			? modules.missing
+		typeof config.missing === 'string' &&
+		MISSING_POLICIES.has(config.missing)
+			? config.missing
 			: 'error'
 	) as MissingPolicy;
 	const bundle = config.bundle || {};
@@ -88,9 +200,17 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 		modules: {
 			roots,
 			missing,
-			rules: normalizeModuleRules(modules.rules),
+			rules: {
+				...legacyRules,
+				...(packages.default?.rules || {}),
+			},
 		},
+		packages,
 		bundle: { fallback },
 		_compat: { externalRecursive: true },
+		_internal: {
+			entryPackage: 'default',
+			entryKind: resolveEntryKind(config.entry!, defaultRoot),
+		},
 	};
 }

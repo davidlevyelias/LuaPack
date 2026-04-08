@@ -43,6 +43,9 @@ export interface AnalysisContext {
 export interface ModuleDependencyEdge {
 	id: ModuleId;
 	moduleName: string;
+	packageName: string;
+	localModuleId: string;
+	canonicalModuleId: string;
 	filePath: FilePath | null;
 	isExternal: boolean;
 	isMissing: boolean;
@@ -52,6 +55,9 @@ export interface ModuleDependencyEdge {
 export interface ModuleRecord {
 	id: ModuleId;
 	moduleName: string;
+	packageName: string;
+	localModuleId: string;
+	canonicalModuleId: string;
 	filePath: FilePath | null;
 	sourceContent?: string;
 	isExternal: boolean;

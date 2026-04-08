@@ -25,17 +25,17 @@ export function mergeConfig(
 	}
 
 	if (cliRoots && cliRoots.length > 0) {
-		merged.modules = {
-			...(merged.modules || {}),
-			roots: cliRoots,
+		merged.packages = {
+			...(merged.packages || {}),
+			default: {
+				...(merged.packages?.default || {}),
+				root: cliRoots[0],
+			},
 		};
 	}
 
 	if (cliMissingPolicy) {
-		merged.modules = {
-			...(merged.modules || {}),
-			missing: cliMissingPolicy,
-		};
+		merged.missing = cliMissingPolicy;
 	}
 
 	return merged;

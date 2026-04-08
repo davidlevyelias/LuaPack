@@ -2,17 +2,19 @@
 	"schemaVersion": 2,
 	"entry": "./src/entries/external.lua",
 	"output": "../../dist/demo_external_bundle.lua",
+	"missing": "warn",
 	"bundle": {
 		"fallback": "external-only"
 	},
-	"modules": {
-		"roots": ["./src", "./external_modules"],
-		"missing": "warn",
-		"rules": {
-			"dkjson": {
-				"mode": "bundle",
-				"path": "./external_modules/dkjson",
-				"recursive": false
+	"packages": {
+		"default": {
+			"root": "./src",
+			"rules": {
+				"dkjson": {
+					"mode": "bundle",
+					"path": "./external_modules/dkjson",
+					"recursive": false
+				}
 			}
 		}
 	}
