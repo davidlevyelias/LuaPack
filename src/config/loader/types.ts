@@ -26,18 +26,8 @@ export interface V2Package {
 
 export type V2Packages = Record<string, V2Package>;
 
-export interface V2Modules {
-	roots: string[];
-	missing: MissingPolicy;
-	rules: Record<string, NormalizedRule>;
-}
-
 export interface V2Bundle {
 	fallback: FallbackMode;
-}
-
-export interface V2Compat {
-	externalRecursive: boolean;
 }
 
 export interface V2Internal {
@@ -49,10 +39,9 @@ export interface V2Config {
 	schemaVersion: 2;
 	entry: string;
 	output: string;
-	modules: V2Modules;
+	missing: MissingPolicy;
 	packages: V2Packages;
 	bundle: V2Bundle;
-	_compat: V2Compat;
 	_internal: V2Internal;
 }
 
@@ -70,16 +59,6 @@ export interface CliOptions {
 	[key: string]: unknown;
 }
 
-/** Raw modules block shared between v1 and v2 file shapes. All fields optional. */
-export interface RawModules {
-	missing?: string;
-	roots?: string[];
-	rules?: Record<
-		string,
-		{ mode?: string; path?: string; recursive?: boolean } | undefined
-	>;
-}
-
 export interface RawDependencyPolicy {
 	mode?: string;
 	recursive?: boolean;
@@ -89,7 +68,10 @@ export interface RawDependencyPolicy {
 export interface RawPackage {
 	root?: string;
 	dependencies?: Record<string, RawDependencyPolicy | undefined>;
-	rules?: RawModules['rules'];
+	rules?: Record<
+		string,
+		{ mode?: string; path?: string; recursive?: boolean } | undefined
+	>;
 }
 
 export type RawPackages = Record<string, RawPackage | undefined>;
@@ -100,7 +82,6 @@ export interface RawConfig {
 	entry?: string;
 	output?: string;
 	missing?: string;
-	modules?: RawModules;
 	packages?: RawPackages;
 	bundle?: {
 		fallback?: string;

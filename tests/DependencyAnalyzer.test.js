@@ -5,15 +5,57 @@ const path = require('path');
 const { DependencyAnalyzer, LuaRequireExtractor } = require('../src/dependency');
 const { loadConfig } = require('../src/config/ConfigLoader');
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+function createTempProject(prefix = 'luapack-demo-') {
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	const srcDir = path.join(tempDir, 'src');
+	fs.mkdirSync(path.join(srcDir, 'app'), { recursive: true });
+	fs.mkdirSync(path.join(srcDir, 'vendor'), { recursive: true });
 
-function loadExampleConfig() {
-	return loadConfig({
-		config: path.join(
-			PROJECT_ROOT,
-			'examples/demo/basic.luapack.config.json'
-		),
-	});
+	fs.writeFileSync(
+		path.join(srcDir, 'main.lua'),
+		[
+			"local greeter = require('app.greeter')",
+			"local version = require('vendor.version')",
+			'return greeter, version',
+		].join('\n')
+	);
+	fs.writeFileSync(
+		path.join(srcDir, 'app', 'greeter.lua'),
+		"return { greet = function() return 'hello' end }\n"
+	);
+	fs.writeFileSync(
+		path.join(srcDir, 'vendor', 'version.lua'),
+		"return '1.0.0'\n"
+	);
+
+	const configPath = path.join(tempDir, 'luapack.config.json');
+	fs.writeFileSync(
+		configPath,
+		JSON.stringify(
+			{
+				schemaVersion: 2,
+				entry: './src/main.lua',
+				output: './dist/out.lua',
+				missing: 'error',
+				packages: {
+					default: {
+						root: './src',
+					},
+				},
+				bundle: {
+					fallback: 'external-only',
+				},
+			},
+			null,
+			2
+		)
+	);
+
+	return {
+		tempDir,
+		srcDir,
+		config: loadConfig({ config: configPath }),
+	};
 }
 
 function createRequireExtractor() {
@@ -22,30 +64,42 @@ function createRequireExtractor() {
 
 describe('DependencyAnalyzer', () => {
 	test('builds graph with module metadata', () => {
-		const config = loadExampleConfig();
-		const analyzer = new DependencyAnalyzer(config);
-		const { graph, entryModule } = analyzer.buildDependencyGraph(
-			config.entry
-		);
-		const sortedModules = analyzer.topologicalSort(graph);
+		const fixture = createTempProject();
 
-		const moduleNames = sortedModules.map((record) => record.moduleName);
+		try {
+			const analyzer = new DependencyAnalyzer(fixture.config);
+			const { graph, entryModule } = analyzer.buildDependencyGraph(
+				fixture.config.entry
+			);
+			const sortedModules = analyzer.topologicalSort(graph);
 
-		expect(entryModule.moduleName).toBe('main');
-		expect(moduleNames).toEqual(
-			expect.arrayContaining(['app.greeter', 'vendor.version'])
-		);
-		expect(moduleNames[moduleNames.length - 1]).toBe(
-			entryModule.moduleName
-		);
+			const moduleNames = sortedModules.map((record) => record.moduleName);
+
+			expect(entryModule.moduleName).toBe('main');
+			expect(moduleNames).toEqual(
+				expect.arrayContaining(['app.greeter', 'vendor.version'])
+			);
+			expect(moduleNames[moduleNames.length - 1]).toBe(
+				entryModule.moduleName
+			);
+		} finally {
+			fs.rmSync(fixture.tempDir, { recursive: true, force: true });
+		}
 	});
 
 	test('marks modules outside source root as external', () => {
-		const config = loadExampleConfig();
-		const analyzer = new DependencyAnalyzer(config);
-		const { entryModule } = analyzer.buildDependencyGraph(config.entry);
+		const fixture = createTempProject();
 
-		expect(entryModule.isExternal).toBe(false);
+		try {
+			const analyzer = new DependencyAnalyzer(fixture.config);
+			const { entryModule } = analyzer.buildDependencyGraph(
+				fixture.config.entry
+			);
+
+			expect(entryModule.isExternal).toBe(false);
+		} finally {
+			fs.rmSync(fixture.tempDir, { recursive: true, force: true });
+		}
 	});
 
 	test('skips dependency analysis when override disables recursion', () => {

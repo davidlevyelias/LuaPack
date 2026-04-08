@@ -9,10 +9,8 @@ import type {
 	NormalizedRule,
 	NormalizedDependencyPolicy,
 	RawConfig,
-	RawModules,
 	RawPackage,
 	RawPackages,
-	V2Package,
 	V2Packages,
 	V2Config,
 } from './types';
@@ -25,7 +23,7 @@ function normalizeRuleMode(mode: unknown): RuleMode {
 }
 
 function normalizeModuleRules(
-	rules: RawModules['rules'] | undefined
+	rules: RawPackage['rules'] | undefined
 ): Record<string, NormalizedRule> {
 	if (!rules || typeof rules !== 'object') {
 		return {};
@@ -93,8 +91,7 @@ function uniquePaths(paths: unknown[]): string[] {
 
 function normalizePackages(
 	rawPackages: RawPackages | undefined,
-	defaultRoot: string,
-	legacyRules: Record<string, NormalizedRule>
+	defaultRoot: string
 ): V2Packages {
 	const normalized: V2Packages = {};
 	for (const [packageName, rawPackage] of Object.entries(rawPackages || {})) {
@@ -117,42 +114,17 @@ function normalizePackages(
 		normalized.default = {
 			root: defaultRoot,
 			dependencies: {},
-			rules: { ...legacyRules },
+			rules: {},
 		};
 	} else {
 		normalized.default = {
 			...normalized.default,
 			dependencies: normalized.default.dependencies || {},
-			rules: {
-				...legacyRules,
-				...normalized.default.rules,
-			},
+			rules: normalized.default.rules || {},
 		};
 	}
 
 	return normalized;
-}
-
-function normalizeModulesRoots(
-	modules: RawModules,
-	defaultRoot: string,
-	packages: V2Packages
-): string[] {
-	const configuredRoots = Array.isArray(modules.roots) ? modules.roots : [];
-	const packageRoots = Object.values(packages)
-		.map((packageConfig) => packageConfig.root)
-		.filter((rootPath): rootPath is string =>
-			typeof rootPath === 'string' && rootPath.length > 0
-		);
-	const roots = uniquePaths(
-		configuredRoots.length > 0
-			? configuredRoots
-			: [defaultRoot, ...packageRoots]
-	);
-	if (roots.length === 0) {
-		return [defaultRoot];
-	}
-	return roots;
 }
 
 function resolveEntryKind(entryPath: string, defaultRoot: string): EntryKind {
@@ -165,20 +137,13 @@ function resolveEntryKind(entryPath: string, defaultRoot: string): EntryKind {
 }
 
 export function normalizeToV2Config(config: RawConfig): V2Config {
-	const modules = config.modules || {};
 	const defaultRootCandidate =
 		(typeof config.packages?.default?.root === 'string' &&
 		config.packages?.default?.root.length > 0
 			? config.packages.default.root
 				: path.dirname(config.entry!)) ?? path.dirname(config.entry!);
-	const legacyRules = normalizeModuleRules(modules.rules);
-	const packages = normalizePackages(
-		config.packages,
-		defaultRootCandidate,
-		legacyRules
-	);
+	const packages = normalizePackages(config.packages, defaultRootCandidate);
 	const defaultRoot = packages.default?.root || defaultRootCandidate;
-	const roots = normalizeModulesRoots(modules, defaultRoot, packages);
 	const missing = (
 		typeof config.missing === 'string' &&
 		MISSING_POLICIES.has(config.missing)
@@ -197,17 +162,9 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 		schemaVersion: 2,
 		entry: config.entry!,
 		output: config.output!,
-		modules: {
-			roots,
-			missing,
-			rules: {
-				...legacyRules,
-				...(packages.default?.rules || {}),
-			},
-		},
+		missing,
 		packages,
 		bundle: { fallback },
-		_compat: { externalRecursive: true },
 		_internal: {
 			entryPackage: 'default',
 			entryKind: resolveEntryKind(config.entry!, defaultRoot),

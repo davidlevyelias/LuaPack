@@ -102,16 +102,20 @@ describe('CLI analyze json output', () => {
 			schemaVersion: 2,
 			entry: 'src/main.lua',
 			output: 'dist/out.lua',
-			modules: {
-				roots: ['src'],
-				missing: 'error',
-				rules: {},
+			missing: 'error',
+			packages: {
+				default: {
+					root: 'src',
+					dependencies: {},
+					rules: {},
+				},
 			},
 			bundle: {
 				fallback: 'external-only',
 			},
-			_compat: {
-				externalRecursive: true,
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
 			},
 		});
 	});

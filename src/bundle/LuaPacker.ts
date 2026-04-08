@@ -23,24 +23,37 @@ export default class LuaPacker {
 		const output = config.output
 			? path.resolve(config.output)
 			: path.resolve('bundle.lua');
-		const roots =
-			Array.isArray(config.modules?.roots) &&
-			config.modules.roots.length > 0
-				? config.modules.roots
-				: [path.dirname(entry)];
+		const defaultRoot =
+			config.packages?.default?.root || path.dirname(entry);
+		const normalizedPackages = Object.fromEntries(
+			Object.entries(config.packages || {
+				default: {
+					root: defaultRoot,
+					dependencies: {},
+					rules: {},
+				},
+			}).map(([packageName, packageConfig]) => [
+				packageName,
+				{
+					root: path.resolve(packageConfig.root),
+					dependencies: { ...(packageConfig.dependencies || {}) },
+					rules: { ...(packageConfig.rules || {}) },
+				},
+			])
+		);
 
 		return {
 			...config,
 			entry,
 			output,
-			modules: {
-				...config.modules,
-				roots: roots.map((rootPath) => path.resolve(rootPath)),
-				missing: config.modules?.missing || 'error',
-				rules: config.modules?.rules || {},
-			},
+			missing: config.missing || 'error',
+			packages: normalizedPackages,
 			bundle: {
 				fallback: config.bundle?.fallback || 'external-only',
+			},
+			_internal: {
+				entryPackage: config._internal?.entryPackage || 'default',
+				entryKind: config._internal?.entryKind || 'package-module',
 			},
 		};
 	}

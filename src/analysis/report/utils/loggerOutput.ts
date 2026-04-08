@@ -18,8 +18,8 @@ export function emitLoggerLines(
 	}
 
 	if (leadingBlank) {
-		write('');
+		write.call(logger, '');
 	}
 
-	lines.forEach((line) => write(line));
+	lines.forEach((line) => write.call(logger, line));
 }

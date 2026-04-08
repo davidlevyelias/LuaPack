@@ -18,7 +18,21 @@ describe('BundleGenerator', () => {
 		const config = {
 			entry: filePath,
 			output: outputPath,
-			sourceRoot: dir,
+			missing: 'error',
+			packages: {
+				default: {
+					root: dir,
+					dependencies: {},
+					rules: {},
+				},
+			},
+			bundle: {
+				fallback: 'external-only',
+			},
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
 		};
 		const packer = new LuaPacker(config);
 		const moduleRecord = {
@@ -49,7 +63,21 @@ describe('BundleGenerator', () => {
 		const config = {
 			entry: filePath,
 			output: outputPath,
-			sourceRoot: dir,
+			missing: 'error',
+			packages: {
+				default: {
+					root: dir,
+					dependencies: {},
+					rules: {},
+				},
+			},
+			bundle: {
+				fallback: 'external-only',
+			},
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
 		};
 		const packer = new LuaPacker(config);
 		const moduleRecord = {
@@ -82,7 +110,21 @@ describe('BundleGenerator', () => {
 			fs.writeFileSync(initFile, 'return { answer = 42 }\n');
 
 			const config = {
-				sourceRoot: dir,
+				missing: 'error',
+				packages: {
+					default: {
+						root: dir,
+						dependencies: {},
+						rules: {},
+					},
+				},
+				bundle: {
+					fallback: 'external-only',
+				},
+				_internal: {
+					entryPackage: 'default',
+					entryKind: 'package-module',
+				},
 			};
 
 			const generator = new BundleGenerator(config);
@@ -133,16 +175,20 @@ describe('BundleGenerator', () => {
 			const config = {
 				entry: mainFile,
 				output: path.join(dir, 'bundle.lua'),
-				modules: {
-					roots: [srcDir],
-					missing: 'error',
-					rules: {},
+				missing: 'error',
+				packages: {
+					default: {
+						root: srcDir,
+						dependencies: {},
+						rules: {},
+					},
 				},
 				bundle: {
 					fallback: 'external-only',
 				},
-				_compat: {
-					externalRecursive: true,
+				_internal: {
+					entryPackage: 'default',
+					entryKind: 'package-module',
 				},
 			};
 
@@ -179,7 +225,23 @@ describe('BundleGenerator', () => {
 	});
 
 	test('reuses analyzed module content when building the bundle plan', () => {
-		const config = { sourceRoot: process.cwd() };
+		const config = {
+			missing: 'error',
+			packages: {
+				default: {
+					root: process.cwd(),
+					dependencies: {},
+					rules: {},
+				},
+			},
+			bundle: {
+				fallback: 'external-only',
+			},
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
+		};
 		const planBuilder = new BundlePlanBuilder(config);
 		const entryModule = {
 			id: 'main',
@@ -202,7 +264,23 @@ describe('BundleGenerator', () => {
 	});
 
 	test('disables runtime fallback when bundle fallback policy is never', async () => {
-		const config = { sourceRoot: process.cwd() };
+		const config = {
+			missing: 'error',
+			packages: {
+				default: {
+					root: process.cwd(),
+					dependencies: {},
+					rules: {},
+				},
+			},
+			bundle: {
+				fallback: 'external-only',
+			},
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
+		};
 		const generator = new BundleGenerator(config);
 		const bundle = await generator.generateBundle({
 			entryModuleName: 'main',
@@ -219,7 +297,23 @@ describe('BundleGenerator', () => {
 	});
 
 	test('limits runtime fallback to declared external modules for external-only policy', async () => {
-		const config = { sourceRoot: process.cwd() };
+		const config = {
+			missing: 'error',
+			packages: {
+				default: {
+					root: process.cwd(),
+					dependencies: {},
+					rules: {},
+				},
+			},
+			bundle: {
+				fallback: 'external-only',
+			},
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
+		};
 		const generator = new BundleGenerator(config);
 		const bundle = await generator.generateBundle({
 			entryModuleName: 'main',
@@ -234,7 +328,23 @@ describe('BundleGenerator', () => {
 	});
 
 	test('allows unrestricted runtime fallback for always policy', async () => {
-		const config = { sourceRoot: process.cwd() };
+		const config = {
+			missing: 'error',
+			packages: {
+				default: {
+					root: process.cwd(),
+					dependencies: {},
+					rules: {},
+				},
+			},
+			bundle: {
+				fallback: 'external-only',
+			},
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
+		};
 		const generator = new BundleGenerator(config);
 		const bundle = await generator.generateBundle({
 			entryModuleName: 'main',

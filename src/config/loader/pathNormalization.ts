@@ -4,20 +4,19 @@ import { buildDefaultOutputPath } from './utils';
 import type {
 	CliOptions,
 	RawConfig,
-	RawModules,
 	RawPackage,
 	RawPackages,
 } from './types';
 
 function normalizeRulePaths(
-	rules: RawModules['rules'] | undefined,
+	rules: RawPackage['rules'] | undefined,
 	baseDir: string
-): RawModules['rules'] {
+): RawPackage['rules'] {
 	if (!rules || typeof rules !== 'object') {
 		return rules;
 	}
 
-	const normalizedRules: NonNullable<RawModules['rules']> = {};
+	const normalizedRules: NonNullable<RawPackage['rules']> = {};
 	for (const [moduleId, rule] of Object.entries(rules)) {
 		if (!rule) {
 			continue;
@@ -88,19 +87,6 @@ export function normalizePaths(
 		finalConfig.output = buildDefaultOutputPath(finalConfig.entry);
 	}
 
-	const modules = { ...(finalConfig.modules || {}) };
-
-	if (Array.isArray(modules.roots)) {
-		modules.roots = modules.roots.map((rootPath) =>
-			path.isAbsolute(rootPath)
-				? rootPath
-				: path.resolve(baseDir, rootPath)
-		);
-	}
-
-	modules.rules = normalizeRulePaths(modules.rules, baseDir);
-
-	finalConfig.modules = modules;
 	finalConfig.packages = normalizePackages(finalConfig.packages, baseDir);
 	return finalConfig;
 }

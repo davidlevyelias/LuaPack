@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const AnalysisReporter = require('../src/analysis/AnalysisReporter').default;
+const logger = require('../src/utils/Logger');
 
 function normalizeJsonPath(targetPath) {
 	return targetPath.replace(/\\/g, '/');
@@ -58,6 +59,30 @@ function createAnalysisResult() {
 }
 
 describe('AnalysisReporter', () => {
+	test('console report works with the real Logger instance', () => {
+		const originalInfo = logger.info;
+		const originalWarn = logger.warn;
+		const originalError = logger.error;
+		const lines = [];
+
+		logger.info = (...args) => lines.push(args.join(' '));
+		logger.warn = (...args) => lines.push(args.join(' '));
+		logger.error = (...args) => lines.push(args.join(' '));
+
+		try {
+			const reporter = new AnalysisReporter({ logger, useColor: false });
+			reporter.printConsoleReport(createAnalysisResult(), {
+				verbose: false,
+			});
+
+			expect(lines.join('\n')).toContain('Analysis Summary');
+		} finally {
+			logger.info = originalInfo;
+			logger.warn = originalWarn;
+			logger.error = originalError;
+		}
+	});
+
 	test('honors explicit json format even when output extension is not json', async () => {
 		const reporter = new AnalysisReporter();
 		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));

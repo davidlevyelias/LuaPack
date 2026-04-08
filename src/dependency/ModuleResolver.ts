@@ -27,9 +27,7 @@ export default class ModuleResolver {
 	private readonly defaultPackageName = 'default';
 	private readonly packages: Record<string, V2Package>;
 	private readonly packageNamesByLength: string[];
-	private readonly legacyRoots: string[];
 	private readonly missingPolicy: MissingPolicy;
-	private readonly externalRecursiveDefault: boolean;
 	readonly ignoreMissing: boolean;
 
 	constructor(config: WorkflowConfig) {
@@ -37,13 +35,8 @@ export default class ModuleResolver {
 		this.packageNamesByLength = Object.keys(this.packages).sort(
 			(a, b) => b.length - a.length
 		);
-		this.legacyRoots = this.computeLegacyRoots(config);
-		this.missingPolicy = config.modules?.missing ?? 'error';
+		this.missingPolicy = config.missing ?? 'error';
 		this.ignoreMissing = this.missingPolicy !== 'error';
-		this.externalRecursiveDefault =
-			typeof config._compat?.externalRecursive === 'boolean'
-				? config._compat.externalRecursive
-				: true;
 	}
 
 	normalizeModuleId(moduleId = ''): string {
@@ -309,9 +302,6 @@ export default class ModuleResolver {
 		const defaultRoot =
 			typeof packages.default?.root === 'string' && packages.default.root
 				? packages.default.root
-				: Array.isArray(config.modules?.roots) &&
-				  config.modules.roots.length > 0
-					? config.modules.roots[0]
 					: path.dirname(config.entry);
 		const defaultPackage = packages.default || {
 			root: defaultRoot,
@@ -322,10 +312,7 @@ export default class ModuleResolver {
 		packages.default = {
 			root: defaultPackage.root,
 			dependencies: { ...(defaultPackage.dependencies || {}) },
-			rules: {
-				...(config.modules?.rules || {}),
-				...(defaultPackage.rules || {}),
-			},
+			rules: { ...(defaultPackage.rules || {}) },
 		};
 
 		for (const [packageName, packageConfig] of Object.entries(packages)) {
@@ -337,22 +324,6 @@ export default class ModuleResolver {
 		}
 
 		return packages;
-	}
-
-	private computeLegacyRoots(config: WorkflowConfig): string[] {
-		const roots =
-			Array.isArray(config.modules?.roots) && config.modules.roots.length > 0
-				? config.modules.roots
-				: [this.getPackageConfig(this.defaultPackageName).root];
-
-		const unique = new Set<string>();
-		for (const rootPath of roots) {
-			const absolute = path.isAbsolute(rootPath)
-				? rootPath
-				: path.resolve(this.getPackageConfig(this.defaultPackageName).root, rootPath);
-			unique.add(absolute);
-		}
-		return Array.from(unique);
 	}
 
 	private resolveRequest(
@@ -405,7 +376,7 @@ export default class ModuleResolver {
 				: typeof localRule.recursive === 'boolean'
 					? localRule.recursive
 					: isExternal
-						? this.externalRecursiveDefault
+						? true
 						: true;
 
 		return {
@@ -438,12 +409,6 @@ export default class ModuleResolver {
 		}
 
 		pushCandidate(path.resolve(packageConfig.root, pathFromRequire));
-
-		if (request.packageName === this.defaultPackageName) {
-			for (const root of this.legacyRoots) {
-				pushCandidate(path.resolve(root, pathFromRequire));
-			}
-		}
 
 		return candidates;
 	}

@@ -33,16 +33,20 @@ describe('CLI print-config', () => {
 			schemaVersion: 2,
 			entry: 'entry.lua',
 			output: 'out.lua',
-			modules: {
-				roots: ['src'],
-				missing: 'error',
-				rules: {},
+			missing: 'error',
+			packages: {
+				default: {
+					root: 'src',
+					dependencies: {},
+					rules: {},
+				},
 			},
 			bundle: {
 				fallback: 'external-only',
 			},
-			_compat: {
-				externalRecursive: true,
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
 			},
 		});
 	});

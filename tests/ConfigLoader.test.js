@@ -4,15 +4,21 @@ const path = require('path');
 
 const { loadConfig } = require('../src/config/ConfigLoader');
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
-
 describe('ConfigLoader', () => {
 	let tempDir;
 	const originalCwd = process.cwd();
 
+	function defaultPackageConfig() {
+		return {
+			default: {
+				root: './src',
+			},
+		};
+	}
+
 	beforeEach(() => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-test-'));
-		process.chdir(PROJECT_ROOT);
+		process.chdir(tempDir);
 	});
 
 	afterEach(() => {
@@ -26,11 +32,7 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
-				packages: {
-					default: {
-						root: './src',
-					},
-			},
+				packages: defaultPackageConfig(),
 		};
 
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
@@ -44,9 +46,11 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: path.resolve(tempDir, 'src/main.lua'),
 			output: path.resolve(tempDir, 'dist/out.lua'),
-			modules: {
-				roots: [path.resolve(tempDir, 'src')],
 				missing: 'error',
+				packages: {
+					default: {
+						root: path.resolve(tempDir, 'src'),
+					},
 			},
 			bundle: {
 				fallback: 'external-only',
@@ -79,11 +83,7 @@ describe('ConfigLoader', () => {
 		const configContent = {
 			schemaVersion: 2,
 			entry: './src/main.lua',
-				packages: {
-					default: {
-						root: './src',
-					},
-			},
+				packages: defaultPackageConfig(),
 		};
 
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
@@ -97,31 +97,30 @@ describe('ConfigLoader', () => {
 
 	test('applies CLI overrides relative to cwd', () => {
 		const configPath = path.join(tempDir, 'luapack.config.json');
+		const cliSrcDir = path.join(tempDir, 'cli-project', 'src');
+		fs.mkdirSync(cliSrcDir, { recursive: true });
+		fs.writeFileSync(path.join(cliSrcDir, 'main.lua'), 'return {}\n');
 		const configContent = {
 			schemaVersion: 2,
 			entry: './src/main.lua',
 			output: './dist/out.lua',
-				packages: {
-					default: {
-						root: './src',
-					},
-			},
+				packages: defaultPackageConfig(),
 		};
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
 
 		const config = loadConfig({
 			config: configPath,
-			entry: './examples/demo/src/main.lua',
+			entry: './cli-project/src/main.lua',
 			output: './dist/cli.lua',
-			root: ['./examples/demo/src'],
+			root: ['./cli-project/src'],
 		});
 
 		expect(config.entry).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/demo/src/main.lua')
+			path.resolve(tempDir, 'cli-project/src/main.lua')
 		);
-		expect(config.output).toBe(path.resolve(PROJECT_ROOT, 'dist/cli.lua'));
-		expect(config.modules.roots[0]).toBe(
-			path.resolve(PROJECT_ROOT, 'examples/demo/src')
+		expect(config.output).toBe(path.resolve(tempDir, 'dist/cli.lua'));
+		expect(config.packages.default.root).toBe(
+			path.resolve(tempDir, 'cli-project/src')
 		);
 	});
 
@@ -142,13 +141,13 @@ describe('ConfigLoader', () => {
 							},
 						},
 					},
-			},
+				},
 		};
 		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
 
 		const config = loadConfig({ config: configPath });
 
-		expect(config.modules.rules['my.module']).toEqual({
+			expect(config.packages.default.rules['my.module']).toEqual({
 			mode: 'bundle',
 			path: path.resolve(tempDir, 'vendor/my/module.lua'),
 			recursive: false,
@@ -178,8 +177,10 @@ describe('ConfigLoader', () => {
 					},
 					vendor: {
 						root: './vendor',
+						dependencies: {},
+						rules: {},
 					},
-			},
+				},
 			bundle: {
 				fallback: 'never',
 			},
@@ -189,20 +190,19 @@ describe('ConfigLoader', () => {
 
 		const config = loadConfig({ config: configPath });
 
-		expect(config.modules.roots).toEqual([
-			path.resolve(tempDir, 'src'),
-			path.resolve(tempDir, 'vendor'),
-		]);
-		expect(config.modules.missing).toBe('warn');
-		expect(config.modules.rules.dkjson).toEqual({
+			expect(config.missing).toBe('warn');
+			expect(config.packages.default.rules.dkjson).toEqual({
 			mode: 'bundle',
 			path: path.resolve(tempDir, 'vendor/dkjson.lua'),
 			recursive: false,
 		});
-		expect(config.modules.rules.socket).toEqual({
+			expect(config.packages.default.rules.socket).toEqual({
 			mode: 'external',
-			recursive: true,
+				recursive: true,
 		});
+			expect(config.packages.vendor.root).toBe(
+				path.resolve(tempDir, 'vendor')
+			);
 		expect(config.bundle).toEqual({
 			fallback: 'never',
 		});
