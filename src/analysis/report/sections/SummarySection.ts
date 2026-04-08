@@ -87,7 +87,6 @@ export function buildSummarySection(
 				})
 		);
 		lines.push(...moduleLines);
-
 	}
 
 	lines.push(
