@@ -21,8 +21,7 @@ export default class BundlePlanBuilder {
 		}
 
 		const bundledModules = [];
-		const externalModules: string[] = [];
-		const ignoredModules: string[] = [];
+		const externalModuleSet = new Set<string>();
 		const packagePrefixSet = new Set<string>();
 		for (const packageName of Object.keys(this.config.packages || {})) {
 			if (packageName && packageName !== 'default') {
@@ -41,12 +40,11 @@ export default class BundlePlanBuilder {
 			}
 
 			if (moduleRecord.isIgnored) {
-				ignoredModules.push(moduleRecord.moduleName || moduleRecord.id);
 				continue;
 			}
 
 			if (moduleRecord.isExternal) {
-				externalModules.push(moduleRecord.moduleName);
+				externalModuleSet.add(moduleRecord.moduleName);
 				continue;
 			}
 
@@ -75,9 +73,7 @@ export default class BundlePlanBuilder {
 				(a, b) => b.length - a.length
 			),
 			bundledModules,
-			externalModules,
-			ignoredModules,
-			aliases: [],
+			externalModules: Array.from(externalModuleSet).sort(),
 			fallbackPolicy: this.config.bundle?.fallback || 'external-only',
 		};
 	}

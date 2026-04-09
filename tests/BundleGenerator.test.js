@@ -143,14 +143,12 @@ describe('BundleGenerator', () => {
 			expect(bundle).toContain(
 				'local with_init = module_name .. ".init"'
 			);
-			expect(bundle).toContain('local original_require = require');
 			expect(bundle).toContain('local function __lp_require(module_name, ...)');
-			expect(bundle).toContain(
-				'local result = original_require(module_name)'
-			);
 			expect(bundle).toContain(
 				'local resolved_name = resolve_module_name(module_name)'
 			);
+			expect(bundle).not.toContain('local original_require = require');
+			expect(bundle).not.toContain('local function __lp_require_scoped(package_name)');
 			expect(bundle).toContain(
 				'return __lp_require("packages.app.src", ...)'
 			);
@@ -284,16 +282,16 @@ describe('BundleGenerator', () => {
 		const generator = new BundleGenerator(config);
 		const bundle = await generator.generateBundle({
 			entryModuleName: 'main',
+				entryPackageName: 'default',
+				packagePrefixes: [],
 			bundledModules: [],
 			externalModules: ['sdk'],
-			ignoredModules: [],
-			aliases: [],
 			fallbackPolicy: 'never',
 		});
 
-		expect(bundle).toContain('local function can_fallback(module_name)');
-		expect(bundle).toContain('return false');
-		expect(bundle).not.toContain('return external_modules[module_name] == true');
+			expect(bundle).not.toContain('local original_require = require');
+			expect(bundle).not.toContain('local external_modules = {');
+			expect(bundle).not.toContain('external_modules[module_name] == true');
 	});
 
 	test('limits runtime fallback to declared external modules for external-only policy', async () => {
@@ -317,14 +315,16 @@ describe('BundleGenerator', () => {
 		const generator = new BundleGenerator(config);
 		const bundle = await generator.generateBundle({
 			entryModuleName: 'main',
+				entryPackageName: 'default',
+				packagePrefixes: [],
 			bundledModules: [],
 			externalModules: ['sdk'],
-			ignoredModules: [],
-			aliases: [],
 			fallbackPolicy: 'external-only',
 		});
 
-		expect(bundle).toContain('return external_modules[module_name] == true');
+			expect(bundle).toContain('local original_require = require');
+			expect(bundle).toContain('local external_modules = {');
+			expect(bundle).toContain('if external_modules[module_name] == true and original_require then');
 	});
 
 	test('allows unrestricted runtime fallback for always policy', async () => {
@@ -348,13 +348,105 @@ describe('BundleGenerator', () => {
 		const generator = new BundleGenerator(config);
 		const bundle = await generator.generateBundle({
 			entryModuleName: 'main',
+				entryPackageName: 'default',
+				packagePrefixes: [],
 			bundledModules: [],
 			externalModules: [],
-			ignoredModules: [],
-			aliases: [],
 			fallbackPolicy: 'always',
 		});
 
-		expect(bundle).toContain('return true');
+			expect(bundle).toContain('local original_require = require');
+			expect(bundle).not.toContain('local external_modules = {');
+			expect(bundle).toContain('local result = original_require(module_name)');
+	});
+
+	test('groups bundled modules into per-package require blocks', async () => {
+		const generator = new BundleGenerator();
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'src.main',
+			entryPackageName: 'default',
+			packagePrefixes: ['lib.gma2_sdk'],
+			bundledModules: [
+				{
+					moduleName: 'src.main',
+					packageName: 'default',
+					filePath: 'src/main.lua',
+					content: 'return require("lib.gma2_sdk.src.utils.cmd")',
+				},
+				{
+					moduleName: 'lib.gma2_sdk.src.utils.cmd',
+					packageName: 'lib.gma2_sdk',
+					filePath: 'lib/gma2_sdk/src/utils/cmd.lua',
+					content: 'return { ok = true }',
+				},
+			],
+			externalModules: [],
+			fallbackPolicy: 'never',
+		});
+
+		expect(bundle).toContain('local function resolve_scoped_name(package_name, module_name)');
+		expect(bundle).toContain('local function __lp_require_scoped(package_name)');
+		expect(bundle).toContain('local require = __lp_require_scoped("default")');
+		expect(bundle).toContain('local require = __lp_require_scoped("lib.gma2_sdk")');
+		expect(bundle).not.toContain('package_prefixes');
+	});
+
+	test('emits explicit multi-package scoped resolver branches', async () => {
+		const generator = new BundleGenerator();
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'src.main',
+			entryPackageName: 'default',
+			packagePrefixes: ['lib.gma2_sdk.extra', 'lib.gma2_sdk'],
+			bundledModules: [
+				{
+					moduleName: 'src.main',
+					packageName: 'default',
+					filePath: 'src/main.lua',
+					content:
+						'return require("lib.gma2_sdk.src.utils.cmd"), require("lib.gma2_sdk.extra.src.feature")',
+				},
+				{
+					moduleName: 'lib.gma2_sdk.src.utils.cmd',
+					packageName: 'lib.gma2_sdk',
+					filePath: 'lib/gma2_sdk/src/utils/cmd.lua',
+					content: 'return { sdk = true }',
+				},
+				{
+					moduleName: 'lib.gma2_sdk.extra.src.feature',
+					packageName: 'lib.gma2_sdk.extra',
+					filePath: 'lib/gma2_sdk/extra/src/feature.lua',
+					content: 'return { extra = true }',
+				},
+			],
+			externalModules: [],
+			fallbackPolicy: 'never',
+		});
+
+		expect(bundle).toContain(
+			'if module_name == "lib.gma2_sdk.extra" or module_name:sub(1, 19) == "lib.gma2_sdk.extra." then'
+		);
+		expect(bundle).toContain(
+			'if module_name == "lib.gma2_sdk" or module_name:sub(1, 13) == "lib.gma2_sdk." then'
+		);
+		expect(bundle).toContain('local require = __lp_require_scoped("lib.gma2_sdk")');
+		expect(bundle).toContain(
+			'local require = __lp_require_scoped("lib.gma2_sdk.extra")'
+		);
+	});
+
+	test('emits a compact runtime prelude without blank spacer lines', async () => {
+		const generator = new BundleGenerator();
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'main',
+			entryPackageName: 'default',
+			packagePrefixes: [],
+			bundledModules: [],
+			externalModules: [],
+			fallbackPolicy: 'never',
+		});
+
+		expect(bundle).toContain('local modules = {}\nlocal require_cache = {}\nlocal require_loaded = {}');
+		expect(bundle).not.toContain('local modules = {}\n\nlocal require_cache = {}');
+		expect(bundle).toContain('local function resolve_module_name(module_name)\n\tif modules[module_name] then return module_name end');
 	});
 });

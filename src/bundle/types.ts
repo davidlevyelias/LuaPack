@@ -13,7 +13,5 @@ export interface BundlePlan {
 	packagePrefixes: string[];
 	bundledModules: BundledModule[];
 	externalModules: string[];
-	ignoredModules: string[];
-	aliases: string[];
 	fallbackPolicy: FallbackMode;
 }

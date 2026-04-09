@@ -12,7 +12,6 @@
   },
   "files": [
     "build",
-    "templates",
     "config.schema.json",
     "README.md",
     "LICENSE"
@@ -20,7 +19,10 @@
   "scripts": {
     "test": "jest --config jest.config.cjs",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "bench:sdk-temp": "npm run build && node temp/tests/sdk-bundle-benchmark.cjs",
+    "bench:sdk-temp:lua": "npm run build && node temp/tests/sdk-lua-benchmark.cjs",
+    "bench:sdk-temp:lua:matrix": "npm run build && node temp/tests/sdk-lua-benchmark-matrix.cjs",
     "example:simple:bundle": "npm run build && node build/index.js bundle --config examples/simple/basic.luapack.config.json",
     "example:simple:analyze": "npm run build && node build/index.js analyze --config examples/simple/basic.luapack.config.json --verbose",
     "example:simple:missing": "npm run build && node build/index.js analyze --config examples/simple/missing-warn.luapack.config.json --verbose",
