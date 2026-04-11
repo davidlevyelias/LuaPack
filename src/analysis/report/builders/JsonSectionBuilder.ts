@@ -9,7 +9,6 @@ import type {
 	JsonExternalSectionItem,
 	JsonModuleSectionItem,
 	JsonSections,
-	JsonTopologicalItem,
 } from '../jsonTypes';
 import { normalizePathSlashes } from '../utils/format';
 
@@ -18,26 +17,19 @@ export function buildJsonSections(
 	{ includeMissing = true }: { includeMissing?: boolean } = {}
 ): JsonSections {
 	return {
-		modules: analysis.modules.map(toModuleSectionItem),
+		modulesByPackage: buildModulesByPackage(analysis.modules),
 		externals: buildJsonExternalSectionItems(analysis, { includeMissing }),
 		dependencyGraph: buildDependencyGraphSnapshot(analysis, {
 			includeMissing,
 		}),
-		topologicalOrder: analysis.sortedModules.map(toTopologicalItem),
 	};
 }
 
 export function buildJsonExternalSectionItems(
 	analysis: ReporterAnalysis,
-	{ includeMissing = true }: { includeMissing?: boolean } = {}
+	{ includeMissing: _includeMissing = true }: { includeMissing?: boolean } = {}
 ): JsonExternalSectionItem[] {
-	return buildExternalSectionItems(
-		analysis.externals,
-		analysis.missing || [],
-		{
-			includeMissing,
-		}
-	);
+	return buildExternalSectionItems(analysis.externals);
 }
 
 function toModuleSectionItem(
@@ -46,22 +38,40 @@ function toModuleSectionItem(
 	return {
 		id: moduleRecord.id,
 		name: moduleRecord.moduleName,
+		localModuleId: moduleRecord.localModuleId || moduleRecord.moduleName,
 		filePath: normalizeSerializablePath(moduleRecord.filePath),
 	};
 }
 
-function toTopologicalItem(moduleRecord: ModuleRecord): JsonTopologicalItem {
-	return {
-		name: moduleRecord.moduleName,
-		filePath: normalizeSerializablePath(moduleRecord.filePath),
-		type: moduleRecord.isExternal ? 'external' : 'module',
-	};
+function buildModulesByPackage(
+	modules: ModuleRecord[] | null | undefined
+): Record<string, JsonModuleSectionItem[]> {
+	const grouped: Record<string, JsonModuleSectionItem[]> = {};
+	for (const moduleRecord of modules || []) {
+		if (moduleRecord.isExternal) {
+			continue;
+		}
+		const packageName = moduleRecord.packageName || 'default';
+		if (!grouped[packageName]) {
+			grouped[packageName] = [];
+		}
+		grouped[packageName].push(toModuleSectionItem(moduleRecord));
+	}
+
+	const sortedEntries = Object.entries(grouped)
+		.sort(([leftPackage], [rightPackage]) =>
+			leftPackage.localeCompare(rightPackage)
+		)
+		.map(([packageName, packageModules]) => [
+			packageName,
+			packageModules.sort((left, right) => left.id.localeCompare(right.id)),
+		]);
+
+	return Object.fromEntries(sortedEntries);
 }
 
 function buildExternalSectionItems(
-	externals: ModuleRecord[] | null | undefined,
-	missing: MissingModuleRecord[],
-	{ includeMissing = true }: { includeMissing?: boolean } = {}
+	externals: ModuleRecord[] | null | undefined
 ): JsonExternalSectionItem[] {
 	const items = new Map<string, JsonExternalSectionItem>();
 
@@ -70,53 +80,54 @@ function buildExternalSectionItems(
 		items.set(id, {
 			id,
 			name: moduleRecord.moduleName,
+			packageName: moduleRecord.packageName || 'default',
+			localModuleId: moduleRecord.localModuleId || moduleRecord.moduleName,
+			status: 'runtime',
 			filePath: normalizeSerializablePath(moduleRecord.filePath),
-			status: 'resolved',
-			ruleApplied: Boolean(moduleRecord.overrideApplied),
+			ruleApplied: Boolean(moduleRecord.ruleApplied),
 		});
 	}
 
-	for (const missingRecord of missing) {
-		if (!includeMissing || !missingRecord.isExternal) {
-			continue;
-		}
-		const id = missingRecord.requireId || missingRecord.moduleName;
-		if (items.has(id)) {
-			continue;
-		}
-		items.set(id, {
-			id,
-			name: missingRecord.moduleName,
-			filePath: normalizeSerializablePath(missingRecord.filePath),
-			status: 'missing',
-			ruleApplied: Boolean(missingRecord.overrideApplied),
-		});
-	}
-
-	return Array.from(items.values());
+	return Array.from(items.values()).sort((left, right) =>
+		left.id.localeCompare(right.id)
+	);
 }
 
 function buildDependencyGraphSnapshot(
 	analysis: ReporterAnalysis,
 	{ includeMissing = true }: { includeMissing?: boolean } = {}
 ): Record<string, JsonDependencyGraphItem[]> {
-	const snapshot: Record<string, JsonDependencyGraphItem[]> = {};
-	for (const [moduleId, dependencies] of analysis.dependencyGraph.entries()) {
-		snapshot[moduleId] = dependencies
+	const sortedEntries = Array.from(analysis.dependencyGraph.entries())
+		.sort(([leftModuleId], [rightModuleId]) =>
+			leftModuleId.localeCompare(rightModuleId)
+		)
+		.map(([moduleId, dependencies]) => [
+			moduleId,
+			dependencies
 			.filter(
 				(dependency: ModuleDependencyEdge) =>
-					includeMissing || !dependency.isMissing
+					includeMissing || (!dependency.isMissing && !dependency.isIgnored)
 			)
 			.map((dependency: ModuleDependencyEdge) => ({
 				id: dependency.id,
 				name: dependency.moduleName,
+				packageName: dependency.packageName,
+				localModuleId: dependency.localModuleId,
 				type: dependency.isExternal ? 'external' : 'module',
-				status: dependency.isMissing ? 'missing' : 'resolved',
+				status: dependency.isIgnored
+					? 'ignored'
+					: dependency.isMissing
+						? 'missing'
+						: dependency.isExternal && !dependency.filePath
+							? 'runtime'
+							: 'resolved',
 				filePath: normalizeSerializablePath(dependency.filePath),
-				ruleApplied: dependency.overrideApplied,
-			}));
-	}
-	return snapshot;
+				ruleApplied: dependency.ruleApplied,
+				}))
+				.sort((left, right) => left.id.localeCompare(right.id)),
+			]);
+
+		return Object.fromEntries(sortedEntries);
 }
 
 function normalizeSerializablePath(

@@ -1,7 +1,6 @@
 import type { MissingPolicy } from '../../types';
 import type { ExternalSummary, ReporterAnalysis } from '../types';
 import type { DependencyTreeNode } from '../sections/DependencyTreeSection';
-import type { TopologicalItem } from '../sections/TopologicalOrderSection';
 
 import { buildSerializablePayload } from './SerializablePayloadBuilder';
 import { buildTextReport, type PaletteOverride } from './TextReportBuilder';
@@ -20,7 +19,6 @@ export interface BuildTextReportStringOptions {
 	externalsSummary: ExternalSummary;
 	dependencySections: DependencyTreeNode[];
 	renderDependencySection: (section: DependencyTreeNode) => string[];
-	topologicalItems: TopologicalItem[];
 }
 
 export function buildJsonReportString(
@@ -42,7 +40,6 @@ export function buildTextReportString({
 	externalsSummary,
 	dependencySections,
 	renderDependencySection,
-	topologicalItems,
 }: BuildTextReportStringOptions): string {
 	return buildTextReport({
 		analysis,
@@ -52,6 +49,5 @@ export function buildTextReportString({
 		externalsSummary,
 		dependencySections,
 		renderDependencySection,
-		topologicalItems,
 	});
 }

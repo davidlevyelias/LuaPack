@@ -286,12 +286,13 @@ describe('BundleGenerator', () => {
 				packagePrefixes: [],
 			bundledModules: [],
 			externalModules: ['sdk'],
+			packageDependencyModes: {},
 			fallbackPolicy: 'never',
 		});
 
-			expect(bundle).not.toContain('local original_require = require');
-			expect(bundle).not.toContain('local external_modules = {');
-			expect(bundle).not.toContain('external_modules[module_name] == true');
+			expect(bundle).toContain('local original_require = require');
+			expect(bundle).toContain('local external_modules = {');
+			expect(bundle).toContain('if external_modules[module_name] == true then');
 	});
 
 	test('limits runtime fallback to declared external modules for external-only policy', async () => {
@@ -319,6 +320,7 @@ describe('BundleGenerator', () => {
 				packagePrefixes: [],
 			bundledModules: [],
 			externalModules: ['sdk'],
+			packageDependencyModes: {},
 			fallbackPolicy: 'external-only',
 		});
 
@@ -352,6 +354,7 @@ describe('BundleGenerator', () => {
 				packagePrefixes: [],
 			bundledModules: [],
 			externalModules: [],
+			packageDependencyModes: {},
 			fallbackPolicy: 'always',
 		});
 
@@ -381,6 +384,7 @@ describe('BundleGenerator', () => {
 				},
 			],
 			externalModules: [],
+			packageDependencyModes: {},
 			fallbackPolicy: 'never',
 		});
 
@@ -419,6 +423,7 @@ describe('BundleGenerator', () => {
 				},
 			],
 			externalModules: [],
+			packageDependencyModes: {},
 			fallbackPolicy: 'never',
 		});
 
@@ -442,11 +447,78 @@ describe('BundleGenerator', () => {
 			packagePrefixes: [],
 			bundledModules: [],
 			externalModules: [],
+			packageDependencyModes: {},
 			fallbackPolicy: 'never',
 		});
 
 		expect(bundle).toContain('local modules = {}\nlocal require_cache = {}\nlocal require_loaded = {}');
 		expect(bundle).not.toContain('local modules = {}\n\nlocal require_cache = {}');
 		expect(bundle).toContain('local function resolve_module_name(module_name)\n\tif modules[module_name] then return module_name end');
+	});
+
+	test('enforces caller-scoped package dependency modes before bundled resolution', async () => {
+		const generator = new BundleGenerator();
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'A.main',
+			entryPackageName: 'A',
+			packagePrefixes: ['sdk', 'B', 'A'],
+			bundledModules: [
+				{
+					moduleName: 'A.main',
+					packageName: 'A',
+					filePath: 'A/main.lua',
+					content: 'return require("sdk")',
+				},
+				{
+					moduleName: 'B.main',
+					packageName: 'B',
+					filePath: 'B/main.lua',
+					content: 'return require("sdk")',
+				},
+				{
+					moduleName: 'sdk',
+					packageName: 'sdk',
+					filePath: 'sdk/init.lua',
+					content: 'return { provided = true }',
+				},
+			],
+			externalModules: [],
+			packageDependencyModes: {
+				A: {
+					sdk: 'external',
+				},
+				B: {
+					sdk: 'bundle',
+				},
+			},
+			fallbackPolicy: 'never',
+		});
+
+		expect(bundle).toContain('local package_dependency_modes = {');
+		expect(bundle).toContain('["A"] = {');
+		expect(bundle).toContain('["sdk"] = "external"');
+		expect(bundle).toContain('local dependency_mode = resolve_dependency_mode(requester_package_name, target_package_name)');
+		expect(bundle).toContain('if dependency_mode == "external" then');
+		expect(bundle).toContain('return load_external_module(module_name)');
+	});
+
+	test('blocks caller-scoped ignored package dependencies before bundled resolution', async () => {
+		const generator = new BundleGenerator();
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'A.main',
+			entryPackageName: 'A',
+			packagePrefixes: ['sdk', 'A'],
+			bundledModules: [],
+			externalModules: [],
+			packageDependencyModes: {
+				A: {
+					sdk: 'ignore',
+				},
+			},
+			fallbackPolicy: 'always',
+		});
+
+		expect(bundle).toContain('if dependency_mode == "ignore" then');
+		expect(bundle).toContain("is ignored for package '");
 	});
 });

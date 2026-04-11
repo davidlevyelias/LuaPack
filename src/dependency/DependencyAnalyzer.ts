@@ -145,6 +145,7 @@ export default class DependencyAnalyzer {
 			}
 
 			if (resolved.isIgnored) {
+				resolvedDependencies.push(resolved);
 				continue;
 			}
 

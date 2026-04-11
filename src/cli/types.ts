@@ -1,7 +1,7 @@
 import type { FallbackMode, MissingPolicy } from '../config/loader';
 
 const VALID_LOG_LEVELS = ['error', 'warn', 'info', 'debug'] as const;
-const VALID_MISSING_POLICIES = ['error', 'warn', 'ignore'] as const;
+const VALID_MISSING_POLICIES = ['error', 'warn'] as const;
 const VALID_REPORT_FORMATS = ['text', 'json'] as const;
 
 export type CommandName = 'bundle' | 'analyze';

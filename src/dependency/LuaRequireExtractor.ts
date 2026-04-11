@@ -47,26 +47,9 @@ export default class LuaRequireExtractor {
 	}
 
 	private extractRequireDependency(node: LuaAstNode): string | null {
-		const isDirectRequire =
-			node.base &&
-			node.base.type === 'Identifier' &&
-			node.base.name === 'require';
-
-		if (!isDirectRequire) {
-			return null;
-		}
-
-		let argumentNode: LuaAstNode | null = null;
-		if (node.type === 'CallExpression') {
-			if (!Array.isArray(node.arguments) || node.arguments.length !== 1) {
-				return null;
-			}
-			argumentNode = node.arguments[0] ?? null;
-		} else if (node.type === 'StringCallExpression') {
-			argumentNode = node.argument ?? null;
-		} else {
-			return null;
-		}
+		const argumentNode =
+			this.extractDirectRequireArgument(node) ||
+			this.extractProtectedRequireArgument(node);
 
 		if (!argumentNode || argumentNode.type !== 'StringLiteral') {
 			return null;
@@ -78,6 +61,54 @@ export default class LuaRequireExtractor {
 		}
 
 		return moduleId;
+	}
+
+	private extractDirectRequireArgument(node: LuaAstNode): LuaAstNode | null {
+		const isDirectRequire =
+			node.base &&
+			node.base.type === 'Identifier' &&
+			node.base.name === 'require';
+
+		if (!isDirectRequire) {
+			return null;
+		}
+
+		if (node.type === 'CallExpression') {
+			if (!Array.isArray(node.arguments) || node.arguments.length !== 1) {
+				return null;
+			}
+			return node.arguments[0] ?? null;
+		}
+
+		if (node.type === 'StringCallExpression') {
+			return node.argument ?? null;
+		}
+
+		return null;
+	}
+
+	private extractProtectedRequireArgument(node: LuaAstNode): LuaAstNode | null {
+		if (
+			node.type !== 'CallExpression' ||
+			!node.base ||
+			node.base.type !== 'Identifier' ||
+			node.base.name !== 'pcall' ||
+			!Array.isArray(node.arguments) ||
+			node.arguments.length !== 2
+		) {
+			return null;
+		}
+
+		const [calleeNode, argumentNode] = node.arguments;
+		if (
+			!calleeNode ||
+			calleeNode.type !== 'Identifier' ||
+			calleeNode.name !== 'require'
+		) {
+			return null;
+		}
+
+		return argumentNode ?? null;
 	}
 
 	private decodeStringLiteral(raw: string | undefined): string {

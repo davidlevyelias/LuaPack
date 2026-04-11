@@ -13,5 +13,6 @@ export interface BundlePlan {
 	packagePrefixes: string[];
 	bundledModules: BundledModule[];
 	externalModules: string[];
+	packageDependencyModes: Record<string, Record<string, 'external' | 'ignore'>>;
 	fallbackPolicy: FallbackMode;
 }

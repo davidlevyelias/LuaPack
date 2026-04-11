@@ -33,8 +33,12 @@ function createAnalysisResult() {
 		entryModule: {
 			id: 'main',
 			moduleName: 'main',
+			packageName: 'default',
+			localModuleId: 'main',
+			canonicalModuleId: '@default/main',
 			filePath: 'src/main.lua',
 			isExternal: false,
+			ruleApplied: false,
 			overrideApplied: false,
 			analyzeDependencies: true,
 			isMissing: false,
@@ -44,14 +48,17 @@ function createAnalysisResult() {
 		moduleById: new Map(),
 		dependencyGraph: new Map(),
 		sortedModules: [],
-		topologicalOrder: [],
 		missing: [
 			{
 				requireId: 'sdk.logger',
 				moduleName: 'sdk.logger',
+				packageName: 'default',
+				localModuleId: 'sdk.logger',
+				canonicalModuleId: '@default/sdk.logger',
 				filePath: null,
 				requiredBy: 'main',
 				isExternal: false,
+				ruleApplied: false,
 				overrideApplied: false,
 				fatal: true,
 				message: 'Module not found: sdk.logger',
@@ -71,6 +78,12 @@ function createAnalysisResult() {
 		context: {
 			rootDir: 'src',
 			roots: ['src'],
+			packages: [
+				{
+					name: 'default',
+					root: 'src',
+				},
+			],
 			entryPath: 'src/main.lua',
 			outputPath: 'dist/out.lua',
 			analyzeOnly: true,

@@ -16,8 +16,12 @@ function createAnalysisResult() {
 		entryModule: {
 			id: 'main',
 			moduleName: 'main',
+			packageName: 'default',
+			localModuleId: 'main',
+			canonicalModuleId: '@default/main',
 			filePath: path.resolve('src/main.lua'),
 			isExternal: false,
+			ruleApplied: false,
 			overrideApplied: false,
 			analyzeDependencies: true,
 			isMissing: false,
@@ -27,7 +31,6 @@ function createAnalysisResult() {
 		moduleById: new Map(),
 		dependencyGraph: new Map(),
 		sortedModules: [],
-		topologicalOrder: [],
 		missing: [],
 		warnings: [],
 		errors: [],
@@ -42,6 +45,13 @@ function createAnalysisResult() {
 		context: {
 			rootDir: path.resolve('src'),
 			roots: [path.resolve('src')],
+			packages: [
+				{
+					name: 'default',
+					root: path.resolve('src'),
+					isEntry: true,
+				},
+			],
 			entryPath: path.resolve('src/main.lua'),
 			outputPath: path.resolve('dist/out.lua'),
 			analyzeOnly: true,
@@ -103,7 +113,13 @@ describe('AnalysisReporter', () => {
 				summary: {
 					entryModule: 'main',
 					entryPath: normalizeJsonPath(path.resolve('src/main.lua')),
-					roots: [normalizeJsonPath(path.resolve('src'))],
+					entryPackage: 'default',
+					packages: [
+						{
+							name: 'default',
+							root: normalizeJsonPath(path.resolve('src')),
+						},
+					],
 					outputPath: normalizeJsonPath(path.resolve('dist/out.lua')),
 					missingPolicy: 'error',
 					fallbackPolicy: 'external-only',
@@ -119,24 +135,26 @@ describe('AnalysisReporter', () => {
 		}
 	});
 
-	test('json report suppresses missing alerts when missing policy is ignore', async () => {
+	test('json report marks explicit runtime externals in dependency graph and externals section', async () => {
 		const reporter = new AnalysisReporter();
 		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
 		const reportPath = path.join(targetDir, 'analysis.json');
 		const analysis = createAnalysisResult();
 
-		analysis.context.missingPolicy = 'ignore';
 		analysis.success = true;
-		analysis.missing = [
+		analysis.externals = [
 			{
-				requireId: 'dkjson',
+				id: '@default/dkjson',
 				moduleName: 'dkjson',
+				packageName: 'default',
+				localModuleId: 'dkjson',
+				canonicalModuleId: '@default/dkjson',
 				filePath: null,
-				requiredBy: 'main',
 				isExternal: true,
+				ruleApplied: false,
 				overrideApplied: false,
-				fatal: false,
-				message: 'Module not found.',
+				analyzeDependencies: false,
+				isMissing: false,
 			},
 		];
 		analysis.dependencyGraph = new Map([
@@ -146,15 +164,19 @@ describe('AnalysisReporter', () => {
 					{
 						id: 'dkjson',
 						moduleName: 'dkjson',
+						packageName: 'default',
+						localModuleId: 'dkjson',
+						canonicalModuleId: '@default/dkjson',
 						filePath: null,
 						isExternal: true,
+						isIgnored: false,
+						ruleApplied: false,
 						overrideApplied: false,
-						isMissing: true,
+						isMissing: false,
 					},
 				],
 			],
 		]);
-		analysis.metrics.missingCount = 1;
 
 		try {
 			await reporter.writeReport(reportPath, analysis, {
@@ -164,20 +186,19 @@ describe('AnalysisReporter', () => {
 
 			const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
 			expect(parsed.alerts).toEqual([]);
-			expect(parsed.metrics.missingCount).toBe(0);
 			expect(parsed.sections.externals).toEqual([
 				expect.objectContaining({
-					id: 'dkjson',
+					id: '@default/dkjson',
 					name: 'dkjson',
-					status: 'missing',
+					status: 'runtime',
 				}),
 			]);
 			expect(parsed.sections.dependencyGraph.main || []).toEqual([
 				expect.objectContaining({
 					id: 'dkjson',
 					name: 'dkjson',
-					status: 'missing',
 					type: 'external',
+					status: 'runtime',
 				}),
 			]);
 		} finally {
@@ -196,9 +217,13 @@ describe('AnalysisReporter', () => {
 			{
 				requireId: 'sdk.logger',
 				moduleName: 'sdk.logger',
+				packageName: 'default',
+				localModuleId: 'sdk.logger',
+				canonicalModuleId: '@default/sdk.logger',
 				filePath: null,
 				requiredBy: 'main',
 				isExternal: false,
+				ruleApplied: false,
 				overrideApplied: false,
 				fatal: true,
 				message: 'Module not found: sdk.logger',
@@ -238,7 +263,7 @@ describe('AnalysisReporter', () => {
 		}
 	});
 
-	test('json report includes missing externals in externals list when verbose', async () => {
+	test('json report does not treat missing externals as runtime externals', async () => {
 		const reporter = new AnalysisReporter();
 		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
 		const reportPath = path.join(targetDir, 'analysis.json');
@@ -249,12 +274,16 @@ describe('AnalysisReporter', () => {
 			{
 				requireId: 'dkjson',
 				moduleName: 'dkjson',
+				packageName: 'default',
+				localModuleId: 'dkjson',
+				canonicalModuleId: '@default/dkjson',
 				filePath: null,
 				requiredBy: 'main',
 				isExternal: true,
+				ruleApplied: false,
 				overrideApplied: false,
-				fatal: false,
 				message: 'Module not found.',
+				fatal: false,
 			},
 		];
 
@@ -264,7 +293,7 @@ describe('AnalysisReporter', () => {
 			});
 
 			const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
-			expect(parsed.metrics.externalCount).toBe(1);
+			expect(parsed.metrics.externalCount).toBe(0);
 			expect(parsed.sections).toBeUndefined();
 
 			await reporter.writeReport(reportPath, analysis, {
@@ -273,25 +302,65 @@ describe('AnalysisReporter', () => {
 			});
 
 			const verboseParsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
-			expect(verboseParsed.sections.externals).toEqual([
-				expect.objectContaining({
-					id: 'dkjson',
-					name: 'dkjson',
-					status: 'missing',
-					ruleApplied: false,
-				}),
-			]);
+			expect(verboseParsed.sections.externals).toEqual([]);
 			expect(verboseParsed.summary.entryPath).toBe(
 				normalizeJsonPath(path.resolve('src/main.lua'))
 			);
-			expect(Array.isArray(verboseParsed.sections.modules)).toBe(true);
-			expect(JSON.stringify(verboseParsed)).not.toContain('\\\\');
+			expect(verboseParsed.sections.modulesByPackage).toEqual({});
+			expect(JSON.stringify(verboseParsed)).not.toContain('\\');
 			expect(verboseParsed.alerts).toEqual([
 				expect.objectContaining({
 					type: 'missing',
 					dependencyType: 'external',
 					name: 'dkjson',
 					ruleApplied: false,
+				}),
+			]);
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+				format: 'json',
+	test('json report includes ignored dependencies in dependency graph', async () => {
+		const reporter = new AnalysisReporter();
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.json');
+		const analysis = createAnalysisResult();
+
+		analysis.dependencyGraph = new Map([
+			[
+				'main',
+				[
+					{
+						id: '@default/legacy',
+						moduleName: 'legacy',
+						packageName: 'default',
+						localModuleId: 'legacy',
+						canonicalModuleId: '@default/legacy',
+						filePath: null,
+						isExternal: false,
+						isIgnored: true,
+						isMissing: false,
+						ruleApplied: true,
+						overrideApplied: false,
+					},
+				],
+			],
+		]);
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'json',
+				verbose: true,
+			});
+
+			const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+			expect(parsed.sections.dependencyGraph.main || []).toEqual([
+				expect.objectContaining({
+					id: '@default/legacy',
+					name: 'legacy',
+					status: 'ignored',
+					ruleApplied: true,
 				}),
 			]);
 		} finally {
@@ -309,9 +378,13 @@ describe('AnalysisReporter', () => {
 			{
 				requireId: 'sdk.logger',
 				moduleName: 'sdk.logger',
+				packageName: 'default',
+				localModuleId: 'sdk.logger',
+				canonicalModuleId: '@default/sdk.logger',
 				filePath: null,
 				requiredBy: 'main',
 				isExternal: false,
+				ruleApplied: false,
 				overrideApplied: false,
 				fatal: true,
 				message: 'Override path for module \'sdk.logger\' not found: ./vendor/logger.lua',
@@ -340,9 +413,13 @@ describe('AnalysisReporter', () => {
 			{
 				requireId: 'sdk.logger',
 				moduleName: 'sdk.logger',
+				packageName: 'default',
+				localModuleId: 'sdk.logger',
+				canonicalModuleId: '@default/sdk.logger',
 				filePath: null,
 				requiredBy: 'main',
 				isExternal: false,
+				ruleApplied: false,
 				overrideApplied: false,
 				fatal: true,
 				message: 'Module not found: sdk.logger',

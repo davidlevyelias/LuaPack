@@ -5,10 +5,6 @@ import type { MissingPolicy } from './types';
 import { buildSummarySection } from './report/sections/SummarySection';
 import { buildDependencyTreeSection } from './report/sections/DependencyTreeSection';
 import {
-	buildTopologicalOrderSection,
-	type TopologicalItem,
-} from './report/sections/TopologicalOrderSection';
-import {
 	buildWarningsSection,
 	buildMissingSection,
 	buildErrorsSection,
@@ -57,9 +53,6 @@ export default class AnalysisReporter {
 
 		if (verbose) {
 			this.printDependencyTree(view.dependencySections, {
-				missingPolicy: view.missingPolicy,
-			});
-			this.printTopologicalOrder(view.topologicalItems, {
 				missingPolicy: view.missingPolicy,
 			});
 		}
@@ -124,26 +117,6 @@ export default class AnalysisReporter {
 			palette,
 			renderSection: (section) =>
 				buildTreeLines(section, { palette, missingPolicy }),
-		});
-		emitLoggerLines(this.logger, 'info', lines, { leadingBlank: true });
-	}
-
-	printTopologicalOrder(
-		modules: TopologicalItem[],
-		{ missingPolicy }: { missingPolicy: MissingPolicy }
-	): void {
-		const palette = this.getPalette();
-		const lines = buildTopologicalOrderSection(modules, {
-			palette,
-			formatItem: (item) =>
-				formatModuleLabel({
-					palette,
-					name: item.name,
-					tags: item.tags,
-					missingPolicy,
-					isEntry: item.isEntry,
-					displayTags: false,
-				}),
 		});
 		emitLoggerLines(this.logger, 'info', lines, { leadingBlank: true });
 	}
@@ -234,7 +207,6 @@ export default class AnalysisReporter {
 					palette,
 					missingPolicy: view.missingPolicy,
 				}),
-			topologicalItems: view.topologicalItems,
 		});
 	}
 

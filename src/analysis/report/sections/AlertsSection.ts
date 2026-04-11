@@ -19,9 +19,13 @@ export interface MissingAlert {
 	fatal: boolean;
 	moduleName: string | null;
 	isExternal: boolean;
+	ruleApplied: boolean;
 	overrideApplied: boolean;
 	code?: string;
 	filePath?: string | null;
+	packageName: string;
+	localModuleId: string;
+	canonicalModuleId: string;
 }
 
 export interface MissingSectionOptions {
@@ -91,9 +95,13 @@ export function getMissingData(
 			fatal,
 			moduleName: item?.moduleName || null,
 			isExternal: Boolean(item?.isExternal),
+			ruleApplied: Boolean(item?.ruleApplied),
 			overrideApplied: Boolean(item?.overrideApplied),
 			code: item?.code,
 			filePath: item?.filePath ?? null,
+			packageName: item?.packageName || 'default',
+			localModuleId: item?.localModuleId || requireId,
+			canonicalModuleId: item?.canonicalModuleId || requireId,
 		};
 	});
 }
@@ -107,9 +115,7 @@ export function buildMissingSection(
 		return [];
 	}
 	const headingColor: (value: string) => string =
-		missingPolicy === 'ignore'
-			? palette.muted
-			: missingData.some((item) => item.fatal)
+		missingData.some((item) => item.fatal)
 				? palette.error
 				: palette.warning;
 	const lines: string[] = [];
@@ -117,16 +123,11 @@ export function buildMissingSection(
 	lines.push(headingColor('---------------'));
 	missingData.forEach((item) => {
 		const colorFn: (value: string) => string =
-			missingPolicy === 'ignore'
-				? palette.muted
-				: item.fatal
+			item.fatal
 					? palette.error
 					: palette.warning;
 		const bullet = colorFn('-');
-		const fallbackMessage =
-			missingPolicy === 'ignore'
-				? 'Module not found ignored.'
-				: 'Module not found.';
+		const fallbackMessage = 'Module not found.';
 		const rawMessage =
 			item.message && item.message.trim().length > 0
 				? item.message.trim()
@@ -134,10 +135,7 @@ export function buildMissingSection(
 		const prefixedMessage = rawMessage.startsWith(item.prefix)
 			? rawMessage
 			: `${item.prefix}: ${rawMessage}`;
-		const message =
-			missingPolicy === 'ignore' && !prefixedMessage.endsWith('(ignored)')
-				? `${prefixedMessage} (ignored)`
-				: prefixedMessage;
+		const message = prefixedMessage;
 		lines.push(`${bullet} ${colorFn(message)}`);
 	});
 	return lines;

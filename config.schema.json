@@ -26,7 +26,7 @@
 		"missing": {
 			"type": "string",
 			"description": "Policy for unresolved static dependencies.",
-			"enum": ["error", "warn", "ignore"],
+			"enum": ["error", "warn"],
 			"default": "error"
 		},
 		"packages": {
@@ -75,7 +75,7 @@
 					"default": true
 				}
 			},
-			"required": ["mode"],
+			"required": [],
 			"default": {}
 		},
 		"moduleRule": {
@@ -98,7 +98,7 @@
 					"default": true
 				}
 			},
-			"required": ["mode"],
+			"required": [],
 			"default": {}
 		},
 		"packageConfig": {

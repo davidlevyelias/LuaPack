@@ -28,20 +28,21 @@ export function buildJsonAlerts(
 	const rawMissingMessages = new Set(missingData.map((item) => item.message));
 
 	const missingAlerts =
-		missingPolicy === 'ignore'
-			? []
-			: missingData.map<JsonMissingAlert>((item) => ({
-					type: 'missing',
-					severity: item.fatal ? 'error' : 'warn',
-					message: normalizeJsonMissingMessage(item),
-					requireId: item.requireId,
-					requiredBy: item.requiredBy,
-					name: item.moduleName,
-					dependencyType: item.isExternal ? 'external' : 'module',
-					ruleApplied: item.overrideApplied,
-					code: item.code,
-					filePath: normalizeSerializablePath(item.filePath),
-				}));
+		missingData.map<JsonMissingAlert>((item) => ({
+			type: 'missing',
+			severity: item.fatal ? 'error' : 'warn',
+			message: normalizeJsonMissingMessage(item),
+			requireId: item.requireId,
+			requiredBy: item.requiredBy,
+			name: item.moduleName,
+			packageName: item.packageName,
+			localModuleId: item.localModuleId,
+			canonicalModuleId: item.canonicalModuleId,
+			dependencyType: item.isExternal ? 'external' : 'module',
+			ruleApplied: item.ruleApplied,
+			code: item.code,
+			filePath: normalizeSerializablePath(item.filePath),
+		}));
 
 	const missingMessages = new Set(missingAlerts.map((item) => item.message));
 	const errorAlerts = getErrorsData(analysis.errors || [])

@@ -4,10 +4,6 @@ import {
 	type DependencyTreeNode,
 } from '../sections/DependencyTreeSection';
 import {
-	buildTopologicalOrderSection,
-	type TopologicalItem,
-} from '../sections/TopologicalOrderSection';
-import {
 	buildWarningsSection,
 	buildMissingSection,
 	buildErrorsSection,
@@ -31,7 +27,6 @@ export interface TextReportBuilderOptions {
 	externalsSummary: ExternalSummary;
 	dependencySections: DependencyTreeNode[];
 	renderDependencySection: (section: DependencyTreeNode) => string[];
-	topologicalItems: TopologicalItem[];
 }
 
 export function buildTextReport({
@@ -42,7 +37,6 @@ export function buildTextReport({
 	externalsSummary,
 	dependencySections,
 	renderDependencySection,
-	topologicalItems,
 }: TextReportBuilderOptions): string {
 	const lines: string[] = [];
 
@@ -58,18 +52,6 @@ export function buildTextReport({
 		if (dependencyLines.length > 0) {
 			lines.push('');
 			lines.push(...dependencyLines);
-		}
-
-		const topologicalLines = buildTopologicalOrderSection(
-			topologicalItems,
-			{
-				palette,
-				formatItem: (item) => item.name,
-			}
-		);
-		if (topologicalLines.length > 0) {
-			lines.push('');
-			lines.push(...topologicalLines);
 		}
 	}
 

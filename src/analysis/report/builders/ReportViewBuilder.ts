@@ -5,15 +5,11 @@ import {
 	buildDependencyTreeSections,
 	type ModuleNode,
 } from '../utils/dependencyTree';
-import { collectModuleTags } from '../utils/labels';
-import { getModuleDisplayName } from '../utils/pathDisplay';
-import type { TopologicalItem } from '../sections/TopologicalOrderSection';
 
 export interface ReportViewData {
 	missingPolicy: MissingPolicy;
 	externalsSummary: ExternalSummary;
 	dependencySections: ModuleNode[];
-	topologicalItems: TopologicalItem[];
 }
 
 export interface BuildReportViewOptions {
@@ -40,17 +36,5 @@ export function buildReportViewData(
 					isWithinRoot,
 				})
 			: [],
-		topologicalItems: verbose ? buildTopologicalItems(analysis) : [],
 	};
-}
-
-function buildTopologicalItems(analysis: ReporterAnalysis): TopologicalItem[] {
-	const rootDir = analysis.context?.rootDir ?? null;
-	return (analysis.sortedModules || []).map((moduleRecord) => ({
-		name: getModuleDisplayName(moduleRecord, rootDir),
-		tags: collectModuleTags(moduleRecord),
-		isEntry:
-			Boolean(analysis.entryModule?.filePath) &&
-			moduleRecord.filePath === analysis.entryModule?.filePath,
-	}));
 }

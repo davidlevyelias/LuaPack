@@ -2,7 +2,7 @@ export type ConfigVersion = 'v2';
 
 import type { LOADER_INTERNALS, LoaderInternals } from './internals';
 
-export type MissingPolicy = 'error' | 'warn' | 'ignore';
+export type MissingPolicy = 'error' | 'warn';
 export type FallbackMode = 'never' | 'external-only' | 'always';
 export type RuleMode = 'bundle' | 'external' | 'ignore';
 export type EntryKind = 'package-module' | 'bootstrap';

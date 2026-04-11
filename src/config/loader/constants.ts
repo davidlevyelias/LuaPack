@@ -1,4 +1,4 @@
-export const MISSING_POLICIES = new Set<string>(['error', 'warn', 'ignore']);
+export const MISSING_POLICIES = new Set<string>(['error', 'warn']);
 export const FALLBACK_MODES = new Set<string>([
 	'never',
 	'external-only',

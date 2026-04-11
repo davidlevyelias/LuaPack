@@ -48,7 +48,7 @@ describe('CLI', () => {
 	test('accepts only supported missing policies', () => {
 		expect(parseMissingPolicy('WARN')).toBe('warn');
 		expect(() => parseMissingPolicy('skip')).toThrow(
-			'Expected one of: error, warn, ignore'
+			'Expected one of: error, warn'
 		);
 	});
 

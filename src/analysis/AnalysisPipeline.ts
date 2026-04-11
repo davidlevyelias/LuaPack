@@ -4,6 +4,7 @@ import { buildAnalysisContext } from './context/ConfigContextBuilder';
 import { buildModuleCollections } from './core/ModuleCollectionBuilder';
 import { computeModuleSizeSum } from './core/MetricsCalculator';
 import { isModuleRecord, type LoggerLike } from './modelUtils';
+import { getConfigWarnings } from '../config/loader';
 import type {
 	AnalysisContext,
 	AnalysisError,
@@ -92,14 +93,10 @@ export default class AnalysisPipeline {
 			analysis.sortedModules = sortedModules.filter(
 				(moduleRecord) => moduleRecord && !moduleRecord.isMissing
 			);
-			analysis.topologicalOrder = analysis.sortedModules.map(
-				(moduleRecord) => moduleRecord.moduleName
-			);
 		} catch (error) {
 			analysis.errors.push(normalizeError(error));
 			analysis.success = false;
 			analysis.sortedModules = [];
-			analysis.topologicalOrder = [];
 		}
 
 		analysis.metrics.moduleCount = analysis.modules.length;
@@ -109,6 +106,7 @@ export default class AnalysisPipeline {
 			this.logger
 		);
 		analysis.metrics.estimatedBundleSize = analysis.metrics.moduleSizeSum;
+		this.applyScopedDependencyPolicyWarnings(analysis);
 		this.applyMissingWarnings(analysis);
 
 		analysis.durationMs = performance.now() - start;
@@ -126,10 +124,9 @@ export default class AnalysisPipeline {
 			moduleById: new Map<ModuleId, ModuleRecord>(),
 			dependencyGraph: new Map<ModuleId, ModuleDependencyEdge[]>(),
 			sortedModules: [],
-			topologicalOrder: [],
 			externals: [],
 			missing: [],
-			warnings: [],
+			warnings: getConfigWarnings(this.config),
 			errors: [],
 			metrics: {
 				moduleCount: 0,
@@ -170,8 +167,13 @@ export default class AnalysisPipeline {
 				requiredByRecord?.moduleName || requiredByRecord?.id || null,
 			requireId: item.requireId,
 			moduleName: missingRecord?.moduleName ?? item.requireId,
+			packageName: missingRecord?.packageName ?? requiredByRecord?.packageName ?? 'default',
+			localModuleId: missingRecord?.localModuleId ?? item.requireId,
+			canonicalModuleId:
+				missingRecord?.canonicalModuleId ?? item.requireId,
 			filePath: missingRecord?.filePath ?? null,
 			isExternal: Boolean(missingRecord?.isExternal),
+			ruleApplied: Boolean(missingRecord?.ruleApplied),
 			overrideApplied: Boolean(missingRecord?.overrideApplied),
 			fatal: Boolean(item.fatal),
 			message,
@@ -189,6 +191,61 @@ export default class AnalysisPipeline {
 			if (isOverrideWarning && !warningSet.has(missingEntry.message)) {
 				analysis.warnings.push(missingEntry.message);
 				warningSet.add(missingEntry.message);
+			}
+		}
+	}
+
+	private applyScopedDependencyPolicyWarnings(analysis: AnalysisResult): void {
+		const warningSet = new Set(analysis.warnings);
+		const bundledPackages = new Set(
+			analysis.modules
+				.filter((moduleRecord) => !moduleRecord.isExternal && !moduleRecord.isMissing)
+				.map((moduleRecord) => moduleRecord.packageName || 'default')
+		);
+		const emittedPairs = new Set<string>();
+
+		for (const [moduleId, dependencies] of analysis.dependencyGraph.entries()) {
+			const sourceModule = analysis.moduleById.get(moduleId);
+			if (!sourceModule) {
+				continue;
+			}
+
+			const sourcePackageName = sourceModule.packageName || 'default';
+			const sourcePackageConfig = this.config.packages?.[sourcePackageName];
+			if (!sourcePackageConfig) {
+				continue;
+			}
+
+			for (const dependency of dependencies) {
+				const targetPackageName = dependency.packageName || 'default';
+				if (targetPackageName === sourcePackageName) {
+					continue;
+				}
+
+				const dependencyMode = sourcePackageConfig.dependencies?.[targetPackageName]?.mode;
+				if (
+					dependencyMode !== 'external' &&
+					dependencyMode !== 'ignore'
+				) {
+					continue;
+				}
+
+				if (!bundledPackages.has(targetPackageName)) {
+					continue;
+				}
+
+				const pairKey = `${sourcePackageName}->${targetPackageName}:${dependencyMode}`;
+				if (emittedPairs.has(pairKey)) {
+					continue;
+				}
+
+				const warning =
+					`Package '${targetPackageName}' is included in the bundle, but package '${sourcePackageName}' will not use the bundled copy because ${sourcePackageName} marks '${targetPackageName}' as ${dependencyMode}.`;
+				if (!warningSet.has(warning)) {
+					analysis.warnings.push(warning);
+					warningSet.add(warning);
+				}
+				emittedPairs.add(pairKey);
 			}
 		}
 	}

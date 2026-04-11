@@ -43,7 +43,7 @@ function addCommonOptions(
 		)
 		.option(
 			'--missing <policy>',
-			'Missing-module policy (error, warn, ignore).',
+			'Missing-module policy (error, warn).',
 			parseMissingPolicy
 		)
 		.option(

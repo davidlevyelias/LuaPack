@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const { loadConfig } = require('../src/config/ConfigLoader');
+const { getConfigWarnings } = require('../src/config/loader');
 
 describe('ConfigLoader', () => {
 	let tempDir;
@@ -152,6 +153,47 @@ describe('ConfigLoader', () => {
 			path: path.resolve(tempDir, 'vendor/my/module.lua'),
 			recursive: false,
 		});
+	});
+
+	test('drops rule paths for external and ignore modes and records config warnings', () => {
+		const configPath = path.join(tempDir, 'luapack.config.json');
+		const configContent = {
+			schemaVersion: 2,
+			entry: './src/main.lua',
+			output: './dist/out.lua',
+			packages: {
+				default: {
+					root: './src',
+					rules: {
+						slaxml: {
+							mode: 'external',
+							path: './vendor/slaxml.lua',
+						},
+						legacy: {
+							mode: 'ignore',
+							path: './vendor/legacy.lua',
+						},
+					},
+				},
+			},
+		};
+
+		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
+
+		const config = loadConfig({ config: configPath });
+
+		expect(config.packages.default.rules.slaxml).toEqual({
+			mode: 'external',
+			recursive: true,
+		});
+		expect(config.packages.default.rules.legacy).toEqual({
+			mode: 'ignore',
+			recursive: true,
+		});
+		expect(getConfigWarnings(config)).toEqual([
+			expect.stringContaining("rule 'default.slaxml' sets mode 'external'"),
+			expect.stringContaining("rule 'default.legacy' sets mode 'ignore'"),
+		]);
 	});
 
 	test('loads schemaVersion 2 configuration as canonical v2 config', () => {

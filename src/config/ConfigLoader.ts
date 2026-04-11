@@ -5,7 +5,9 @@ import {
 	getValidator,
 	mergeConfig,
 	normalizePaths,
+	collectConfigWarnings,
 	normalizeToV2Config,
+	setConfigWarnings,
 	setConfigVersion,
 	validateConfig,
 } from './loader';
@@ -31,6 +33,7 @@ export function loadConfig(cliOptions: CliOptions = {}): LoadedConfig {
 	validateConfig(validatorInstance, configCopy);
 
 	const pathNormalized = normalizePaths(configCopy, cliOptions, baseDir);
+	const configWarnings = collectConfigWarnings(pathNormalized);
 
 	if (cliOptions.fallback) {
 		pathNormalized.bundle = {
@@ -45,9 +48,11 @@ export function loadConfig(cliOptions: CliOptions = {}): LoadedConfig {
 		[LOADER_INTERNALS]: {
 			analyzeOnly: false,
 			configVersion,
+			configWarnings,
 		},
 	};
 
+	setConfigWarnings(outputConfig, configWarnings);
 	setConfigVersion(outputConfig, configVersion);
 
 	return outputConfig;

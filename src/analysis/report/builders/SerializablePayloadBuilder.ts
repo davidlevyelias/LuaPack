@@ -23,7 +23,7 @@ export function buildSerializablePayload(
 	const missingPolicy = analysis.context?.missingPolicy ?? 'error';
 	const alerts = buildJsonAlerts(analysis, missingPolicy);
 	const externalSectionItems = buildJsonExternalSectionItems(analysis, {
-		includeMissing: missingPolicy !== 'ignore',
+		includeMissing: true,
 	});
 
 	const payload: SerializableAnalysisPayload = {
@@ -35,9 +35,17 @@ export function buildSerializablePayload(
 			entryPath: normalizeSerializablePath(
 				analysis.context?.entryPath ?? analysis.entryModule?.filePath
 			),
-			roots: (analysis.context?.roots ?? [])
-				.map((rootPath) => normalizeSerializablePath(rootPath))
-				.filter((rootPath): rootPath is string => Boolean(rootPath)),
+			entryPackage:
+				analysis.entryModule?.packageName ??
+				analysis.context?.packages?.find((pkg) => pkg.isEntry)?.name ??
+				null,
+			packages: (analysis.context?.packages ?? [])
+				.map((pkg) => ({
+					name: pkg.name,
+					root: normalizeRequiredSerializablePath(pkg.root),
+				}))
+					.filter((pkg) => Boolean(pkg.root))
+					.sort((left, right) => left.name.localeCompare(right.name)),
 			outputPath: normalizeRequiredSerializablePath(
 				analysis.context?.outputPath
 			),
@@ -47,8 +55,7 @@ export function buildSerializablePayload(
 		metrics: {
 			moduleCount: analysis.metrics.moduleCount,
 			externalCount: externalSectionItems.length,
-			missingCount:
-				missingPolicy === 'ignore' ? 0 : analysis.metrics.missingCount,
+			missingCount: analysis.metrics.missingCount,
 			moduleSizeSum: analysis.metrics.moduleSizeSum,
 			estimatedBundleSize: analysis.metrics.estimatedBundleSize,
 			bundleSizeBytes: analysis.metrics.bundleSizeBytes,

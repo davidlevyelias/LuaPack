@@ -3,13 +3,15 @@ export { LOADER_INTERNALS } from './internals';
 export { getValidator } from './schemaValidator';
 export {
 	getNormalizedV2Config,
+	getConfigWarnings,
 	isAnalyzeOnlyConfig,
 	setAnalyzeOnlyConfig,
+	setConfigWarnings,
 	setConfigVersion,
 } from './accessors';
 export { mergeConfig } from './mergeConfig';
 export { normalizePaths } from './pathNormalization';
-export { normalizeToV2Config } from './v2Normalization';
+export { collectConfigWarnings, normalizeToV2Config } from './v2Normalization';
 export { validateConfig } from './validation';
 export type {
 	ConfigVersion,

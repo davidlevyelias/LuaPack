@@ -19,6 +19,7 @@ interface ResolvedPolicy {
 	mode: NormalizedRule['mode'];
 	recursive: boolean;
 	path?: string;
+	ruleApplied: boolean;
 	overrideApplied: boolean;
 	isExternal: boolean;
 }
@@ -55,6 +56,10 @@ export default class ModuleResolver {
 
 		if (policy.mode === 'ignore') {
 			return this.createIgnoredRecord(request);
+		}
+
+		if (policy.isExternal) {
+			return this.createExternalRecord(request, policy);
 		}
 
 		if (policy.path) {
@@ -115,6 +120,7 @@ export default class ModuleResolver {
 		if (this.ignoreMissing) {
 			return this.createMissingRecord(request, {
 				isExternal: policy.isExternal,
+				ruleApplied: policy.ruleApplied,
 				overrideApplied: policy.overrideApplied,
 			});
 		}
@@ -154,6 +160,7 @@ export default class ModuleResolver {
 			policy: {
 				mode: 'bundle',
 				recursive: true,
+				ruleApplied: false,
 				overrideApplied: false,
 				isExternal: false,
 			},
@@ -176,6 +183,7 @@ export default class ModuleResolver {
 		return this.createMissingRecord(request, {
 			isExternal: policy.isExternal,
 			error: error ?? null,
+			ruleApplied: policy.ruleApplied,
 			overrideApplied: policy.overrideApplied,
 		});
 	}
@@ -203,6 +211,7 @@ export default class ModuleResolver {
 			isIgnored: true,
 			isMissing: false,
 			isExternal: false,
+			ruleApplied: true,
 			overrideApplied: false,
 			analyzeDependencies: false,
 		};
@@ -212,11 +221,13 @@ export default class ModuleResolver {
 		request: ResolvedRequest,
 		{
 			isExternal = false,
+			ruleApplied = false,
 			overrideApplied = false,
 			error = null,
 			filePath = null,
 		}: {
 			isExternal?: boolean;
+			ruleApplied?: boolean;
 			overrideApplied?: boolean;
 			error?: Error | null;
 			filePath?: string | null;
@@ -236,9 +247,35 @@ export default class ModuleResolver {
 			isIgnored: false,
 			isMissing: true,
 			isExternal,
+			ruleApplied: Boolean(ruleApplied),
 			overrideApplied: Boolean(overrideApplied),
 			analyzeDependencies: false,
 			missingError: error,
+		};
+	}
+
+	private createExternalRecord(
+		request: ResolvedRequest,
+		policy: ResolvedPolicy
+	): ModuleRecord {
+		const canonicalModuleId = this.toCanonicalId(
+			request.packageName,
+			request.localModuleId
+		);
+
+		return {
+			id: canonicalModuleId,
+			canonicalModuleId,
+			moduleName: request.runtimeModuleName,
+			packageName: request.packageName,
+			localModuleId: request.localModuleId,
+			filePath: null,
+			isIgnored: false,
+			isMissing: false,
+			isExternal: true,
+			ruleApplied: policy.ruleApplied,
+			overrideApplied: policy.overrideApplied,
+			analyzeDependencies: false,
 		};
 	}
 
@@ -289,6 +326,7 @@ export default class ModuleResolver {
 			isIgnored: false,
 			isMissing: false,
 			isExternal: policy.isExternal,
+			ruleApplied: policy.ruleApplied,
 			overrideApplied: overrideApplied || policy.overrideApplied,
 			analyzeDependencies: policy.recursive,
 		};
@@ -366,8 +404,8 @@ export default class ModuleResolver {
 			currentPackageName === request.packageName
 				? undefined
 				: currentPackage.dependencies[request.packageName];
-		const localRule: NormalizedRule =
-			targetPackage.rules[request.localModuleId] || { mode: 'bundle' };
+		const explicitLocalRule = targetPackage.rules[request.localModuleId];
+		const localRule: NormalizedRule = explicitLocalRule || { mode: 'bundle' };
 		const mode = dependencyPolicy?.mode || localRule.mode;
 		const isExternal = mode === 'external';
 		const recursive =
@@ -383,6 +421,7 @@ export default class ModuleResolver {
 			mode,
 			recursive,
 			path: dependencyPolicy ? undefined : localRule.path,
+			ruleApplied: Boolean(dependencyPolicy || explicitLocalRule),
 			overrideApplied: Boolean(!dependencyPolicy && localRule.path),
 			isExternal,
 		};

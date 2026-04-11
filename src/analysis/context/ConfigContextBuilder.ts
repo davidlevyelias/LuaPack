@@ -50,6 +50,13 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 	return {
 		rootDir: sourceRoot,
 		roots: [...configuredRoots],
+		packages: packageEntries
+			.filter(([, packageConfig]) => Boolean(packageConfig?.root))
+			.map(([packageName, packageConfig]) => ({
+				name: packageName,
+				root: packageConfig.root,
+				isEntry: packageName === (config._internal?.entryPackage || 'default'),
+			})),
 		entryPath: config.entry,
 		outputPath: config.output,
 		analyzeOnly: isAnalyzeOnlyConfig(config),

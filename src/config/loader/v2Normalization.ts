@@ -36,7 +36,11 @@ function normalizeModuleRules(
 		}
 
 		const entry: NormalizedRule = { mode: normalizeRuleMode(rule.mode) };
-		if (typeof rule.path === 'string' && rule.path.length > 0) {
+		if (
+			entry.mode === 'bundle' &&
+			typeof rule.path === 'string' &&
+			rule.path.length > 0
+		) {
 			entry.path = rule.path;
 		}
 		if (typeof rule.recursive === 'boolean') {
@@ -46,6 +50,35 @@ function normalizeModuleRules(
 	}
 
 	return normalized;
+}
+
+export function collectConfigWarnings(config: RawConfig): string[] {
+	const warnings: string[] = [];
+
+	for (const [packageName, rawPackage] of Object.entries(config.packages || {})) {
+		if (!rawPackage || typeof rawPackage !== 'object') {
+			continue;
+		}
+
+		for (const [moduleId, rule] of Object.entries(rawPackage.rules || {})) {
+			if (!rule || typeof rule !== 'object') {
+				continue;
+			}
+
+			const mode = normalizeRuleMode(rule.mode);
+			if (
+				(mode === 'external' || mode === 'ignore') &&
+				typeof rule.path === 'string' &&
+				rule.path.length > 0
+			) {
+				warnings.push(
+					`Config warning: rule '${packageName}.${moduleId}' sets mode '${mode}' and path '${rule.path}'. The path will be ignored.`
+				);
+			}
+		}
+	}
+
+	return warnings;
 }
 
 function normalizeDependencies(

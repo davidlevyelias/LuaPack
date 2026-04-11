@@ -369,6 +369,18 @@ describe('DependencyAnalyzer', () => {
 		expect(dependencies).toEqual([]);
 	});
 
+	test('extracts protected require calls passed through pcall', () => {
+		const extractor = createRequireExtractor();
+		const dependencies = extractor.extract(
+			[
+				"local ok, slaxml = pcall(require, 'slaxml')",
+				"local failed = pcall(require, moduleName)",
+			].join('\n')
+		);
+
+		expect(dependencies).toEqual(['slaxml']);
+	});
+
 	test('honors external recursive flag when disabled', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'luapack-external-recursive-')
@@ -426,15 +438,231 @@ describe('DependencyAnalyzer', () => {
 			const analyzer = new DependencyAnalyzer(config);
 			const { graph } = analyzer.buildDependencyGraph(config.entry);
 
-			const externalModulePath = path.join(
-				externalDir,
-				'module.lua'
+			const mainNode = graph.get(path.join(srcDir, 'main.lua'));
+			expect(mainNode).toBeDefined();
+			expect(mainNode.dependencies).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						id: '@external/module',
+						moduleName: 'external.module',
+						isExternal: true,
+						isMissing: false,
+						filePath: null,
+						analyzeDependencies: false,
+					}),
+				])
 			);
-			const node = graph.get(externalModulePath);
-			expect(node).toBeDefined();
-			expect(node.module.isExternal).toBe(true);
-			expect(node.module.analyzeDependencies).toBe(false);
-			expect(node.dependencies).toHaveLength(0);
+			expect(graph.has(path.join(externalDir, 'module.lua'))).toBe(false);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('treats unresolved explicit external modules as runtime-provided', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-explicit-external-runtime-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local slaxml = require('slaxml')\nreturn slaxml\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						missing: 'error',
+						packages: {
+							default: {
+								root: './src',
+								rules: {
+									slaxml: {
+										mode: 'external',
+									},
+								},
+							},
+						},
+						bundle: {
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const result = analyzer.buildDependencyGraph(config.entry);
+			const mainNode = result.graph.get(path.join(srcDir, 'main.lua'));
+
+			expect(result.errors).toHaveLength(0);
+			expect(result.missing).toHaveLength(0);
+			expect(mainNode).toBeDefined();
+			expect(mainNode.dependencies).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						id: '@default/slaxml',
+						moduleName: 'slaxml',
+						isExternal: true,
+						isMissing: false,
+						filePath: null,
+						ruleApplied: true,
+						analyzeDependencies: false,
+					}),
+				])
+			);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('surfaces config warnings through analysis warnings', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-config-warning-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.writeFileSync(path.join(srcDir, 'main.lua'), 'return {}\n');
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						packages: {
+							default: {
+								root: './src',
+								rules: {
+									slaxml: {
+										mode: 'external',
+										path: './vendor/slaxml.lua',
+									},
+								},
+							},
+						},
+						bundle: {
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const AnalysisPipeline = require('../src/analysis/AnalysisPipeline').default;
+			const analysis = new AnalysisPipeline(config).run();
+
+			expect(analysis.warnings).toEqual([
+				expect.stringContaining("rule 'default.slaxml' sets mode 'external'"),
+			]);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('warns when a bundled package is intentionally unavailable to a caller package', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-mixed-package-policy-warning-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			const packageADir = path.join(tempDir, 'A');
+			const packageBDir = path.join(tempDir, 'B');
+			const sdkDir = path.join(tempDir, 'sdk');
+			fs.mkdirSync(srcDir, { recursive: true });
+			fs.mkdirSync(packageADir, { recursive: true });
+			fs.mkdirSync(packageBDir, { recursive: true });
+			fs.mkdirSync(sdkDir, { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				[
+					"local b = require('B.main')",
+					"local a = require('A.main')",
+					'return a, b',
+				].join('\n')
+			);
+			fs.writeFileSync(
+				path.join(packageADir, 'main.lua'),
+				"return require('sdk')\n"
+			);
+			fs.writeFileSync(
+				path.join(packageBDir, 'main.lua'),
+				"return require('sdk')\n"
+			);
+			fs.writeFileSync(
+				path.join(sdkDir, 'init.lua'),
+				'return { value = true }\n'
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						packages: {
+							default: {
+								root: './src',
+								dependencies: {
+									A: { mode: 'bundle' },
+									B: { mode: 'bundle' },
+								},
+							},
+							A: {
+								root: './A',
+								dependencies: {
+									sdk: { mode: 'external' },
+								},
+							},
+							B: {
+								root: './B',
+								dependencies: {
+									sdk: { mode: 'bundle' },
+								},
+							},
+							sdk: {
+								root: './sdk',
+							},
+						},
+						bundle: {
+							fallback: 'external-only',
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const AnalysisPipeline = require('../src/analysis/AnalysisPipeline').default;
+			const analysis = new AnalysisPipeline(config).run();
+
+			expect(analysis.warnings).toEqual(
+				expect.arrayContaining([
+					expect.stringContaining(
+						"Package 'sdk' is included in the bundle, but package 'A' will not use the bundled copy because A marks 'sdk' as external."
+					),
+				])
+			);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}
@@ -654,7 +882,7 @@ describe('DependencyAnalyzer', () => {
 		}
 	});
 
-	test('keeps invalid rule paths inside analysis errors instead of aborting graph build', () => {
+	test('ignores invalid paths on external rules and records a config warning instead of a missing module', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'luapack-invalid-rule-path-')
 		);
@@ -711,23 +939,15 @@ describe('DependencyAnalyzer', () => {
 			const result = analyzer.buildDependencyGraph(config.entry);
 
 			expect(result.errors).toHaveLength(0);
-			expect(result.missing).toHaveLength(1);
-			expect(result.missing[0]).toMatchObject({
-				requireId: 'dkjson',
-				fatal: true,
-			});
-			expect(result.missing[0].error.message).toContain(
-				"Override path for module 'dkjson' not found"
-			);
-			expect(result.missing[0].error.message).not.toContain('\\');
+			expect(result.missing).toHaveLength(0);
 			expect(result.graph.size).toBe(2);
 			expect(result.graph.get(path.join(srcDir, 'main.lua')).dependencies).toEqual(
 				expect.arrayContaining([
 					expect.objectContaining({
 						moduleName: 'dkjson',
-						isMissing: true,
+						isMissing: false,
 						isExternal: true,
-						overrideApplied: true,
+						ruleApplied: true,
 					}),
 					expect.objectContaining({ moduleName: 'util.text' }),
 				])

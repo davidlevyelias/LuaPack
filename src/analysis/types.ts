@@ -28,9 +28,16 @@ export interface ExternalConfigInfo {
 	paths: FilePath[];
 }
 
+export interface AnalysisPackageInfo {
+	name: string;
+	root: FilePath;
+	isEntry: boolean;
+}
+
 export interface AnalysisContext {
 	rootDir: FilePath;
 	roots: FilePath[];
+	packages: AnalysisPackageInfo[];
 	entryPath: FilePath;
 	outputPath: FilePath;
 	analyzeOnly: boolean;
@@ -49,6 +56,8 @@ export interface ModuleDependencyEdge {
 	filePath: FilePath | null;
 	isExternal: boolean;
 	isMissing: boolean;
+	isIgnored: boolean;
+	ruleApplied: boolean;
 	overrideApplied: boolean;
 }
 
@@ -61,6 +70,7 @@ export interface ModuleRecord {
 	filePath: FilePath | null;
 	sourceContent?: string;
 	isExternal: boolean;
+	ruleApplied: boolean;
 	overrideApplied: boolean;
 	analyzeDependencies: boolean;
 	isMissing: boolean;
@@ -72,9 +82,13 @@ export interface ModuleRecord {
 export interface MissingModuleRecord {
 	requireId: string;
 	moduleName: string;
+	packageName: string;
+	localModuleId: string;
+	canonicalModuleId: string;
 	filePath: FilePath | null;
 	requiredBy: string | null;
 	isExternal: boolean;
+	ruleApplied: boolean;
 	overrideApplied: boolean;
 	fatal: boolean;
 	message: string;
@@ -121,7 +135,6 @@ export interface AnalysisResult {
 	moduleById: Map<ModuleId, ModuleRecord>;
 	dependencyGraph: Map<ModuleId, ModuleDependencyEdge[]>;
 	sortedModules: ModuleRecord[];
-	topologicalOrder: string[];
 	missing: MissingModuleRecord[];
 	warnings: AnalysisWarning[];
 	errors: AnalysisError[];

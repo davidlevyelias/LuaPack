@@ -7,8 +7,10 @@ interface RuntimeShape {
 	entryPackageName: string;
 	packagePrefixes: string[];
 	externalModules: string[];
+	packageDependencyModes: Record<string, Record<string, 'external' | 'ignore'>>;
 	packageResolver: PackageResolverStrategy;
 	fallback: RuntimeFallbackStrategy;
+	needsOriginalRequire: boolean;
 }
 
 function quoteLuaString(value: string): string {
@@ -55,6 +57,7 @@ function normalizeExternalModules(bundlePlan: BundlePlan): string[] {
 function deriveRuntimeShape(bundlePlan: BundlePlan): RuntimeShape {
 	const packagePrefixes = normalizePackagePrefixes(bundlePlan);
 	const externalModules = normalizeExternalModules(bundlePlan);
+	const packageDependencyModes = bundlePlan.packageDependencyModes || {};
 	let fallback: RuntimeFallbackStrategy = 'none';
 
 	if (bundlePlan.fallbackPolicy === 'always') {
@@ -77,9 +80,35 @@ function deriveRuntimeShape(bundlePlan: BundlePlan): RuntimeShape {
 		entryPackageName: bundlePlan.entryPackageName || 'default',
 		packagePrefixes,
 		externalModules,
+		packageDependencyModes,
 		packageResolver,
 		fallback,
+		needsOriginalRequire:
+			externalModules.length > 0 ||
+			Object.values(packageDependencyModes).some((scopedModes) =>
+				Object.values(scopedModes || {}).includes('external')
+			) ||
+			fallback !== 'none',
 	};
+}
+
+function renderLoadExternalModule(shape: RuntimeShape): string {
+	if (!shape.needsOriginalRequire) {
+		return '';
+	}
+
+	return [
+		'local function load_external_module(module_name)',
+		'\tif require_loaded[module_name] then return require_cache[module_name] end',
+		'\tif not original_require then',
+		`\t\terror("Module '" .. module_name .. "' requires the host require function.")`,
+		'\tend',
+		'\tlocal result = original_require(module_name)',
+		'\trequire_cache[module_name] = result',
+		'\trequire_loaded[module_name] = true',
+		'\treturn result',
+		'end',
+	].join('\n');
 }
 
 function renderFallbackOnMiss(shape: RuntimeShape): string {
@@ -138,12 +167,19 @@ function renderResolveScopedName(shape: RuntimeShape): string {
 					.join('\n');
 
 	return [
-		'local function resolve_scoped_name(package_name, module_name)',
+		'local function resolve_declared_package(module_name)',
 		indentBlock(declaredPackageChecks),
-		'\tif package_name and package_name ~= "default" then',
-		'\t\treturn package_name .. "." .. module_name',
+		'\treturn nil',
+		'end',
+		'local function resolve_scoped_name(package_name, module_name)',
+		'\tlocal declared_package = resolve_declared_package(module_name)',
+		'\tif declared_package then',
+		'\t\treturn module_name, declared_package',
 		'\tend',
-		'\treturn module_name',
+		'\tif package_name and package_name ~= "default" then',
+		'\t\treturn package_name .. "." .. module_name, package_name',
+		'\tend',
+		'\treturn module_name, "default"',
 		'end',
 	].join('\n');
 }
@@ -164,10 +200,74 @@ function renderResolveModuleName(): string {
 	].join('\n');
 }
 
-function renderRequireAbsolute(shape: RuntimeShape): string {
+function renderPackageDependencyModeTable(shape: RuntimeShape): string {
+	const packageEntries = Object.entries(shape.packageDependencyModes || {});
+	if (packageEntries.length === 0) {
+		return '';
+	}
+
+	const renderedEntries = packageEntries
+		.map(([packageName, scopedModes]) => {
+			const modeEntries = Object.entries(scopedModes || {})
+				.map(
+					([dependencyName, mode]) =>
+						`\t\t[${quoteLuaString(dependencyName)}] = ${quoteLuaString(mode)},`
+				)
+				.join('\n');
+
+			return [
+				`\t[${quoteLuaString(packageName)}] = {`,
+				modeEntries,
+				'\t},',
+			].join('\n');
+		})
+		.join('\n');
+
+	return ['local package_dependency_modes = {', renderedEntries, '}'].join('\n');
+}
+
+function renderResolveDependencyMode(shape: RuntimeShape): string {
+	if (Object.keys(shape.packageDependencyModes || {}).length === 0) {
+		return '';
+	}
+
 	return [
-		'local function __lp_require_absolute(module_name, ...)',
+		'local function resolve_dependency_mode(requester_package_name, target_package_name)',
+		'\tif not requester_package_name or not target_package_name then return nil end',
+		'\tlocal package_modes = package_dependency_modes[requester_package_name]',
+		'\tif not package_modes then return nil end',
+		'\treturn package_modes[target_package_name]',
+		'end',
+	].join('\n');
+}
+
+function renderRequireAbsolute(shape: RuntimeShape): string {
+	const ignoreGuard =
+		Object.keys(shape.packageDependencyModes || {}).length === 0
+			? ''
+			: [
+				'\tlocal dependency_mode = resolve_dependency_mode(requester_package_name, target_package_name)',
+				'\tif dependency_mode == "ignore" then',
+				`\t\terror("Module '" .. module_name .. "' is ignored for package '" .. requester_package_name .. "'.")`,
+				'\tend',
+				'\tif dependency_mode == "external" then',
+				'\t\treturn load_external_module(module_name)',
+				'\tend',
+			].join('\n');
+	const explicitExternalGuard =
+		shape.externalModules.length === 0
+			? ''
+			: [
+				'\tif external_modules[module_name] == true then',
+				'\t\treturn load_external_module(module_name)',
+				'\tend',
+			].join('\n');
+
+	return [
+		'local function __lp_require_absolute(requester_package_name, target_package_name, module_name, ...)',
 		'\tif require_loaded[module_name] then return require_cache[module_name] end',
+		ignoreGuard,
+		explicitExternalGuard,
 		'',
 		'\tlocal resolved_name = resolve_module_name(module_name)',
 		'\tif not resolved_name then',
@@ -196,7 +296,7 @@ function renderScopedRequireHelpers(shape: RuntimeShape): string {
 	if (shape.packageResolver === 'none') {
 		return [
 			'local function __lp_require(module_name, ...)',
-			'\treturn __lp_require_absolute(module_name, ...)',
+			'\treturn __lp_require_absolute("default", "default", module_name, ...)',
 			'end',
 		].join('\n');
 	}
@@ -205,13 +305,13 @@ function renderScopedRequireHelpers(shape: RuntimeShape): string {
 		renderResolveScopedName(shape),
 		'local function __lp_require_scoped(package_name)',
 		'\treturn function(module_name, ...)',
-		'\t\tlocal scoped_name = resolve_scoped_name(package_name, module_name)',
-		'\t\treturn __lp_require_absolute(scoped_name, ...)',
+		'\t\tlocal scoped_name, target_package_name = resolve_scoped_name(package_name, module_name)',
+		'\t\treturn __lp_require_absolute(package_name or "default", target_package_name, scoped_name, ...)',
 		'\tend',
 		'end',
 		'local function __lp_require(module_name, ...)',
-		`\tlocal scoped_name = resolve_scoped_name(${quoteLuaString(shape.entryPackageName)}, module_name)`,
-		'\treturn __lp_require_absolute(scoped_name, ...)',
+		`\tlocal scoped_name, target_package_name = resolve_scoped_name(${quoteLuaString(shape.entryPackageName)}, module_name)`,
+		`\treturn __lp_require_absolute(${quoteLuaString(shape.entryPackageName)}, target_package_name, scoped_name, ...)`,
 		'end',
 	].join('\n');
 }
@@ -272,7 +372,7 @@ function renderModuleBlocks(bundlePlan: BundlePlan, shape: RuntimeShape): string
 }
 
 function renderExternalModuleTable(shape: RuntimeShape): string {
-	if (shape.fallback !== 'external-only') {
+	if (shape.externalModules.length === 0) {
 		return '';
 	}
 
@@ -290,9 +390,12 @@ export default class BundleGenerator {
 			'local modules = {}',
 			'local require_cache = {}',
 			'local require_loaded = {}',
-			shape.fallback !== 'none' ? 'local original_require = require' : '',
+			shape.needsOriginalRequire ? 'local original_require = require' : '',
 			renderExternalModuleTable(shape),
+			renderPackageDependencyModeTable(shape),
 			renderResolveModuleName(),
+			renderResolveDependencyMode(shape),
+			renderLoadExternalModule(shape),
 			renderRequireAbsolute(shape),
 			renderScopedRequireHelpers(shape),
 			renderModuleBlocks(bundlePlan, shape),

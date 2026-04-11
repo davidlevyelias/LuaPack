@@ -40,3 +40,15 @@ export function setConfigVersion(
 	ensureInternals(config).configVersion = configVersion;
 	return config;
 }
+
+export function getConfigWarnings(config: WorkflowConfigLike): string[] {
+	return [...(config[LOADER_INTERNALS]?.configWarnings || [])];
+}
+
+export function setConfigWarnings(
+	config: LoadedConfig,
+	configWarnings: string[]
+): LoadedConfig {
+	ensureInternals(config).configWarnings = [...configWarnings];
+	return config;
+}

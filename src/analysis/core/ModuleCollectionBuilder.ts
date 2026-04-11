@@ -36,6 +36,8 @@ export function buildModuleCollections(
 				canonicalModuleId: dependencyRecord.canonicalModuleId,
 				isExternal: Boolean(dependencyRecord.isExternal),
 				isMissing: Boolean(dependencyRecord.isMissing),
+				isIgnored: Boolean(dependencyRecord.isIgnored),
+				ruleApplied: Boolean(dependencyRecord.ruleApplied),
 				filePath: dependencyRecord.filePath ?? null,
 				overrideApplied: Boolean(dependencyRecord.overrideApplied),
 			});
@@ -49,7 +51,7 @@ export function buildModuleCollections(
 	}
 
 	const modules = Array.from(moduleMap.values()).filter(
-		(moduleRecord) => !moduleRecord.isMissing
+		(moduleRecord) => !moduleRecord.isMissing && !moduleRecord.isIgnored
 	);
 	const externals = modules.filter((module) => module.isExternal === true);
 

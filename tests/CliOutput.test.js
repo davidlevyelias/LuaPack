@@ -18,7 +18,6 @@ function createAnalysisResult() {
 		moduleById: new Map(),
 		dependencyGraph: new Map(),
 		sortedModules: [],
-		topologicalOrder: [],
 		missing: [],
 		warnings: [],
 		errors: [],

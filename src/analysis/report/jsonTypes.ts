@@ -5,10 +5,16 @@ export type JsonReportStatus = 'ok' | 'warn' | 'failed';
 export type JsonAlertSeverity = 'warn' | 'error';
 export type JsonAlertType = 'warning' | 'missing' | 'error';
 
+export interface JsonSummaryPackage {
+	name: string;
+	root: string;
+}
+
 export interface JsonSummary {
 	entryModule: string | null;
 	entryPath: string | null;
-	roots: string[];
+	entryPackage: string | null;
+	packages: JsonSummaryPackage[];
 	outputPath: string;
 	missingPolicy: MissingPolicy;
 	fallbackPolicy: FallbackMode;
@@ -27,28 +33,27 @@ export interface JsonMetrics {
 export interface JsonModuleSectionItem {
 	id: string;
 	name: string;
+	localModuleId: string;
 	filePath: string | null;
 }
 
 export interface JsonExternalSectionItem {
 	id: string;
 	name: string;
+	packageName: string;
+	localModuleId: string;
+	status: 'runtime';
 	filePath: string | null;
-	status: 'resolved' | 'missing';
 	ruleApplied: boolean;
-}
-
-export interface JsonTopologicalItem {
-	name: string;
-	filePath: string | null;
-	type: 'module' | 'external';
 }
 
 export interface JsonDependencyGraphItem {
 	id: string;
 	name: string;
+	packageName: string;
+	localModuleId: string;
 	type: 'module' | 'external';
-	status: 'resolved' | 'missing';
+	status: 'resolved' | 'runtime' | 'ignored' | 'missing';
 	filePath: string | null;
 	ruleApplied: boolean;
 }
@@ -74,6 +79,9 @@ export interface JsonMissingAlert extends JsonAlertBase {
 	requireId: string;
 	requiredBy: string | null;
 	name: string | null;
+	packageName: string;
+	localModuleId: string;
+	canonicalModuleId: string;
 	dependencyType: 'module' | 'external';
 	ruleApplied: boolean;
 	code?: string;
@@ -83,10 +91,9 @@ export interface JsonMissingAlert extends JsonAlertBase {
 export type JsonAlert = JsonWarningAlert | JsonErrorAlert | JsonMissingAlert;
 
 export interface JsonSections {
-	modules: JsonModuleSectionItem[] | null;
+	modulesByPackage: Record<string, JsonModuleSectionItem[]> | null;
 	externals: JsonExternalSectionItem[];
 	dependencyGraph: Record<string, JsonDependencyGraphItem[]> | null;
-	topologicalOrder: JsonTopologicalItem[] | null;
 }
 
 export interface SerializableAnalysisPayload {

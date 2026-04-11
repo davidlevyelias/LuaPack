@@ -57,9 +57,6 @@ export function createPalette({
 		value: string,
 		missingPolicy: MissingPolicy = 'error'
 	): string => {
-		if (missingPolicy === 'ignore') {
-			return apply(ansiColors.gray, value);
-		}
 		if (missingPolicy === 'warn') {
 			return apply(ansiColors.yellow, value);
 		}
