@@ -44,6 +44,12 @@ function resolveAnalyzeFormat(options: CliOptions): 'pretty' | 'text' | 'json' {
 	return options.format ?? 'pretty';
 }
 
+function resolveBundleReportFormat(
+	options: CliOptions
+): 'text' | 'json' | undefined {
+	return options.reportFormat;
+}
+
 function createWorkflowContext(
 	entry: string | undefined,
 	options: CliOptions,
@@ -158,10 +164,27 @@ export async function runBundleWorkflow(
 		return;
 	}
 
+	const reportFormat = resolveBundleReportFormat(options);
+	if (options.report && !options.reportFormat) {
+		throw Object.assign(
+			new Error(
+				'Bundle report output requires --report-format text or --report-format json.'
+			),
+			{ code: 'BUNDLE_REPORT_REQUIRES_FORMAT', errorType: 'usage' }
+		);
+	}
+	const effectiveFormat = resolveAnalyzeFormat(options);
+
+	const shouldPrintPrettyReport = effectiveFormat === 'pretty';
+	const shouldPrintStructuredReport =
+		effectiveFormat !== 'pretty' && !options.report;
+
 	const context = createWorkflowContext(entry, options, packageVersion, {
 		analyzeOnly: false,
+		showHeader: shouldPrintPrettyReport,
 	});
 	let bundlePath: string | null = null;
+	let reportPath: string | null = null;
 
 	if (context.analysis.success) {
 		try {
@@ -173,11 +196,38 @@ export async function runBundleWorkflow(
 		}
 	}
 
-	context.reporter.printConsoleReport(context.analysis, {
-		verbose: Boolean(options.verbose),
-	});
+	if (options.report) {
+		reportPath = await context.reporter.writeReport(
+			options.report,
+			context.analysis,
+			{
+				verbose: Boolean(options.verbose),
+				format: reportFormat,
+			}
+		);
+	}
 
-	if (bundlePath && context.analysis.success) {
+	if (shouldPrintStructuredReport) {
+		if (effectiveFormat === 'json') {
+			context.reporter.printJsonReport(context.analysis, {
+				verbose: Boolean(options.verbose),
+			});
+		} else {
+			context.reporter.printTextReport(context.analysis, {
+				verbose: Boolean(options.verbose),
+			});
+		}
+	} else if (shouldPrintPrettyReport) {
+		context.reporter.printConsoleReport(context.analysis, {
+			verbose: Boolean(options.verbose),
+		});
+	}
+
+	if (reportPath) {
+		printReportSuccess(reportPath, { useColor: options.color !== false });
+	}
+
+	if (bundlePath && context.analysis.success && shouldPrintPrettyReport) {
 		printBundleSuccess(bundlePath, { useColor: options.color !== false });
 	}
 

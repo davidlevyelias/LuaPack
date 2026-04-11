@@ -3,7 +3,6 @@ import { Command } from 'commander';
 import type { CliOptions, CommandName } from './types';
 import { printJsonErrorPayload } from './output';
 import {
-	collectRepeatableValue,
 	parseFallbackMode,
 	parseLogLevel,
 	parseMissingPolicy,
@@ -14,19 +13,62 @@ import { executeCliAction } from './executeCliAction';
 function addCommonOptions(
 	command: Command,
 	{
-		includeVerbose,
 		includeFormat,
+		includeBundleReport,
 	}: {
-		includeVerbose: boolean;
 		includeFormat: boolean;
+		includeBundleReport: boolean;
 	}
 ) {
 	command
+		.optionsGroup('Input Options:')
 		.option('-c, --config <file>', 'Path to a luapack.config.json file.')
 		.option(
 			'-o, --output <file>',
-			'Output file for the generated artifact or analysis report.'
+			'Output file for the generated bundle artifact (bundle) or analysis report (analyze).'
 		)
+		.option(
+			'--root <path>',
+			'Default package root path for this run.'
+		)
+		.optionsGroup('Analysis Options:')
+		.option(
+			'--missing <policy>',
+			'Missing-module policy (error, warn).',
+			parseMissingPolicy
+		)
+		.option(
+			'--fallback <policy>',
+			'Runtime fallback policy (never, external-only, always).',
+			parseFallbackMode
+		);
+
+	command.option('--verbose', 'Print verbose analysis details.');
+
+	if (includeFormat) {
+		command.option(
+			'--format <format>',
+			'Visual output format (text, json).',
+			parseReportFormat
+		);
+	}
+
+	if (includeBundleReport) {
+		command
+			.optionsGroup('Report Options:')
+			.option(
+				'--report <file>',
+				'Write bundle analysis report to a file.'
+			)
+			.option(
+				'--report-format <format>',
+				'Bundle analysis report format (text, json).',
+				parseReportFormat
+			);
+	}
+
+	command
+		.optionsGroup('Display Options:')
 		.option('--no-color', 'Disable ANSI color output.')
 		.option(
 			'--quiet',
@@ -37,40 +79,10 @@ function addCommonOptions(
 			'Print the effective normalized v2 config and exit.'
 		)
 		.option(
-			'--root <path>',
-			'Default package root for this run. Repeat to replace the effective value.',
-			collectRepeatableValue
-		)
-		.option(
-			'--missing <policy>',
-			'Missing-module policy (error, warn).',
-			parseMissingPolicy
-		)
-		.option(
-			'--fallback <policy>',
-			'Runtime fallback policy (never, external-only, always).',
-			parseFallbackMode
-		)
-		.option(
 			'--log-level <level>',
 			'Set log verbosity (error, warn, info, debug).',
 			parseLogLevel
 		);
-
-	if (includeVerbose) {
-		command.option(
-			'--verbose',
-			'Print verbose analysis details (tree and order).'
-		);
-	}
-
-	if (includeFormat) {
-		command.option(
-			'--format <format>',
-			'Analysis report format (text, json).',
-			parseReportFormat
-		);
-	}
 
 	return command;
 }
@@ -93,7 +105,10 @@ export function createProgram(
 		program
 			.command('bundle [entry]')
 			.description('Analyze the dependency graph and build a bundle.'),
-		{ includeVerbose: false, includeFormat: false }
+		{
+			includeFormat: true,
+			includeBundleReport: true,
+		}
 	).action((entry: string | undefined, options: CliOptions) => {
 		return action('bundle', entry, { ...options, command: 'bundle' });
 	});
@@ -104,13 +119,15 @@ export function createProgram(
 			.description(
 				'Analyze the dependency graph and optionally write a report.'
 			),
-		{ includeVerbose: true, includeFormat: true }
+		{
+			includeFormat: true,
+			includeBundleReport: false,
+		}
 	).action((entry: string | undefined, options: CliOptions) => {
 		return action('analyze', entry, { ...options, command: 'analyze' });
 	});
 
 	program.action(() => {
-		program.outputHelp();
 		program.error('A subcommand is required.', {
 			exitCode: 2,
 			code: 'luapack.subcommandRequired',
@@ -125,17 +142,18 @@ export async function runCli(
 	argv: string[] = process.argv
 ) {
 	const program = createProgram(packageVersion);
-	if (shouldEmitJsonCommandError(argv)) {
+	const jsonErrorCommand = resolveJsonErrorCommand(argv);
+	if (jsonErrorCommand) {
 		applyJsonErrorMode(program);
 	}
 	try {
 		await program.parseAsync(argv);
 	} catch (error: any) {
-		if (shouldEmitJsonCommandError(argv)) {
+		if (jsonErrorCommand) {
 			printJsonErrorPayload({
 				type: 'command-error',
 				status: 'error',
-				command: 'analyze',
+				command: jsonErrorCommand,
 				error: {
 					type: inferCliParseErrorType(error),
 					code: normalizeErrorCode(error?.code),
@@ -160,24 +178,28 @@ function applyJsonErrorMode(program: Command): void {
 	});
 }
 
-function shouldEmitJsonCommandError(argv: string[]): boolean {
+function resolveJsonErrorCommand(
+	argv: string[]
+): 'analyze' | 'bundle' | null {
 	const args = Array.isArray(argv) ? argv.slice(2) : [];
-	const isAnalyzeCommand = args.includes('analyze');
-	if (!isAnalyzeCommand) {
-		return false;
+	const commandName = args[0];
+	if (commandName !== 'analyze' && commandName !== 'bundle') {
+		return null;
 	}
 
-	for (let index = 0; index < args.length; index += 1) {
+	for (let index = 1; index < args.length; index += 1) {
 		const token = args[index];
 		if (token === '--format' && args[index + 1] === 'json') {
-			return true;
+			return commandName;
 		}
 		if (token.startsWith('--format=')) {
-			return token.slice('--format='.length) === 'json';
+			if (token.slice('--format='.length) === 'json') {
+				return commandName;
+			}
 		}
 	}
 
-	return false;
+	return null;
 }
 
 function inferCliParseErrorType(

@@ -75,6 +75,9 @@ describe('CLI', () => {
 			'luapack',
 			'bundle',
 			'main.lua',
+			'--format',
+			'json',
+			'--verbose',
 			'--root',
 			'src',
 			'--missing',
@@ -84,6 +87,10 @@ describe('CLI', () => {
 			'--no-color',
 			'--quiet',
 			'--print-config',
+			'--report',
+			'bundle-report.json',
+			'--report-format',
+			'json',
 			'--log-level',
 			'debug',
 		]);
@@ -95,11 +102,15 @@ describe('CLI', () => {
 				color: false,
 				command: 'bundle',
 				fallback: 'always',
+				format: 'json',
 				logLevel: 'debug',
 				missing: 'warn',
 				printConfig: true,
 				quiet: true,
-				root: ['src'],
+				report: 'bundle-report.json',
+				reportFormat: 'json',
+				root: 'src',
+				verbose: true,
 			}),
 		);
 	});
@@ -181,6 +192,53 @@ describe('CLI', () => {
 			type: 'command-error',
 			status: 'error',
 			command: 'analyze',
+			error: {
+				type: 'usage',
+				code: 'commander-invalidargument',
+			},
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	test('runCli emits json command errors for bundle parse failures when json format is requested', async () => {
+		await runCli([
+			'node',
+			'luapack',
+			'bundle',
+			'--format',
+			'json',
+			'--missing',
+			'skip',
+		]);
+
+		expect(JSON.parse(writes.join(''))).toMatchObject({
+			type: 'command-error',
+			status: 'error',
+			command: 'bundle',
+			error: {
+				type: 'usage',
+				code: 'commander-invalidargument',
+			},
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	test('runCli keeps bundle parse failures scoped to the actual command when entry matches another command name', async () => {
+		await runCli([
+			'node',
+			'luapack',
+			'bundle',
+			'analyze',
+			'--format',
+			'json',
+			'--missing',
+			'skip',
+		]);
+
+		expect(JSON.parse(writes.join(''))).toMatchObject({
+			type: 'command-error',
+			status: 'error',
+			command: 'bundle',
 			error: {
 				type: 'usage',
 				code: 'commander-invalidargument',

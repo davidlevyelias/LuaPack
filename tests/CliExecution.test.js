@@ -88,4 +88,33 @@ describe('CLI execution', () => {
 		});
 		expect(process.exitCode).toBe(1);
 	});
+
+	test('bundle emits structured json errors when json visual format is requested', async () => {
+		runBundleWorkflow.mockRejectedValueOnce(
+			Object.assign(new Error('Invalid configuration:\n- configuration root: must have required property \'entry\''), {
+				code: 'CONFIG_INVALID',
+				errorType: 'config',
+			})
+		);
+
+		await executeCliAction(
+			'bundle',
+			'main.lua',
+			{ format: 'json', reportFormat: 'text', report: 'bundle-report.txt' },
+			'1.0.0'
+		);
+
+		expect(JSON.parse(writes.join(''))).toEqual({
+			type: 'command-error',
+			status: 'error',
+			command: 'bundle',
+			error: {
+				type: 'config',
+				code: 'config-invalid',
+				message: 'Invalid configuration:',
+				details: ['- configuration root: must have required property \'entry\''],
+			},
+		});
+		expect(process.exitCode).toBe(1);
+	});
 });

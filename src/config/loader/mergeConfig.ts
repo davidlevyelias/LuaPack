@@ -9,11 +9,10 @@ export function mergeConfig(
 ): RawConfig {
 	void configVersion;
 	const merged: RawConfig = { ...baseConfig, schemaVersion: 2 };
-	const cliRoots = Array.isArray(cliOptions.root)
-		? cliOptions.root.map((rootPath) =>
-				path.resolve(process.cwd(), rootPath)
-			)
-		: undefined;
+	const cliRoot =
+		typeof cliOptions.root === 'string' && cliOptions.root.length > 0
+			? path.resolve(process.cwd(), cliOptions.root)
+			: undefined;
 	const cliMissingPolicy = cliOptions.missing;
 
 	if (cliOptions.entry) {
@@ -24,12 +23,12 @@ export function mergeConfig(
 		merged.output = cliOptions.output;
 	}
 
-	if (cliRoots && cliRoots.length > 0) {
+	if (cliRoot) {
 		merged.packages = {
 			...(merged.packages || {}),
 			default: {
 				...(merged.packages?.default || {}),
-				root: cliRoots[0],
+				root: cliRoot,
 			},
 		};
 	}

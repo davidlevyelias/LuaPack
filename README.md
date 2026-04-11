@@ -34,13 +34,15 @@ Common options:
 - `-c, --config <file>`: Point to a `luapack.config.json` file.
 - `-o, --output <file>`: Override the bundle path or report path.
 - `--root <path>`: Override the default package root for the current run.
-- `--missing <policy>`: Missing-module policy: `error`, `warn`, or `ignore`.
+- `--missing <policy>`: Missing-module policy: `error` or `warn`.
 - `--fallback <policy>`: Runtime fallback policy: `never`, `external-only`, or `always`.
 - `--print-config`: Print the effective normalized v2 config and exit.
 - `--no-color`: Disable ANSI color output.
 - `--quiet`: Suppress informational CLI output.
-- `--verbose`: Include dependency tree and topological order in the console report.
-- `--format <format>`: Analysis report format: `text` or `json`.
+- `--verbose`: Include verbose dependency details in report output.
+- `--format <format>`: Visual output format: `text` or `json`.
+- `--report <file>` (bundle): Write bundle analysis report to a file.
+- `--report-format <format>` (bundle): File report format: `text` or `json`.
 - `--log-level <level>`: Adjust logger verbosity (`error`, `warn`, `info`, `debug`).
 
 Examples:

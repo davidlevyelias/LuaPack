@@ -113,7 +113,7 @@ describe('ConfigLoader', () => {
 			config: configPath,
 			entry: './cli-project/src/main.lua',
 			output: './dist/cli.lua',
-			root: ['./cli-project/src'],
+			root: './cli-project/src',
 		});
 
 		expect(config.entry).toBe(

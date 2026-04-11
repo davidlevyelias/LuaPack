@@ -13,14 +13,16 @@ export type ReportFormat = (typeof VALID_REPORT_FORMATS)[number];
 export interface CliOptions {
 	command?: CommandName;
 	output?: string;
+	report?: string;
 	config?: string;
-	root?: string[];
+	root?: string;
 	missing?: MissingPolicy;
 	color?: boolean;
 	quiet?: boolean;
 	printConfig?: boolean;
 	fallback?: FallbackMode;
 	format?: ReportFormat;
+	reportFormat?: ReportFormat;
 	verbose?: boolean;
 	logLevel?: LogLevel;
 }

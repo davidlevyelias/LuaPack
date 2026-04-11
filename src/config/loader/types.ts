@@ -53,7 +53,7 @@ export interface CliOptions {
 	config?: string;
 	entry?: string;
 	output?: string;
-	root?: string[];
+	root?: string;
 	missing?: MissingPolicy;
 	fallback?: FallbackMode;
 	[key: string]: unknown;

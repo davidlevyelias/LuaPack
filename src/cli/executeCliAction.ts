@@ -30,7 +30,7 @@ export async function executeCliAction(
 	} catch (error: any) {
 		const normalizedError = normalizeCliError(error);
 
-		if (commandName === 'analyze' && options.format === 'json') {
+		if (shouldEmitJsonError(options)) {
 			printJsonErrorPayload({
 				type: 'command-error',
 				status: 'error',
@@ -43,11 +43,26 @@ export async function executeCliAction(
 				},
 			});
 		} else {
-			logger.error(`An error occurred: ${normalizedError.message}`);
+			if (normalizedError.type === 'config') {
+				const firstDetail = (normalizedError.details || [])[0];
+				if (firstDetail) {
+					logger.error(
+						`${normalizedError.message} ${firstDetail.replace(/^[-\s]+/, '')}`
+					);
+				} else {
+					logger.error(normalizedError.message);
+				}
+			} else {
+				logger.error(`An error occurred: ${normalizedError.message}`);
+			}
 		}
 
 		process.exitCode = 1;
 	}
+}
+
+function shouldEmitJsonError(options: CliOptions): boolean {
+	return options.format === 'json';
 }
 
 function normalizeCliError(error: unknown): {

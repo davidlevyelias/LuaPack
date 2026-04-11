@@ -70,4 +70,19 @@ describe('CLI print-config', () => {
 		expect(loadConfig).toHaveBeenCalledTimes(1);
 		expect(writes.join('')).toContain('"output": "out.lua"');
 	});
+
+	test('bundle report path requires explicit report format', async () => {
+		await expect(
+			runBundleWorkflow(
+				'main.lua',
+				{ report: 'bundle-report.json', format: 'json', verbose: true },
+				'1.0.0'
+			)
+		).rejects.toMatchObject({
+			code: 'BUNDLE_REPORT_REQUIRES_FORMAT',
+			errorType: 'usage',
+		});
+
+		expect(loadConfig).not.toHaveBeenCalled();
+	});
 });
