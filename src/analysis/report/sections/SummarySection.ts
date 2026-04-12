@@ -1,93 +1,78 @@
 import { formatBytes } from '../utils/format';
 import type { Palette } from '../palette';
-import { formatModuleLabel } from '../utils/labels';
 import { formatReportPath } from '../utils/pathDisplay';
-import type { ReportCoreAnalysis, SummarySectionOptions } from '../types';
-import { buildSummaryListSection } from './SummarySectionHelpers';
+import type { ReporterAnalysis, SummarySectionOptions } from '../types';
+import { deriveSummaryVerdict } from '../utils/status';
 
 export function buildSummarySection(
-	analysis: ReportCoreAnalysis,
+	analysis: ReporterAnalysis,
 	{ verbose = false, externalsSummary }: SummarySectionOptions,
 	palette: Palette
 ): string[] {
 	const lines: string[] = [];
 	const missingPolicy = analysis.context?.missingPolicy ?? 'error';
-	const rootDir = formatReportPath(analysis.context?.rootDir);
 	const entryPath = formatReportPath(analysis.context?.entryPath);
 	const outputPath = formatReportPath(analysis.context?.outputPath);
 	const moduleCount = analysis.metrics.moduleCount;
+	const missingCount = analysis.metrics.missingCount;
 	const ignored = analysis.context?.ignoredPatterns ?? [];
+	const ignoredCount = ignored.length;
 	const effectiveExternalsSummary = externalsSummary;
+	const verdict = deriveSummaryVerdict(analysis, missingPolicy);
 	const moduleSize = formatBytes(analysis.metrics.moduleSizeSum);
 	const bundleSize = formatBytes(
 		analysis.metrics.bundleSizeBytes > 0
 			? analysis.metrics.bundleSizeBytes
 			: analysis.metrics.estimatedBundleSize
 	);
+	const packages = [...(analysis.context?.packages ?? [])].sort((left, right) =>
+		left.name.localeCompare(right.name)
+	);
 
-	lines.push(palette.heading('Analysis Summary'));
+	lines.push(palette.heading('Summary'));
 	lines.push(palette.divider);
-	lines.push(`${palette.key('Root Dir:')} ${palette.value(rootDir)}`);
+	lines.push(
+		`${palette.key(`${verdict.label}:`)} ${palette.statusValue(
+			verdict.value,
+			verdict.status
+		)}`
+	);
 	lines.push(`${palette.key('Entry:')} ${palette.value(entryPath)}`);
 	lines.push(`${palette.key('Output:')} ${palette.value(outputPath)}`);
 	lines.push(
+		`${palette.key('Packages:')} ${palette.value(String(packages.length))}`
+	);
+	if (packages.length === 0) {
+		lines.push(`${palette.subBullet} ${palette.muted('none')}`);
+	} else {
+		packages.forEach((pkg) => {
+			lines.push(`${palette.subBullet} ${palette.value(pkg.name)}`);
+		});
+	}
+	lines.push(
 		`${palette.key('Modules:')} ${palette.value(String(moduleCount))}`
 	);
-
-	if (ignored.length > 0) {
-		lines.push(`${palette.bullet} ${palette.key('Ignored:')}`);
-		ignored.forEach((pattern) => {
-			lines.push(`${palette.subDash} ${palette.value(pattern)}`);
-		});
-	} else {
-		lines.push(
-			`${palette.bullet} ${palette.key('Ignored:')} ${palette.muted('none')}`
-		);
-	}
-
 	lines.push(
-		`${palette.bullet} ${palette.key('Missing:')} ${palette.value(missingPolicy)}`
-	);
-
-	const externalsLabel = palette.externals(
-		effectiveExternalsSummary.countLabel,
-		{
-			missingPolicy,
-			hasMissing: effectiveExternalsSummary.missingCount > 0,
-		}
+		`${palette.bullet} ${palette.key('Missing Action:')} ${palette.value(
+			missingPolicy
+		)}`
 	);
 	lines.push(
-		`${palette.bullet} ${palette.key('Externals:')} ${externalsLabel}`
+		`${palette.bullet} ${palette.key('Missing:')} ${palette.value(
+			String(missingCount)
+		)}`
 	);
 
-	if (verbose && effectiveExternalsSummary.verboseDetails) {
-		lines.push(
-			`${palette.subBullet} ${palette.key('Recursive:')} ${palette.bool(
-				effectiveExternalsSummary.verboseDetails.recursive
-			)}`
-		);
-
-		const pathLines = buildSummaryListSection(
-			`${palette.subBullet} ${palette.key('Paths:')}`,
-			effectiveExternalsSummary.verboseDetails.paths,
-			palette
-		);
-		lines.push(...pathLines);
-
-		const moduleLines = buildSummaryListSection(
-			`${palette.subBullet} ${palette.key('Modules:')}`,
-			effectiveExternalsSummary.verboseDetails.modules,
-			palette,
-			(module) =>
-				formatModuleLabel({
-					palette,
-					name: module.name,
-					tags: module.tags,
-					missingPolicy,
-				})
-		);
-		lines.push(...moduleLines);
-	}
+	lines.push(
+		`${palette.bullet} ${palette.key('Externals:')} ${palette.value(
+			effectiveExternalsSummary.countLabel
+		)}`
+	);
+	lines.push(
+		`${palette.bullet} ${palette.key('Ignored:')} ${palette.value(
+			String(ignoredCount)
+		)}`
+	);
 
 	lines.push(
 		`${palette.key('Module Size Sum:')} ${palette.value(moduleSize)}`

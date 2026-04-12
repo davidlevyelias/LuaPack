@@ -1,9 +1,7 @@
 import path from 'path';
 import { promises as fsPromises } from 'fs';
 
-import type { MissingPolicy } from './types';
 import { buildSummarySection } from './report/sections/SummarySection';
-import { buildDependencyTreeSection } from './report/sections/DependencyTreeSection';
 import {
 	buildWarningsSection,
 	buildMissingSection,
@@ -17,13 +15,10 @@ import {
 } from './report/builders/ReportContentBuilder';
 import type { ReporterAnalysis } from './report/types';
 import { buildReportViewData } from './report/builders/ReportViewBuilder';
-import { formatModuleLabel } from './report/utils/labels';
-import type { ModuleNode } from './report/utils/dependencyTree';
 import {
 	formatReportPath,
 	isWithinReportRoot,
 } from './report/utils/pathDisplay';
-import { buildTreeLines } from './report/utils/treeLineBuilder';
 import { emitLoggerLines } from './report/utils/loggerOutput';
 import type { LoggerLike } from './modelUtils';
 
@@ -32,33 +27,33 @@ export default class AnalysisReporter {
 
 	private readonly useColor: boolean;
 
+	private readonly packageVersion: string | null;
+
 	constructor({
 		logger,
 		useColor,
-	}: { logger?: LoggerLike; useColor?: boolean } = {}) {
+		packageVersion,
+	}: {
+		logger?: LoggerLike;
+		useColor?: boolean;
+		packageVersion?: string;
+	} = {}) {
 		this.logger = logger || console;
 		this.useColor =
 			typeof useColor === 'boolean' ? useColor : supportsColor();
+		this.packageVersion = packageVersion ?? null;
 	}
 
 	printConsoleReport(
 		analysis: ReporterAnalysis,
 		{ verbose = false }: { verbose?: boolean } = {}
 	): void {
-		const view = this.buildReportViewData(analysis, { verbose });
-		this.printSummary(analysis, {
+		const output = this.buildTextReportString(analysis, {
 			verbose,
-			externalsSummary: view.externalsSummary,
+			useColor: this.useColor,
 		});
-
-		if (verbose) {
-			this.printDependencyTree(view.dependencySections, {
-				missingPolicy: view.missingPolicy,
-			});
-		}
-
-		this.printWarningsAndErrors(analysis, {
-			missingPolicy: view.missingPolicy,
+		emitLoggerLines(this.logger, 'info', output.split('\n'), {
+			leadingBlank: true,
 		});
 	}
 
@@ -76,7 +71,10 @@ export default class AnalysisReporter {
 		{ verbose = false }: { verbose?: boolean } = {}
 	): void {
 		process.stdout.write(
-			`${this.buildTextReportString(analysis, { verbose })}\n`
+			`\n${this.buildTextReportString(analysis, {
+				verbose,
+				useColor: false,
+			})}\n`
 		);
 	}
 
@@ -108,22 +106,9 @@ export default class AnalysisReporter {
 		emitLoggerLines(this.logger, 'info', lines);
 	}
 
-	printDependencyTree(
-		sections: ModuleNode[],
-		{ missingPolicy }: { missingPolicy: MissingPolicy }
-	): void {
-		const palette = this.getPalette();
-		const lines = buildDependencyTreeSection(sections, {
-			palette,
-			renderSection: (section) =>
-				buildTreeLines(section, { palette, missingPolicy }),
-		});
-		emitLoggerLines(this.logger, 'info', lines, { leadingBlank: true });
-	}
-
 	printWarningsAndErrors(
 		analysis: ReporterAnalysis,
-		{ missingPolicy }: { missingPolicy: MissingPolicy }
+		{ missingPolicy }: { missingPolicy: 'error' | 'warn' }
 	): void {
 		const palette = this.getPalette();
 
@@ -184,11 +169,14 @@ export default class AnalysisReporter {
 
 	buildTextReportString(
 		analysis: ReporterAnalysis,
-		{ verbose = false }: { verbose?: boolean } = {}
+		{
+			verbose = false,
+			useColor = false,
+		}: { verbose?: boolean; useColor?: boolean } = {}
 	): string {
 		const view = this.buildReportViewData(analysis, { verbose });
 		const palette = {
-			...this.getPalette({ useColor: false }),
+			...this.getPalette({ useColor }),
 			bullet: '- ',
 			subBullet: '  -',
 			subDash: '    -',
@@ -198,15 +186,12 @@ export default class AnalysisReporter {
 		return buildTextReportContent({
 			analysis,
 			verbose,
+			packageVersion: this.packageVersion,
 			palette,
 			missingPolicy: view.missingPolicy,
 			externalsSummary: view.externalsSummary,
 			dependencySections: view.dependencySections,
-			renderDependencySection: (section: ModuleNode) =>
-				buildTreeLines(section, {
-					palette,
-					missingPolicy: view.missingPolicy,
-				}),
+			ignoredModules: view.ignoredModules,
 		});
 	}
 

@@ -99,8 +99,8 @@ describe('CLI', () => {
 			'bundle',
 			'main.lua',
 			expect.objectContaining({
-				color: false,
 				command: 'bundle',
+				color: false,
 				fallback: 'always',
 				format: 'json',
 				logLevel: 'debug',
@@ -124,7 +124,6 @@ describe('CLI', () => {
 			'luapack',
 			'analyze',
 			'main.lua',
-			'--no-color',
 			'--quiet',
 			'--print-config',
 			'--format',
@@ -138,7 +137,6 @@ describe('CLI', () => {
 			'analyze',
 			'main.lua',
 			expect.objectContaining({
-				color: false,
 				command: 'analyze',
 				format: 'json',
 				output: 'report.txt',

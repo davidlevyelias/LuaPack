@@ -4,7 +4,61 @@ jest.mock('../src/config/ConfigLoader', () => ({
 
 jest.mock('../src/analysis/AnalysisPipeline', () => {
 	return jest.fn().mockImplementation(() => ({
-		run: jest.fn(() => ({ success: true })),
+		run: jest.fn(() => ({
+			success: true,
+			durationMs: 1,
+			entryModule: {
+				id: 'main',
+				moduleName: 'main',
+				packageName: 'default',
+				localModuleId: 'main',
+				canonicalModuleId: '@default/main',
+				filePath: 'src/main.lua',
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			modules: [],
+			externals: [],
+			moduleById: new Map(),
+			dependencyGraph: new Map(),
+			sortedModules: [],
+			missing: [],
+			warnings: [],
+			errors: [],
+			metrics: {
+				moduleCount: 0,
+				externalCount: 0,
+				missingCount: 0,
+				moduleSizeSum: 0,
+				estimatedBundleSize: 0,
+				bundleSizeBytes: 0,
+			},
+			context: {
+				rootDir: 'src',
+				roots: ['src'],
+				packages: [
+					{
+						name: 'default',
+						root: 'src',
+						isEntry: true,
+					},
+				],
+				entryPath: 'src/main.lua',
+				outputPath: 'out.lua',
+				analyzeOnly: false,
+				ignoredPatterns: [],
+				missingPolicy: 'error',
+				fallbackPolicy: 'external-only',
+				externals: {
+					enabled: false,
+					recursive: true,
+					paths: [],
+				},
+			},
+		})),
 	}));
 });
 
@@ -71,18 +125,15 @@ describe('CLI print-config', () => {
 		expect(writes.join('')).toContain('"output": "out.lua"');
 	});
 
-	test('bundle report path requires explicit report format', async () => {
+	test('bundle report path defaults report format to text', async () => {
 		await expect(
 			runBundleWorkflow(
 				'main.lua',
-				{ report: 'bundle-report.json', format: 'json', verbose: true },
+				{ report: 'bundle-report.txt', format: 'json', verbose: true },
 				'1.0.0'
 			)
-		).rejects.toMatchObject({
-			code: 'BUNDLE_REPORT_REQUIRES_FORMAT',
-			errorType: 'usage',
-		});
+		).resolves.toBeUndefined();
 
-		expect(loadConfig).not.toHaveBeenCalled();
+		expect(loadConfig).toHaveBeenCalledTimes(1);
 	});
 });

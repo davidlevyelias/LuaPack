@@ -1,6 +1,6 @@
 import type { MissingPolicy } from '../../types';
 import type { ExternalSummary, ReporterAnalysis } from '../types';
-import type { DependencyTreeNode } from '../sections/DependencyTreeSection';
+import type { DependencyGraphPackageSection } from '../sections/DependencyGraphSection';
 
 import { buildSerializablePayload } from './SerializablePayloadBuilder';
 import { buildTextReport, type PaletteOverride } from './TextReportBuilder';
@@ -14,11 +14,12 @@ export interface BuildJsonReportStringOptions {
 export interface BuildTextReportStringOptions {
 	analysis: ReporterAnalysis;
 	verbose: boolean;
+	packageVersion?: string | null;
 	palette: PaletteOverride;
 	missingPolicy: MissingPolicy;
 	externalsSummary: ExternalSummary;
-	dependencySections: DependencyTreeNode[];
-	renderDependencySection: (section: DependencyTreeNode) => string[];
+	dependencySections: DependencyGraphPackageSection[];
+	ignoredModules: string[];
 }
 
 export function buildJsonReportString(
@@ -35,19 +36,21 @@ export function buildJsonReportString(
 export function buildTextReportString({
 	analysis,
 	verbose,
+	packageVersion,
 	palette,
 	missingPolicy,
 	externalsSummary,
 	dependencySections,
-	renderDependencySection,
+	ignoredModules,
 }: BuildTextReportStringOptions): string {
 	return buildTextReport({
 		analysis,
 		verbose,
+		packageVersion,
 		palette,
 		missingPolicy,
 		externalsSummary,
 		dependencySections,
-		renderDependencySection,
+		ignoredModules,
 	});
 }

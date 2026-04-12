@@ -14,7 +14,7 @@ function applyColor(
 export function printCliHeader({
 	analyzeOnly,
 	packageVersion,
-	useColor = true,
+	useColor = supportsColor(),
 }: {
 	analyzeOnly: boolean;
 	packageVersion: string;
@@ -36,7 +36,7 @@ export function printCliHeader({
 
 export function printBundleSuccess(
 	bundlePath: string,
-	{ useColor = true }: { useColor?: boolean } = {}
+	{ useColor = supportsColor() }: { useColor?: boolean } = {}
 ) {
 	const label = applyColor(
 		useColor,
@@ -54,7 +54,7 @@ export function printBundleSuccess(
 
 export function printReportSuccess(
 	reportPath: string,
-	{ useColor = true }: { useColor?: boolean } = {}
+	{ useColor = supportsColor() }: { useColor?: boolean } = {}
 ) {
 	const label = applyColor(
 		useColor,
@@ -86,4 +86,8 @@ export function printJsonErrorPayload(payload: {
 	};
 }) {
 	process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function supportsColor(): boolean {
+	return Boolean(process.stdout && process.stdout.isTTY);
 }

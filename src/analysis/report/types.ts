@@ -1,7 +1,17 @@
 import type { AnalysisResult } from '../types';
 
 export type ReporterWarning = string | { message: string } | null | undefined;
-export type ReporterError = { message: string } | Error | null | undefined;
+export type ReporterError =
+	| ({
+			message: string;
+			code?: string;
+			cycleFiles?: string[];
+			cycleModules?: string[];
+	  }
+			& Partial<Error>)
+	| Error
+	| null
+	| undefined;
 
 export type ReportCoreAnalysis = Omit<AnalysisResult, 'warnings' | 'errors'>;
 
@@ -11,7 +21,7 @@ export type ReporterAnalysis = ReportCoreAnalysis & {
 };
 
 export interface ExternalSummaryModule {
-	name: string;
+	id: string;
 	tags: string[];
 }
 

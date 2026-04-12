@@ -69,7 +69,7 @@ function addCommonOptions(
 
 	command
 		.optionsGroup('Display Options:')
-		.option('--no-color', 'Disable ANSI color output.')
+		.option('--no-color', 'Disable ANSI color in terminal text output.')
 		.option(
 			'--quiet',
 			'Suppress informational CLI output and keep warnings/errors only.'

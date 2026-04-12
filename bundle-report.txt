@@ -1,0 +1,23 @@
+Lua Pack 1.0.0 - Bundle Mode
+
+Summary
+-----------------
+Bundle Result: built
+Entry: src/main.lua
+Output: out.lua
+Packages: 1
+  - default
+Modules: 0
+-  Missing Action: error
+-  Missing: 0
+-  Externals: 0
+-  Ignored: 0
+Module Size Sum: 0 B
+Bundle Size: 0 B
+Duration: 1.00 ms
+
+Packages
+-----------------
+-  default
+    - root: src
+    - modules: 0

@@ -1,8 +1,6 @@
 import type { ReporterAnalysis } from '../types';
 import type {
-	JsonAlert,
 	JsonExternalSectionItem,
-	JsonReportStatus,
 	SerializableAnalysisPayload,
 } from '../jsonTypes';
 import { buildJsonAlerts } from './JsonAlertBuilder';
@@ -11,6 +9,7 @@ import {
 	buildJsonSections,
 } from './JsonSectionBuilder';
 import { normalizePathSlashes } from '../utils/format';
+import { deriveReportStatus } from '../utils/status';
 
 interface BuildSerializablePayloadOptions {
 	verbose?: boolean;
@@ -29,7 +28,7 @@ export function buildSerializablePayload(
 	const payload: SerializableAnalysisPayload = {
 		type: 'report',
 		command: analysis.context?.analyzeOnly ? 'analyze' : 'bundle',
-		status: deriveStatus(analysis, alerts),
+		status: deriveReportStatus(analysis, missingPolicy),
 		summary: {
 			entryModule: analysis.entryModule?.moduleName ?? null,
 			entryPath: normalizeSerializablePath(
@@ -71,16 +70,6 @@ export function buildSerializablePayload(
 	}
 
 	return payload;
-}
-
-function deriveStatus(
-	analysis: ReporterAnalysis,
-	alerts: JsonAlert[]
-): JsonReportStatus {
-	if (!analysis.success) {
-		return 'failed';
-	}
-	return alerts.some((item) => item.severity === 'warn') ? 'warn' : 'ok';
 }
 
 function roundMetric(value: number, decimals: number): number {

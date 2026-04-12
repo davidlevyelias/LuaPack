@@ -1,8 +1,9 @@
 {
+	"$schema": "../../config.schema.json",
 	"schemaVersion": 2,
 	"entry": "./src/entries/external.lua",
 	"output": "../../dist/demo_external_bundle.lua",
-	"missing": "warn",
+	"missing": "error",
 	"bundle": {
 		"fallback": "external-only"
 	},
@@ -14,8 +15,19 @@
 					"mode": "bundle",
 					"path": "./external_modules/dkjson",
 					"recursive": false
+				},
+				"slaxml": {
+					"mode": "external"
+				}
+			},
+			"dependencies": {
+				"sdk": {
+					"mode": "bundle"
 				}
 			}
+		},
+		"sdk": {
+			"root": "./external_modules/sdk"
 		}
 	}
 }

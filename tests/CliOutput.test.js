@@ -64,6 +64,7 @@ describe('CLI output color control', () => {
 		expect(lines.length).toBeGreaterThan(0);
 		expect(lines.join('\n')).not.toMatch(/\u001b\[/);
 		expect(lines.join('\n')).toContain('Output: dist/out.lua');
-		expect(lines.join('\n')).toContain('Missing: error');
+		expect(lines.join('\n')).toContain('Pack Readiness: ready');
+		expect(lines.join('\n')).toContain('Missing Action: error');
 	});
 });

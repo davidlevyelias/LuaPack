@@ -159,6 +159,73 @@ describe('DependencyAnalyzer', () => {
 		}
 	});
 
+	test('reports circular dependencies using canonical module ids', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-cycle-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(path.join(srcDir, 'cycle'), { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				"local a = require('cycle.a')\nreturn a\n"
+			);
+			fs.writeFileSync(
+				path.join(srcDir, 'cycle', 'a.lua'),
+				"local b = require('cycle.b')\nreturn b\n"
+			);
+			fs.writeFileSync(
+				path.join(srcDir, 'cycle', 'b.lua'),
+				"local a = require('cycle.a')\nreturn a\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						packages: {
+							default: {
+								root: './src',
+							},
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { graph } = analyzer.buildDependencyGraph(config.entry);
+
+			let thrownError;
+			try {
+				analyzer.topologicalSort(graph);
+			} catch (error) {
+				thrownError = error;
+			}
+
+			expect(thrownError).toBeDefined();
+			expect(thrownError.code).toBe('CIRCULAR_DEPENDENCY');
+			expect(thrownError.message).toBe(
+				'Circular dependency detected: @default/cycle.a -> @default/cycle.b -> @default/cycle.a'
+			);
+			expect(thrownError.cycleModules).toEqual([
+				'@default/cycle.a',
+				'@default/cycle.b',
+				'@default/cycle.a',
+			]);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	test('uses parent module name for directories resolved via init.lua', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'luapack-init-module-')

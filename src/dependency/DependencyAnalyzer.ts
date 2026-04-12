@@ -46,16 +46,45 @@ export default class DependencyAnalyzer {
 		const sorted: ModuleRecord[] = [];
 		const visited = new Set<string>();
 		const visiting = new Set<string>();
+		const stack: string[] = [];
+
+		const toModuleLabel = (filePath: string): string => {
+			const node = graph.get(filePath);
+			return node?.module?.canonicalModuleId || filePath;
+		};
+
+		const createCircularDependencyError = (filePath: string): Error => {
+			const cycleStartIndex = stack.indexOf(filePath);
+			const cycleFiles =
+				cycleStartIndex >= 0
+					? [...stack.slice(cycleStartIndex), filePath]
+					: [filePath];
+			const cycleModules = cycleFiles.map((cycleFile) =>
+				toModuleLabel(cycleFile)
+			);
+			const error = new Error(
+				`Circular dependency detected: ${cycleModules.join(' -> ')}`
+			) as Error & {
+				code?: string;
+				cycleFiles?: string[];
+				cycleModules?: string[];
+			};
+			error.code = 'CIRCULAR_DEPENDENCY';
+			error.cycleFiles = cycleFiles;
+			error.cycleModules = cycleModules;
+			return error;
+		};
 
 		const visit = (filePath: string) => {
 			if (visiting.has(filePath)) {
-				throw new Error(`Circular dependency detected: ${filePath}`);
+				throw createCircularDependencyError(filePath);
 			}
 			if (visited.has(filePath)) {
 				return;
 			}
 
 			visiting.add(filePath);
+			stack.push(filePath);
 			const node = graph.get(filePath);
 			if (node) {
 				for (const dependency of node.dependencies) {
@@ -65,6 +94,7 @@ export default class DependencyAnalyzer {
 				}
 			}
 
+			stack.pop();
 			visiting.delete(filePath);
 			visited.add(filePath);
 			if (node?.module) {

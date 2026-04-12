@@ -25,6 +25,7 @@ jest.mock('../src/cli/output', () => ({
 const { loadConfig } = require('../src/config/ConfigLoader');
 const { printCliHeader, printReportSuccess } = require('../src/cli/output');
 const { runAnalyzeWorkflow } = require('../src/cli/workflows');
+const logger = require('../src/utils/Logger');
 
 function createAnalysisResult() {
 	return {
@@ -162,19 +163,32 @@ describe('CLI analyze json output', () => {
 		expect(process.exitCode).toBeUndefined();
 	});
 
-	test('rejects analyze output when no explicit format is provided', async () => {
+	test('defaults analyze file output to text when no explicit format is provided', async () => {
 		await expect(
-			runAnalyzeWorkflow('main.lua', { output: 'report.json' }, '1.0.0')
-		).rejects.toMatchObject({
-			code: 'ANALYZE_OUTPUT_REQUIRES_FORMAT',
-			errorType: 'usage',
-		});
+			runAnalyzeWorkflow('main.lua', { output: 'report.txt' }, '1.0.0')
+		).resolves.toBeUndefined();
+
+		expect(printReportSuccess).toHaveBeenCalledWith(
+			expect.stringMatching(/report\.txt$/),
+			{ useColor: undefined }
+		);
 	});
 
-	test('prints text to stdout when format is text', async () => {
-		await runAnalyzeWorkflow('main.lua', { format: 'text' }, '1.0.0');
+	test('prints text through the logger when format is text', async () => {
+		const logged = [];
+		const originalInfo = logger.info;
+		logger.info = jest.fn((...args) => {
+			logged.push(args.join(' '));
+		});
 
-		expect(writes.join('')).toContain('Analysis Summary');
+		try {
+			await runAnalyzeWorkflow('main.lua', { format: 'text' }, '1.0.0');
+		} finally {
+			logger.info = originalInfo;
+		}
+
+		expect(logged.join('\n')).toContain('Lua Pack 1.0.0 - Analysis Mode');
+		expect(logged.join('\n')).toContain('Summary');
 		expect(printCliHeader).not.toHaveBeenCalled();
 	});
 });

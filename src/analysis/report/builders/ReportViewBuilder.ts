@@ -2,14 +2,15 @@ import type { MissingPolicy } from '../../types';
 import { buildExternalSummary } from './ExternalSummaryBuilder';
 import type { ExternalSummary, ReporterAnalysis } from '../types';
 import {
-	buildDependencyTreeSections,
-	type ModuleNode,
-} from '../utils/dependencyTree';
+	buildDependencyGraphSections,
+	type DependencyGraphPackageSection,
+} from '../sections/DependencyGraphSection';
 
 export interface ReportViewData {
 	missingPolicy: MissingPolicy;
 	externalsSummary: ExternalSummary;
-	dependencySections: ModuleNode[];
+	dependencySections: DependencyGraphPackageSection[];
+	ignoredModules: string[];
 }
 
 export interface BuildReportViewOptions {
@@ -31,10 +32,17 @@ export function buildReportViewData(
 		missingPolicy,
 		externalsSummary,
 		dependencySections: verbose
-			? buildDependencyTreeSections(analysis, {
-					formatPath,
-					isWithinRoot,
-				})
+			? buildDependencyGraphSections(analysis)
+			: [],
+		ignoredModules: verbose
+			? Array.from(
+					new Set(
+						Array.from(analysis.dependencyGraph.values())
+							.flat()
+							.filter((dependency) => dependency.isIgnored)
+							.map((dependency) => dependency.id)
+					)
+				).sort((left, right) => left.localeCompare(right))
 			: [],
 	};
 }

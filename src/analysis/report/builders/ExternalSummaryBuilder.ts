@@ -12,7 +12,7 @@ export function buildExternalSummary(
 	const { externals, missingExternals, externalPaths, recursive } =
 		normalizeExternalSummaryData(analysis);
 
-	const baseLabel = `${externals.length} ${externals.length === 1 ? 'module' : 'modules'}`;
+	const baseLabel = `${externals.length}`;
 	const displayLabel =
 		missingExternals.length > 0
 			? `${baseLabel} (${missingExternals.length} missing)`
@@ -28,13 +28,16 @@ export function buildExternalSummary(
 			),
 			modules: [
 				...externals.map((module) => ({
-					name: module.moduleName,
+					id: module.canonicalModuleId,
 					tags: module.overrideApplied
 						? ['external', 'override']
 						: ['external'],
 				})),
 				...missingExternals.map((missing) => ({
-					name: missing.moduleName || missing.requireId,
+					id:
+						missing.canonicalModuleId ||
+						missing.moduleName ||
+						missing.requireId,
 					tags: ['external', 'missing'],
 				})),
 			],

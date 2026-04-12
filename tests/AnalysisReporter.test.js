@@ -85,7 +85,7 @@ describe('AnalysisReporter', () => {
 				verbose: false,
 			});
 
-			expect(lines.join('\n')).toContain('Analysis Summary');
+			expect(lines.join('\n')).toContain('Summary');
 		} finally {
 			logger.info = originalInfo;
 			logger.warn = originalWarn;
@@ -369,7 +369,7 @@ describe('AnalysisReporter', () => {
 	});
 
 	test('preserves detailed missing-module messages in text reports', async () => {
-		const reporter = new AnalysisReporter();
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
 		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
 		const reportPath = path.join(targetDir, 'analysis.txt');
 		const analysis = createAnalysisResult();
@@ -396,14 +396,14 @@ describe('AnalysisReporter', () => {
 
 			const content = fs.readFileSync(reportPath, 'utf-8');
 
-			expect(content).toContain("main -> sdk.logger: Override path for module 'sdk.logger' not found: ./vendor/logger.lua");
+			expect(content).toContain("@default/main -> sdk.logger: Override path for module 'sdk.logger' not found: ./vendor/logger.lua");
 		} finally {
 			fs.rmSync(targetDir, { recursive: true, force: true });
 		}
 	});
 
 	test('text reports do not duplicate missing-module failures in the errors section', async () => {
-		const reporter = new AnalysisReporter();
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
 		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
 		const reportPath = path.join(targetDir, 'analysis.txt');
 		const analysis = createAnalysisResult();
@@ -433,8 +433,608 @@ describe('AnalysisReporter', () => {
 			const content = fs.readFileSync(reportPath, 'utf-8');
 
 			expect(content).toContain('Missing Modules');
-			expect(content).toContain('main -> sdk.logger: Module not found: sdk.logger');
+			expect(content).toContain('@default/main -> sdk.logger: Module not found');
 			expect(content).not.toContain('\nErrors\n------\n- Module not found: sdk.logger');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('text reports render packages in multiline layout for readability', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		analysis.context.packages = [
+			{
+				name: 'sdk',
+				root: path.resolve('external_modules/sdk/very/long/path/for/testing'),
+				isEntry: false,
+			},
+			{
+				name: 'default',
+				root: path.resolve('src'),
+				isEntry: true,
+			},
+		];
+		analysis.modules = [
+			{
+				id: 'main',
+				moduleName: 'main',
+				packageName: 'default',
+				localModuleId: 'main',
+				canonicalModuleId: '@default/main',
+				filePath: path.resolve('src/main.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@sdk/logger',
+				moduleName: 'logger',
+				packageName: 'sdk',
+				localModuleId: 'logger',
+				canonicalModuleId: '@sdk/logger',
+				filePath: path.resolve('external_modules/sdk/src/logger.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+		];
+
+		try {
+			await reporter.writeReport(reportPath, analysis, { format: 'text' });
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).toContain('Lua Pack 2.0.0 - Analysis Mode\n\nSummary');
+			expect(content).toContain('Pack Readiness: ready');
+			expect(content).toContain('Packages: 2\n  - default\n  - sdk');
+			expect(content).toContain('Modules: 0');
+			expect(content).not.toContain('[Missing Modules]');
+			expect(content).toContain('Missing Action: error');
+			expect(content).toContain('Missing: 0');
+			expect(content).toContain('Ignored: 0');
+			expect(content).not.toContain('\nPackages\n');
+			expect(content).not.toContain('\nExternals\n');
+			expect(content).not.toContain('external_modules/sdk/very/long/path/for/testing');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('dependency graph marks cycles and non-recursive dependencies without duplicating cyclic roots', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		analysis.context.packages = [
+			{
+				name: 'default',
+				root: path.resolve('src'),
+				isEntry: true,
+			},
+			{
+				name: 'libA',
+				root: path.resolve('lib/libA'),
+				isEntry: false,
+			},
+		];
+		analysis.modules = [
+			{
+				id: 'main',
+				moduleName: 'main',
+				packageName: 'default',
+				localModuleId: 'main',
+				canonicalModuleId: '@default/main',
+				filePath: path.resolve('src/main.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@libA/init',
+				moduleName: 'libA',
+				packageName: 'libA',
+				localModuleId: 'init',
+				canonicalModuleId: '@libA/init',
+				filePath: path.resolve('lib/libA/init.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@libA/src.sub',
+				moduleName: 'libA.src.sub',
+				packageName: 'libA',
+				localModuleId: 'src.sub',
+				canonicalModuleId: '@libA/src.sub',
+				filePath: path.resolve('lib/libA/src/sub.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@libA/not_recursive',
+				moduleName: 'libA.not_recursive',
+				packageName: 'libA',
+				localModuleId: 'not_recursive',
+				canonicalModuleId: '@libA/not_recursive',
+				filePath: path.resolve('lib/libA/not_recursive.lua'),
+				isExternal: false,
+				ruleApplied: true,
+				overrideApplied: false,
+				analyzeDependencies: false,
+				isMissing: false,
+			},
+		];
+		analysis.dependencyGraph = new Map([
+			[
+				'main',
+				[
+					{
+						id: '@libA/init',
+						moduleName: 'libA',
+						packageName: 'libA',
+						localModuleId: 'init',
+						canonicalModuleId: '@libA/init',
+						filePath: path.resolve('lib/libA/init.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+				],
+			],
+			[
+				'@libA/init',
+				[
+					{
+						id: '@libA/src.sub',
+						moduleName: 'libA.src.sub',
+						packageName: 'libA',
+						localModuleId: 'src.sub',
+						canonicalModuleId: '@libA/src.sub',
+						filePath: path.resolve('lib/libA/src/sub.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+				],
+			],
+			[
+				'@libA/src.sub',
+				[
+					{
+						id: '@libA/init',
+						moduleName: 'libA',
+						packageName: 'libA',
+						localModuleId: 'init',
+						canonicalModuleId: '@libA/init',
+						filePath: path.resolve('lib/libA/init.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+					{
+						id: '@libA/not_recursive',
+						moduleName: 'libA.not_recursive',
+						packageName: 'libA',
+						localModuleId: 'not_recursive',
+						canonicalModuleId: '@libA/not_recursive',
+						filePath: path.resolve('lib/libA/not_recursive.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: true,
+						overrideApplied: false,
+					},
+				],
+			],
+			['@libA/not_recursive', []],
+		]);
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'text',
+				verbose: true,
+			});
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).toContain('[libA]');
+			expect(content).toContain('@libA/init\n└─ @libA/src.sub');
+			expect(content).toContain('├─ @libA/init (circular)');
+			expect(content).toContain('└─ @libA/not_recursive (non-recursive)');
+			expect(content).not.toContain('\n@libA/src.sub\n├─ @libA/init');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('dependency graph assigns stable numbered refs to repeated modules', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		analysis.context.packages = [
+			{
+				name: 'lib',
+				root: path.resolve('lib'),
+				isEntry: false,
+			},
+		];
+		analysis.modules = [
+			{
+				id: '@lib/root',
+				moduleName: 'lib.root',
+				packageName: 'lib',
+				localModuleId: 'root',
+				canonicalModuleId: '@lib/root',
+				filePath: path.resolve('lib/root.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@lib/a',
+				moduleName: 'lib.a',
+				packageName: 'lib',
+				localModuleId: 'a',
+				canonicalModuleId: '@lib/a',
+				filePath: path.resolve('lib/a.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@lib/b',
+				moduleName: 'lib.b',
+				packageName: 'lib',
+				localModuleId: 'b',
+				canonicalModuleId: '@lib/b',
+				filePath: path.resolve('lib/b.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: '@lib/shared.assert',
+				moduleName: 'lib.shared.assert',
+				packageName: 'lib',
+				localModuleId: 'shared.assert',
+				canonicalModuleId: '@lib/shared.assert',
+				filePath: path.resolve('lib/shared/assert.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+		];
+		analysis.dependencyGraph = new Map([
+			[
+				'@lib/root',
+				[
+					{
+						id: '@lib/a',
+						moduleName: 'lib.a',
+						packageName: 'lib',
+						localModuleId: 'a',
+						canonicalModuleId: '@lib/a',
+						filePath: path.resolve('lib/a.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+					{
+						id: '@lib/b',
+						moduleName: 'lib.b',
+						packageName: 'lib',
+						localModuleId: 'b',
+						canonicalModuleId: '@lib/b',
+						filePath: path.resolve('lib/b.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+				],
+			],
+			[
+				'@lib/a',
+				[
+					{
+						id: '@lib/shared.assert',
+						moduleName: 'lib.shared.assert',
+						packageName: 'lib',
+						localModuleId: 'shared.assert',
+						canonicalModuleId: '@lib/shared.assert',
+						filePath: path.resolve('lib/shared/assert.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+				],
+			],
+			[
+				'@lib/b',
+				[
+					{
+						id: '@lib/shared.assert',
+						moduleName: 'lib.shared.assert',
+						packageName: 'lib',
+						localModuleId: 'shared.assert',
+						canonicalModuleId: '@lib/shared.assert',
+						filePath: path.resolve('lib/shared/assert.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+				],
+			],
+			['@lib/shared.assert', []],
+		]);
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'text',
+				verbose: true,
+			});
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).toContain('@lib/shared.assert [#1]');
+			expect(content).toContain('@lib/shared.assert -> #1');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('text reports group circular dependencies separately without duplicating them in generic errors', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+		const cycleError = new Error(
+			'Circular dependency detected: @default/main -> @default/lib -> @default/main'
+		);
+		cycleError.code = 'CIRCULAR_DEPENDENCY';
+
+		analysis.success = false;
+		analysis.errors = [cycleError];
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'text',
+				verbose: true,
+			});
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).toContain('[Circular Dependencies]');
+			expect(content).toContain('@default/main -> @default/lib -> @default/main');
+			expect(content).not.toContain('Circular dependency detected:');
+			expect(content).not.toContain('[Errors]\n\n- Circular dependency detected:');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('verbose text reports include explicit Externals and Alerts sections in stable order', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		analysis.missing = [
+			{
+				requireId: 'missing.module',
+				moduleName: 'missing.module',
+				packageName: 'default',
+				localModuleId: 'missing.module',
+				canonicalModuleId: '@default/missing.module',
+				filePath: null,
+				requiredBy: 'main',
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				fatal: true,
+				message: 'Module not found: missing.module',
+			},
+		];
+		analysis.externals = [
+			{
+				id: '@default/dkjson',
+				moduleName: 'dkjson',
+				packageName: 'default',
+				localModuleId: 'dkjson',
+				canonicalModuleId: '@default/dkjson',
+				filePath: null,
+				isExternal: true,
+				ruleApplied: true,
+				overrideApplied: false,
+				analyzeDependencies: false,
+				isMissing: false,
+			},
+		];
+		analysis.dependencyGraph = new Map([
+			[
+				'main',
+				[
+					{
+						id: '@default/dkjson',
+						moduleName: 'dkjson',
+						packageName: 'default',
+						localModuleId: 'dkjson',
+						canonicalModuleId: '@default/dkjson',
+						filePath: null,
+						isExternal: true,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: true,
+						overrideApplied: false,
+					},
+				],
+			],
+		]);
+		analysis.warnings = ['sample warning'];
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'text',
+				verbose: true,
+			});
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+			const packagesIdx = content.indexOf('\nPackages\n');
+			const externalsIdx = content.indexOf('\nExternals\n');
+			const alertsIdx = content.indexOf('\nAlerts\n');
+			const ignoredIdx = content.indexOf('\nIgnored\n');
+			const dependencyGraphIdx = content.indexOf('\nDependency Graph\n');
+
+			expect(externalsIdx).toBeGreaterThan(-1);
+			expect(alertsIdx).toBeGreaterThan(-1);
+			expect(packagesIdx).toBeGreaterThan(-1);
+			expect(alertsIdx).toBeLessThan(packagesIdx);
+			expect(packagesIdx).toBeLessThan(externalsIdx);
+			expect(ignoredIdx).toBe(-1);
+			expect(dependencyGraphIdx).toBeGreaterThan(-1);
+			expect(externalsIdx).toBeLessThan(dependencyGraphIdx);
+			expect(content).toContain('@default/dkjson');
+			const missingModIdx = content.indexOf('[Missing Modules]');
+			const warningsIdx = content.indexOf('[Warnings]');
+			expect(missingModIdx).toBeGreaterThan(-1);
+			expect(warningsIdx).toBeGreaterThan(-1);
+			expect(missingModIdx).toBeLessThan(warningsIdx);
+			expect(content).toContain('Missing Action: error');
+			expect(content).toContain('Externals: 1');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('verbose text reports include dependency graph and omit package module details', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		analysis.modules = [
+			{
+				id: '@sdk/logger',
+				moduleName: 'logger',
+				packageName: 'sdk',
+				localModuleId: 'logger',
+				canonicalModuleId: '@sdk/logger',
+				filePath: path.resolve('external_modules/sdk/src/logger.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+			{
+				id: 'main',
+				moduleName: 'main',
+				packageName: 'default',
+				localModuleId: 'main',
+				canonicalModuleId: '@default/main',
+				filePath: path.resolve('src/main.lua'),
+				isExternal: false,
+				ruleApplied: false,
+				overrideApplied: false,
+				analyzeDependencies: true,
+				isMissing: false,
+			},
+		];
+		analysis.dependencyGraph = new Map([
+			[
+				'main',
+				[
+					{
+						id: '@sdk/logger',
+						moduleName: 'logger',
+						packageName: 'sdk',
+						localModuleId: 'logger',
+						canonicalModuleId: '@sdk/logger',
+						filePath: path.resolve('external_modules/sdk/src/logger.lua'),
+						isExternal: false,
+						isMissing: false,
+						isIgnored: false,
+						ruleApplied: false,
+						overrideApplied: false,
+					},
+				],
+			],
+		]);
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'text',
+				verbose: true,
+			});
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).toContain('Dependency Graph');
+			expect(content).toContain('default');
+			expect(content).toContain('sdk');
+			expect(content).toContain('@default/main');
+			expect(content).toContain('@sdk/logger');
+			expect(content).not.toContain('Package Module Details');
+			expect(content).not.toContain('path:');
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
+	});
+
+	test('text reports omit empty externals section when no external modules exist', async () => {
+		const reporter = new AnalysisReporter({ packageVersion: '2.0.0' });
+		const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-report-'));
+		const reportPath = path.join(targetDir, 'analysis.txt');
+		const analysis = createAnalysisResult();
+
+		try {
+			await reporter.writeReport(reportPath, analysis, {
+				format: 'text',
+				verbose: true,
+			});
+
+			const content = fs.readFileSync(reportPath, 'utf-8');
+
+			expect(content).not.toContain('\nExternals\n');
 		} finally {
 			fs.rmSync(targetDir, { recursive: true, force: true });
 		}

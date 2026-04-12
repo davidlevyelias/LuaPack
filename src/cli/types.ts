@@ -16,8 +16,8 @@ export interface CliOptions {
 	report?: string;
 	config?: string;
 	root?: string;
-	missing?: MissingPolicy;
 	color?: boolean;
+	missing?: MissingPolicy;
 	quiet?: boolean;
 	printConfig?: boolean;
 	fallback?: FallbackMode;
