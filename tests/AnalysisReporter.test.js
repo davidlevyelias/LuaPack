@@ -186,6 +186,12 @@ describe('AnalysisReporter', () => {
 
 			const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
 			expect(parsed.alerts).toEqual([]);
+			expect(Object.keys(parsed.sections)).toEqual([
+				'externals',
+				'ignoredModules',
+				'modulesByPackage',
+				'dependencyGraph',
+			]);
 			expect(parsed.sections.externals).toEqual([
 				expect.objectContaining({
 					id: '@default/dkjson',
@@ -193,6 +199,7 @@ describe('AnalysisReporter', () => {
 					status: 'runtime',
 				}),
 			]);
+			expect(parsed.sections.ignoredModules).toEqual([]);
 			expect(parsed.sections.dependencyGraph.main || []).toEqual([
 				expect.objectContaining({
 					id: 'dkjson',
@@ -303,6 +310,7 @@ describe('AnalysisReporter', () => {
 
 			const verboseParsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
 			expect(verboseParsed.sections.externals).toEqual([]);
+			expect(verboseParsed.sections.ignoredModules).toEqual([]);
 			expect(verboseParsed.summary.entryPath).toBe(
 				normalizeJsonPath(path.resolve('src/main.lua'))
 			);
@@ -355,6 +363,14 @@ describe('AnalysisReporter', () => {
 			});
 
 			const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+			expect(parsed.sections.ignoredModules).toEqual([
+				expect.objectContaining({
+					id: '@default/legacy',
+					name: 'legacy',
+					packageName: 'default',
+					localModuleId: 'legacy',
+				}),
+			]);
 			expect(parsed.sections.dependencyGraph.main || []).toEqual([
 				expect.objectContaining({
 					id: '@default/legacy',

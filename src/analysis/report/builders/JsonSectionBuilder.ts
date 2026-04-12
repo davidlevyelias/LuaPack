@@ -7,6 +7,7 @@ import type { ReporterAnalysis } from '../types';
 import type {
 	JsonDependencyGraphItem,
 	JsonExternalSectionItem,
+	JsonIgnoredModuleSectionItem,
 	JsonModuleSectionItem,
 	JsonSections,
 } from '../jsonTypes';
@@ -17,8 +18,9 @@ export function buildJsonSections(
 	{ includeMissing = true }: { includeMissing?: boolean } = {}
 ): JsonSections {
 	return {
-		modulesByPackage: buildModulesByPackage(analysis.modules),
 		externals: buildJsonExternalSectionItems(analysis, { includeMissing }),
+		ignoredModules: buildIgnoredModuleSectionItems(analysis),
+		modulesByPackage: buildModulesByPackage(analysis.modules),
 		dependencyGraph: buildDependencyGraphSnapshot(analysis, {
 			includeMissing,
 		}),
@@ -83,9 +85,32 @@ function buildExternalSectionItems(
 			packageName: moduleRecord.packageName || 'default',
 			localModuleId: moduleRecord.localModuleId || moduleRecord.moduleName,
 			status: 'runtime',
-			filePath: normalizeSerializablePath(moduleRecord.filePath),
-			ruleApplied: Boolean(moduleRecord.ruleApplied),
 		});
+	}
+
+	return Array.from(items.values()).sort((left, right) =>
+		left.id.localeCompare(right.id)
+	);
+}
+
+function buildIgnoredModuleSectionItems(
+	analysis: ReporterAnalysis
+): JsonIgnoredModuleSectionItem[] {
+	const items = new Map<string, JsonIgnoredModuleSectionItem>();
+
+	for (const dependencies of analysis.dependencyGraph.values()) {
+		for (const dependency of dependencies || []) {
+			if (!dependency.isIgnored) {
+				continue;
+			}
+			const id = dependency.id || dependency.moduleName;
+			items.set(id, {
+				id,
+				name: dependency.moduleName,
+				packageName: dependency.packageName || 'default',
+				localModuleId: dependency.localModuleId || dependency.moduleName,
+			});
+		}
 	}
 
 	return Array.from(items.values()).sort((left, right) =>

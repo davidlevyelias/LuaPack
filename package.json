@@ -20,15 +20,11 @@
     "test": "jest --config jest.config.cjs",
     "typecheck": "tsc --noEmit",
     "build": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && tsc -p tsconfig.json",
-    "bench:sdk-temp": "npm run build && node temp/tests/sdk-bundle-benchmark.cjs",
-    "bench:sdk-temp:lua": "npm run build && node temp/tests/sdk-lua-benchmark.cjs",
-    "bench:sdk-temp:lua:matrix": "npm run build && node temp/tests/sdk-lua-benchmark-matrix.cjs",
     "example:simple:bundle": "npm run build && node build/index.js bundle --config examples/simple/basic.luapack.config.json",
     "example:simple:analyze": "npm run build && node build/index.js analyze --config examples/simple/basic.luapack.config.json --verbose",
     "example:simple:missing": "npm run build && node build/index.js analyze --config examples/simple/missing-warn.luapack.config.json --verbose",
     "example:demo:bundle": "npm run build && node build/index.js bundle --config examples/demo/basic.luapack.config.json",
-    "pack:example": "npm run example:simple:bundle",
-    "prepublishOnly": "npm run build && npm run typecheck && npm test"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "lua",

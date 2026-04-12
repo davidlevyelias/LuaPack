@@ -43,8 +43,13 @@ export interface JsonExternalSectionItem {
 	packageName: string;
 	localModuleId: string;
 	status: 'runtime';
-	filePath: string | null;
-	ruleApplied: boolean;
+}
+
+export interface JsonIgnoredModuleSectionItem {
+	id: string;
+	name: string;
+	packageName: string;
+	localModuleId: string;
 }
 
 export interface JsonDependencyGraphItem {
@@ -91,8 +96,9 @@ export interface JsonMissingAlert extends JsonAlertBase {
 export type JsonAlert = JsonWarningAlert | JsonErrorAlert | JsonMissingAlert;
 
 export interface JsonSections {
-	modulesByPackage: Record<string, JsonModuleSectionItem[]> | null;
 	externals: JsonExternalSectionItem[];
+	ignoredModules: JsonIgnoredModuleSectionItem[];
+	modulesByPackage: Record<string, JsonModuleSectionItem[]> | null;
 	dependencyGraph: Record<string, JsonDependencyGraphItem[]> | null;
 }
 
