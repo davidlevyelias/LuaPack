@@ -21,33 +21,29 @@ export function deriveSummaryVerdict(
 	analysis: ReporterAnalysis,
 	missingPolicy: MissingPolicy
 ): {
-	label: 'Pack Readiness' | 'Bundle Result';
+	label: 'Analysis Result' | 'Bundle Result';
 	value: string;
 	status: 'ok' | 'warn' | 'failed';
 } {
 	const status = deriveReportStatus(analysis, missingPolicy);
+	const value =
+		status === 'failed'
+			? 'failed'
+			: status === 'warn'
+				? 'success with warnings'
+				: 'success';
 
 	if (analysis.context?.analyzeOnly) {
 		return {
-			label: 'Pack Readiness',
-			value:
-				status === 'failed'
-					? 'blocked'
-					: status === 'warn'
-						? 'review'
-						: 'ready',
+			label: 'Analysis Result',
+			value,
 			status,
 		};
 	}
 
 	return {
 		label: 'Bundle Result',
-		value:
-			status === 'failed'
-				? 'failed'
-				: status === 'warn'
-					? 'built with warnings'
-					: 'built',
+		value,
 		status,
 	};
 }

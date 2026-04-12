@@ -509,7 +509,7 @@ describe('AnalysisReporter', () => {
 			const content = fs.readFileSync(reportPath, 'utf-8');
 
 			expect(content).toContain('Lua Pack 2.0.0 - Analysis Mode\n\nSummary');
-			expect(content).toContain('Pack Readiness: ready');
+			expect(content).toContain('Analysis Result: success');
 			expect(content).toContain('Packages: 2\n  - default\n  - sdk');
 			expect(content).toContain('Modules: 0');
 			expect(content).not.toContain('[Missing Modules]');
