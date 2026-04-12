@@ -18,6 +18,7 @@ jest.mock('../src/bundle', () => ({
 jest.mock('../src/cli/output', () => ({
 	printCliHeader: jest.fn(),
 	printBundleSuccess: jest.fn(),
+	printBundleFailed: jest.fn(),
 	printConfigSnapshot: jest.fn(),
 	printReportSuccess: jest.fn(),
 }));

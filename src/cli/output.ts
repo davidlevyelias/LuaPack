@@ -48,8 +48,14 @@ export function printBundleSuccess(
 		colors.bold.underline,
 		bundlePath
 	);
-	logger.info('');
 	logger.info(`${label} ${formattedPath}`);
+}
+
+export function printBundleFailed(
+	{ useColor = supportsColor() }: { useColor?: boolean } = {}
+) {
+	const label = applyColor(useColor, colors.red.bold, 'Bundle failed');
+	logger.info(label);
 }
 
 export function printReportSuccess(
@@ -66,7 +72,6 @@ export function printReportSuccess(
 		colors.bold.underline,
 		reportPath
 	);
-	logger.info('');
 	logger.info(`${label} ${formattedPath}`);
 }
 

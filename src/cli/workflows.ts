@@ -7,6 +7,7 @@ import logger from '../utils/Logger';
 
 import type { CliOptions } from './types';
 import {
+	printBundleFailed,
 	printBundleSuccess,
 	printCliHeader,
 	printConfigSnapshot,
@@ -140,6 +141,7 @@ export async function runAnalyzeWorkflow(
 	}
 
 	if (reportPath) {
+		logger.info('');
 		printReportSuccess(reportPath, {
 			useColor: options.color === false ? false : undefined,
 		});
@@ -167,6 +169,15 @@ export async function runBundleWorkflow(
 	});
 	let bundlePath: string | null = null;
 	let reportPath: string | null = null;
+	let footerSpacingPrinted = false;
+
+	function printFooterSpacingOnce() {
+		if (footerSpacingPrinted) {
+			return;
+		}
+		logger.info('');
+		footerSpacingPrinted = true;
+	}
 
 	if (context.analysis.success) {
 		try {
@@ -202,18 +213,23 @@ export async function runBundleWorkflow(
 	}
 
 	if (reportPath) {
+		printFooterSpacingOnce();
 		printReportSuccess(reportPath, {
 			useColor: options.color === false ? false : undefined,
 		});
 	}
 
 	if (bundlePath && context.analysis.success && effectiveFormat === 'text') {
+		printFooterSpacingOnce();
 		printBundleSuccess(bundlePath, {
 			useColor: options.color === false ? false : undefined,
 		});
 	}
 
-	if (!context.analysis.success) {
-		process.exitCode = 1;
+	if (!context.analysis.success && effectiveFormat === 'text') {
+		printFooterSpacingOnce();
+		printBundleFailed({
+			useColor: options.color === false ? false : undefined,
+		});
 	}
 }
