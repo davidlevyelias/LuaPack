@@ -14,7 +14,7 @@ import type { MissingPolicy } from '../../types';
 import type { ExternalSummary, ReporterAnalysis } from '../types';
 import type { Palette } from '../palette';
 import { formatReportPath } from '../utils/pathDisplay';
-import { formatModuleLabel } from '../utils/labels';
+import { formatCanonicalModuleId } from '../utils/canonicalModuleId';
 
 export interface PaletteOverride extends Palette {
 	bullet: string;
@@ -80,7 +80,6 @@ export function buildTextReport({
 
 		const externalsLines = buildExternalsSection(
 			externalsSummary,
-			missingPolicy,
 			palette
 		);
 		if (externalsLines.length > 0) {
@@ -148,7 +147,6 @@ function buildPackagesSection(
 
 function buildExternalsSection(
 	externalsSummary: ExternalSummary,
-	missingPolicy: MissingPolicy,
 	palette: PaletteOverride
 ): string[] {
 	const modules = [...(externalsSummary.verboseDetails?.modules || [])].sort(
@@ -253,21 +251,4 @@ function formatAlertGroup(lines: string[]): string[] {
 	}
 
 	return [`[${title}]`, '', ...body];
-}
-
-function formatCanonicalModuleId(
-	moduleId: string,
-	palette: Palette
-): string {
-	if (!moduleId.startsWith('@') || !moduleId.includes('/')) {
-		return palette.value(moduleId);
-	}
-
-	const slashIndex = moduleId.indexOf('/');
-	const packageName = moduleId.slice(1, slashIndex);
-	const suffix = moduleId.slice(slashIndex);
-	return `${palette.value('@')}${palette.packageToken(
-		packageName,
-		packageName
-	)}${palette.value(suffix)}`;
 }
