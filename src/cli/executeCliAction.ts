@@ -2,7 +2,11 @@ import logger from '../utils/Logger';
 
 import type { CliOptions, CommandName } from './types';
 import { printJsonErrorPayload } from './output';
-import { runAnalyzeWorkflow, runBundleWorkflow } from './workflows';
+import {
+	runAnalyzeWorkflow,
+	runBundleWorkflow,
+	runInitWorkflow,
+} from './workflows';
 
 type CliExecutionError = Error & {
 	code?: string;
@@ -24,13 +28,15 @@ export async function executeCliAction(
 		}
 		if (commandName === 'analyze') {
 			await runAnalyzeWorkflow(entry, options, packageVersion);
+		} else if (commandName === 'init') {
+			await runInitWorkflow(options);
 		} else {
 			await runBundleWorkflow(entry, options, packageVersion);
 		}
 	} catch (error: any) {
 		const normalizedError = normalizeCliError(error);
 
-		if (shouldEmitJsonError(options)) {
+		if (shouldEmitJsonError(commandName, options)) {
 			printJsonErrorPayload({
 				type: 'command-error',
 				status: 'error',
@@ -61,8 +67,14 @@ export async function executeCliAction(
 	}
 }
 
-function shouldEmitJsonError(options: CliOptions): boolean {
-	return options.format === 'json';
+function shouldEmitJsonError(
+	commandName: CommandName,
+	options: CliOptions
+): commandName is 'analyze' | 'bundle' {
+	return (
+		options.format === 'json' &&
+		(commandName === 'analyze' || commandName === 'bundle')
+	);
 }
 
 function normalizeCliError(error: unknown): {

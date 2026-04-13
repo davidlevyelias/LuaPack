@@ -34,8 +34,48 @@ describe('CLI', () => {
 		const subcommands = cli.commands.map((command) => command.name());
 
 		expect(cli.description()).toBe('A modern Lua bundler and analyzer.');
-		expect(subcommands).toEqual(expect.arrayContaining(['bundle', 'analyze']));
+		expect(subcommands).toEqual(
+			expect.arrayContaining(['bundle', 'analyze', 'init'])
+		);
 		expect(subcommands).not.toContain('completion');
+	});
+
+	test('passes init-specific options into the action handler', async () => {
+		const action = jest.fn().mockResolvedValue(undefined);
+		const cli = createProgram(action);
+
+		await cli.parseAsync([
+			'node',
+			'luapack',
+			'init',
+			'--yes',
+			'--entry',
+			'./main.lua',
+			'--output',
+			'dist/out.lua',
+			'--root',
+			'./',
+			'--missing',
+			'warn',
+			'--file',
+			'custom.config.json',
+			'--force',
+		]);
+
+		expect(action).toHaveBeenCalledWith(
+			'init',
+			undefined,
+			expect.objectContaining({
+				command: 'init',
+				yes: true,
+				entry: './main.lua',
+				output: 'dist/out.lua',
+				root: './',
+				missing: 'warn',
+				file: 'custom.config.json',
+				force: true,
+			})
+		);
 	});
 
 	test('accepts only supported log levels', () => {

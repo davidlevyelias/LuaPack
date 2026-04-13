@@ -127,6 +127,36 @@ export function createProgram(
 		return action('analyze', entry, { ...options, command: 'analyze' });
 	});
 
+	program
+		.command('init')
+		.description('Generate a luapack configuration file interactively.')
+		.option(
+			'-y, --yes',
+			'Accept defaults and skip prompts.'
+		)
+		.option('--entry <file>', 'Pre-fill entry Lua file path.')
+		.option('--output <file>', 'Pre-fill output bundle path.')
+		.option('--root <path>', 'Pre-fill default package root.')
+		.option(
+			'--missing <policy>',
+			'Pre-fill missing-module policy (error, warn).',
+			parseMissingPolicy
+		)
+		.option(
+			'-f, --force',
+			'Overwrite existing config without confirmation.'
+		)
+		.option(
+			'--file <path>',
+			'Config file name or path (default: luapack.config.json).'
+		)
+		.action((options: CliOptions) => {
+			return action('init', undefined, {
+				...options,
+				command: 'init',
+			});
+		});
+
 	program.action(() => {
 		program.error('A subcommand is required.', {
 			exitCode: 2,
