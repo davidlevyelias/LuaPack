@@ -12,6 +12,8 @@ LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and p
 
 ## Installation
 
+LuaPack currently requires Node.js 20.12.0 or newer.
+
 ```bash
 npm install @davidlevyelias/luapack
 ```
@@ -28,6 +30,7 @@ Available commands:
 
 - `luapack bundle [entry]`: Analyze the dependency graph and emit a bundle.
 - `luapack analyze [entry]`: Analyze the dependency graph and print or write a report.
+- `luapack init`: Generate a `luapack.config.json` file interactively.
 
 Common options:
 
@@ -48,6 +51,9 @@ Common options:
 Examples:
 
 ```bash
+# Generate a config file interactively
+luapack init
+
 # Build a small runtime bundle from config
 luapack bundle --config examples/simple/basic.luapack.config.json
 
