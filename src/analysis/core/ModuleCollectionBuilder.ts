@@ -5,16 +5,11 @@ import type {
 	ModuleId,
 	ModuleRecord,
 } from '../types';
+import { isModuleRecord } from '../modelUtils';
 
-function isModuleRecord(value: unknown): value is ModuleRecord {
-	if (!value || typeof value !== 'object') {
-		return false;
-	}
-	const record = value as Record<string, unknown>;
-	return typeof record.id === 'string';
-}
-
-export function buildModuleCollections(graph: AnalyzerDependencyGraph): ModuleCollections {
+export function buildModuleCollections(
+	graph: AnalyzerDependencyGraph
+): ModuleCollections {
 	const moduleMap = new Map<ModuleId, ModuleRecord>();
 	const dependencyGraph = new Map<ModuleId, ModuleDependencyEdge[]>();
 
@@ -36,8 +31,13 @@ export function buildModuleCollections(graph: AnalyzerDependencyGraph): ModuleCo
 			dependencies.push({
 				id: dependencyRecord.id,
 				moduleName: dependencyRecord.moduleName,
+				packageName: dependencyRecord.packageName,
+				localModuleId: dependencyRecord.localModuleId,
+				canonicalModuleId: dependencyRecord.canonicalModuleId,
 				isExternal: Boolean(dependencyRecord.isExternal),
 				isMissing: Boolean(dependencyRecord.isMissing),
+				isIgnored: Boolean(dependencyRecord.isIgnored),
+				ruleApplied: Boolean(dependencyRecord.ruleApplied),
 				filePath: dependencyRecord.filePath ?? null,
 				overrideApplied: Boolean(dependencyRecord.overrideApplied),
 			});
@@ -50,7 +50,9 @@ export function buildModuleCollections(graph: AnalyzerDependencyGraph): ModuleCo
 		dependencyGraph.set(moduleRecord.id, dependencies);
 	}
 
-	const modules = Array.from(moduleMap.values()).filter((moduleRecord) => !moduleRecord.isMissing);
+	const modules = Array.from(moduleMap.values()).filter(
+		(moduleRecord) => !moduleRecord.isMissing && !moduleRecord.isIgnored
+	);
 	const externals = modules.filter((module) => module.isExternal === true);
 
 	return {

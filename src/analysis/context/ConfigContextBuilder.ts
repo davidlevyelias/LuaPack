@@ -1,71 +1,73 @@
-import { resolveExternalEnv } from '../../utils/env';
-import type {
-	AnalysisContext,
-	FilePath,
-	WorkflowConfig,
-	WorkflowModulesExternalConfig,
-} from '../types';
+import path from 'path';
 
-type ResolvedExternalEnv = {
-	hasExplicitConfig: boolean;
-	envNames: string[];
-	pathsByEnv: Record<string, FilePath[]>;
-	allPaths: FilePath[];
-};
+import { isAnalyzeOnlyConfig } from '../../config/loader';
+import type { AnalysisContext, WorkflowConfig } from '../types';
 
-type ResolveExternalEnvOptions = {
-	envConfig: WorkflowModulesExternalConfig['env'];
-	sourceRoot: FilePath;
-};
-
-function clonePathsByEnv(pathsByEnv: Record<string, FilePath[]>): Record<string, FilePath[]> {
-	const entries: Array<[string, FilePath[]]> = Object.entries(pathsByEnv).map(
-		([envName, paths]) => [envName, [...paths]]
-	);
-	return Object.fromEntries(entries);
+function getScopedModuleName(packageName: string, moduleId: string): string {
+	if (packageName === 'default') {
+		return moduleId;
+	}
+	if (moduleId === 'init') {
+		return packageName;
+	}
+	return `${packageName}.${moduleId}`;
 }
 
 export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
-	const modulesConfig = config.modules ?? {};
-	const externalConfig: WorkflowModulesExternalConfig = modulesConfig.external ?? {};
-	const ignoredPatterns = Array.isArray(modulesConfig.ignore)
-		? [...modulesConfig.ignore]
-		: [];
-	const externalPaths = Array.isArray(externalConfig.paths)
-		? [...externalConfig.paths]
-		: [];
-
-	const envInfo = resolveExternalEnv({
-		envConfig: externalConfig.env,
-		sourceRoot: config.sourceRoot,
-	} as ResolveExternalEnvOptions) as ResolvedExternalEnv;
-
-	const envEntries = envInfo.envNames.map((envName) => ({
-		name: envName,
-		paths: [...(envInfo.pathsByEnv[envName] ?? [])],
-	}));
+	const packageEntries = Object.entries(config.packages || {});
+	const configuredRoots = Array.from(
+		new Set(
+			packageEntries
+				.map(([, packageConfig]) => packageConfig?.root)
+				.filter((rootPath): rootPath is string => Boolean(rootPath))
+		)
+	);
+	const sourceRoot =
+		config.packages?.default?.root || configuredRoots[0] || path.dirname(config.entry);
+	const ignoredPatterns = packageEntries.flatMap(([packageName, packageConfig]) =>
+		Object.entries(packageConfig.rules || {})
+			.filter(([, rule]) => rule?.mode === 'ignore')
+			.map(([moduleId]) => getScopedModuleName(packageName, moduleId))
+	);
+	const externalPackageNames = new Set(
+		packageEntries.flatMap(([packageName, packageConfig]) =>
+			Object.values(packageConfig.dependencies || {}).some(
+				(dependency) => dependency?.mode === 'external'
+			)
+				? [packageName]
+				: []
+		)
+	);
+	const externalPaths = packageEntries
+		.filter(([packageName]) => packageName !== 'default')
+		.map(([, packageConfig]) => packageConfig.root);
+	const hasExplicitExternalRules = packageEntries.some(([, packageConfig]) =>
+		Object.values(packageConfig.rules || {}).some(
+			(rule) => rule?.mode === 'external'
+		)
+	);
 
 	return {
-		rootDir: config.sourceRoot,
+		rootDir: sourceRoot,
+		roots: [...configuredRoots],
+		packages: packageEntries
+			.filter(([, packageConfig]) => Boolean(packageConfig?.root))
+			.map(([packageName, packageConfig]) => ({
+				name: packageName,
+				root: packageConfig.root,
+				isEntry: packageName === (config._internal?.entryPackage || 'default'),
+			})),
 		entryPath: config.entry,
 		outputPath: config.output,
-		analyzeOnly: Boolean(config._analyzeOnly),
+		analyzeOnly: isAnalyzeOnlyConfig(config),
 		ignoredPatterns,
-		ignoreMissing: Boolean(modulesConfig.ignoreMissing),
+		missingPolicy: config.missing,
+		fallbackPolicy: config.bundle.fallback,
 		externals: {
-			enabled: Boolean(externalConfig.enabled),
-			recursive:
-				typeof externalConfig.recursive === 'boolean'
-					? externalConfig.recursive
-					: true,
+			enabled:
+				hasExplicitExternalRules || externalPackageNames.size > 0,
+			recursive: true,
 			paths: externalPaths,
-			env: {
-				hasExplicitConfig: Boolean(envInfo.hasExplicitConfig),
-				names: [...envInfo.envNames],
-				pathsByEnv: clonePathsByEnv(envInfo.pathsByEnv),
-				resolvedPaths: [...envInfo.allPaths],
-				entries: envEntries,
-			},
 		},
 	};
 }

@@ -1,18 +1,33 @@
 {
+	"$schema": "../../config.schema.json",
+	"schemaVersion": 2,
 	"entry": "./src/entries/external.lua",
 	"output": "../../dist/demo_external_bundle.lua",
-	"modules": {
-		"ignoreMissing": true,
-		"external": {
-			"paths": ["./external_modules"],
-			"recursive": false,
-			"env": ["LUA_PATH", "SDK_PATH"]
-		},
-		"overrides": {
-			"dkjson": {
-				"path": "./external_modules/dkjson",
-				"recursive": false
+	"missing": "error",
+	"bundle": {
+		"fallback": "external-only"
+	},
+	"packages": {
+		"default": {
+			"root": "./src",
+			"rules": {
+				"dkjson": {
+					"mode": "bundle",
+					"path": "./external_modules/dkjson",
+					"recursive": false
+				},
+				"slaxml": {
+					"mode": "external"
+				}
+			},
+			"dependencies": {
+				"sdk": {
+					"mode": "bundle"
+				}
 			}
+		},
+		"sdk": {
+			"root": "./external_modules/sdk"
 		}
 	}
 }

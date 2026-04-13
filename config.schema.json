@@ -1,168 +1,140 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"title": "LuaPack Configuration",
+	"title": "LuaPack v2 Configuration",
 	"type": "object",
 	"additionalProperties": false,
-	"required": ["entry"],
+	"required": ["schemaVersion", "entry"],
 	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "Optional JSON Schema URI for editor integration."
+		},
+		"schemaVersion": {
+			"type": "integer",
+			"const": 2,
+			"description": "Identifies the canonical LuaPack v2 configuration shape.",
+			"default": 2
+		},
 		"entry": {
 			"type": "string",
 			"description": "Path to the entry Lua file that kicks off dependency analysis."
 		},
 		"output": {
 			"type": "string",
-			"description": "Optional destination path for the generated bundle. When omitted, LuaPack will emit '<entry-name>_packed.lua' alongside the entry file."
+			"description": "Optional destination path for the generated bundle. When omitted, LuaPack should emit '<entry-name>_packed.lua' alongside the entry file."
 		},
-		"sourceRoot": {
+		"missing": {
 			"type": "string",
-			"description": "Root directory for resolving project-local modules.",
-			"default": "."
+			"description": "Policy for unresolved static dependencies.",
+			"enum": ["error", "warn"],
+			"default": "error"
 		},
-		"modules": {
+		"packages": {
 			"type": "object",
-			"description": "Controls module resolution, inclusion, and overrides.",
+			"description": "Declared package scopes keyed by Lua require prefix.",
+			"propertyNames": {
+				"type": "string",
+				"pattern": "^[\\w\\.-]+$"
+			},
+			"additionalProperties": {
+				"$ref": "#/definitions/packageConfig"
+			},
+			"default": {}
+		},
+		"bundle": {
+			"type": "object",
+			"description": "Defines the generated artifact contract.",
 			"additionalProperties": false,
 			"properties": {
-				"ignoreMissing": {
+				"fallback": {
+					"type": "string",
+					"description": "Runtime fallback policy when a module is not bundled.",
+					"enum": ["never", "external-only", "always"],
+					"default": "external-only"
+				}
+			},
+			"default": {
+				"fallback": "external-only"
+			}
+		}
+	},
+	"definitions": {
+		"dependencyPolicy": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"mode": {
+					"type": "string",
+					"description": "How a package dependency should be handled.",
+					"enum": ["bundle", "external", "ignore"],
+					"default": "bundle"
+				},
+				"recursive": {
 					"type": "boolean",
-					"description": "When true, unresolved modules are reported but do not stop bundling.",
-					"default": false
+					"description": "When false, do not traverse into dependencies of this package.",
+					"default": true
+				}
+			},
+			"required": [],
+			"default": {}
+		},
+		"moduleRule": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"mode": {
+					"type": "string",
+					"description": "Per-module bundling policy.",
+					"enum": ["bundle", "external", "ignore"],
+					"default": "bundle"
 				},
-				"ignore": {
-					"type": "array",
-					"description": "Module identifiers to skip entirely with highest priority.",
-					"items": { "type": "string" },
-					"default": []
+				"path": {
+					"type": "string",
+					"description": "Optional explicit path to use instead of the default resolver result."
 				},
-				"external": {
+				"recursive": {
+					"type": "boolean",
+					"description": "When false, skip dependency analysis for this module after it is resolved.",
+					"default": true
+				}
+			},
+			"required": [],
+			"default": {}
+		},
+		"packageConfig": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"root": {
+					"type": "string",
+					"description": "Root directory for modules owned by this package."
+				},
+				"dependencies": {
 					"type": "object",
-					"description": "Configuration for modules found outside the sourceRoot.",
-					"additionalProperties": false,
-					"properties": {
-						"enabled": {
-							"type": "boolean",
-							"description": "Allow bundling of external modules.",
-							"default": false
-						},
-						"recursive": {
-							"type": "boolean",
-							"description": "Resolve dependencies of external modules when enabled.",
-							"default": true
-						},
-						"paths": {
-							"type": "array",
-							"description": "Additional search locations for external modules.",
-							"items": { "type": "string" },
-							"default": []
-						},
-						"env": {
-							"type": "array",
-							"description": "Environment variables to inspect for external search paths (defaults to LUA_PATH when omitted).",
-							"items": { "type": "string" }
-						}
-					}
+					"description": "Dependency policy for declared package dependencies.",
+					"propertyNames": {
+						"type": "string",
+						"pattern": "^[\\w\\.-]+$"
+					},
+					"additionalProperties": {
+						"$ref": "#/definitions/dependencyPolicy"
+					},
+					"default": {}
 				},
-				"overrides": {
+				"rules": {
 					"type": "object",
-					"description": "Per-module configuration overrides.",
+					"description": "Local module rules scoped to this package.",
 					"propertyNames": {
 						"type": "string",
 						"pattern": "^[\\w\\.\\-/]+$"
 					},
 					"additionalProperties": {
-						"$ref": "#/definitions/moduleOverride"
+						"$ref": "#/definitions/moduleRule"
 					},
 					"default": {}
 				}
 			},
-			"default": {}
-		},
-		"obfuscation": {
-			"type": "object",
-			"description": "Integrated obfuscation settings.",
-			"additionalProperties": false,
-			"properties": {
-				"tool": {
-					"type": "string",
-					"description": "Select the built-in obfuscation pipeline.",
-					"enum": ["internal", "none"],
-					"default": "none"
-				},
-				"config": {
-					"type": "object",
-					"description": "Configuration for the selected tool.",
-					"additionalProperties": false,
-					"properties": {
-						"minify": {
-							"type": "boolean",
-							"description": "Minify Lua source using lua-format.",
-							"default": false
-						},
-						"renameVariables": {
-							"description": "Controls local variable renaming.",
-							"oneOf": [
-								{ "type": "boolean" },
-								{
-									"type": "object",
-									"additionalProperties": false,
-									"properties": {
-										"enabled": {
-											"type": "boolean",
-											"description": "Enable variable renaming.",
-											"default": true
-										},
-										"min": {
-											"type": "integer",
-											"minimum": 1,
-											"description": "Minimum generated identifier length.",
-											"default": 5
-										},
-										"max": {
-											"type": "integer",
-											"minimum": 1,
-											"description": "Maximum generated identifier length.",
-											"default": 5
-										}
-									},
-									"required": ["enabled"]
-								}
-							],
-							"default": false
-						},
-						"ascii": {
-							"type": "boolean",
-							"description": "Apply ASCII obfuscation pass.",
-							"default": false
-						}
-					},
-					"default": {}
-				}
-			},
-			"default": {
-				"tool": "none",
-				"config": {
-					"minify": false,
-					"renameVariables": false,
-					"ascii": false
-				}
-			}
-		}
-	},
-	"definitions": {
-		"moduleOverride": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"path": {
-					"type": "string",
-					"description": "Optional explicit path to use instead of resolver result."
-				},
-				"recursive": {
-					"type": "boolean",
-					"description": "When false, skip dependency analysis for this override.",
-					"default": true
-				}
-			},
+			"required": ["root"],
 			"default": {}
 		}
 	}

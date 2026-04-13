@@ -1,60 +1,63 @@
 {
-	"name": "@davidlevyelias/luapack",
-	"author": "David Levy Elias",
-	"version": "1.1.1",
-	"description": "A modern Lua packer tool.",
-	"main": "build/index.js",
-	"bin": {
-		"luapack": "build/index.js"
-	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"files": [
-		"build",
-		"templates",
-		"config.schema.json",
-		"README.md",
-		"LICENSE"
-	],
-	"scripts": {
-		"test": "jest --config jest.config.cjs",
-		"typecheck": "tsc --noEmit",
-		"build": "tsc -p tsconfig.json",
-		"pack:example": "npm run build && node build/index.js --verbose --config examples/demo/basic.luapack.config.json && lua dist/demo_basic_bundle.lua",
-		"prepublishOnly": "npm run build && npm run typecheck && npm test"
-	},
-	"keywords": [
-		"lua",
-		"packer",
-		"bundler",
-		"obfuscator"
-	],
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/davidlevyelias/LuaPack.git"
-	},
-	"homepage": "https://github.com/davidlevyelias/LuaPack#readme",
-	"bugs": {
-		"url": "https://github.com/davidlevyelias/LuaPack/issues"
-	},
-	"dependencies": {
-		"ajv": "^8.17.1",
-		"ansi-colors": "^4.1.3",
-		"commander": "^14.0.2",
-		"lua-format": "^1.5.3-c",
-		"ts-node": "^10.9.2"
-	},
-	"devDependencies": {
-		"@types/jest": "^29.5.12",
-		"@types/node": "^20.15.5",
-		"jest": "^29.7.0",
-		"prettier": "^3.6.2",
-		"ts-jest": "^29.3.4",
-		"typescript": "^5.5.4"
-	},
-	"engines": {
-		"node": ">=18"
-	}
+  "name": "@davidlevyelias/luapack",
+  "author": "David Levy Elias",
+  "version": "2.0.0",
+  "description": "A modern Lua bundler and analyzer.",
+  "main": "build/index.js",
+  "bin": {
+    "luapack": "build/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "build",
+    "config.schema.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "jest --config jest.config.cjs",
+    "typecheck": "tsc --noEmit",
+    "build": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "example:simple:bundle": "npm run build && node build/index.js bundle --config examples/simple/basic.luapack.config.json",
+    "example:simple:analyze": "npm run build && node build/index.js analyze --config examples/simple/basic.luapack.config.json --verbose",
+    "example:simple:missing": "npm run build && node build/index.js analyze --config examples/simple/missing-warn.luapack.config.json --verbose",
+    "example:demo:bundle": "npm run build && node build/index.js bundle --config examples/demo/basic.luapack.config.json",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "keywords": [
+    "lua",
+    "packer",
+    "bundler",
+    "analysis"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidlevyelias/LuaPack.git"
+  },
+  "homepage": "https://github.com/davidlevyelias/LuaPack#readme",
+  "bugs": {
+    "url": "https://github.com/davidlevyelias/LuaPack/issues"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.4.1",
+    "ajv": "^8.18.0",
+    "ansi-colors": "^4.1.3",
+    "commander": "^14.0.3",
+    "luaparse": "^0.3.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/luaparse": "^0.2.13",
+    "@types/node": "^25.5.0",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.1",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.2"
+  },
+  "engines": {
+    "node": ">=20.12.0"
+  }
 }

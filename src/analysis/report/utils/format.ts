@@ -12,3 +12,7 @@ export function formatBytes(size: number): string {
 	const precision = index === 0 ? 0 : 2;
 	return `${current.toFixed(precision)} ${units[index]}`;
 }
+
+export function normalizePathSlashes(targetPath: string): string {
+	return targetPath.replace(/\\/g, '/');
+}

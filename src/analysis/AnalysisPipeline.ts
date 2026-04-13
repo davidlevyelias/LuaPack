@@ -1,8 +1,10 @@
 import { performance } from 'perf_hooks';
-import DependencyAnalyzer from '../DependencyAnalyzer';
+import DependencyAnalyzer from '../dependency';
 import { buildAnalysisContext } from './context/ConfigContextBuilder';
 import { buildModuleCollections } from './core/ModuleCollectionBuilder';
 import { computeModuleSizeSum } from './core/MetricsCalculator';
+import { isModuleRecord, type LoggerLike } from './modelUtils';
+import { getConfigWarnings } from '../config/loader';
 import type {
 	AnalysisContext,
 	AnalysisError,
@@ -12,30 +14,8 @@ import type {
 	ModuleRecord,
 	ModuleDependencyEdge,
 	ModuleId,
-	ObfuscationConfig,
-	ObfuscationRenameConfig,
 	WorkflowConfig,
 } from './types';
-
-type PipelineLogger = {
-	info?: (...args: unknown[]) => void;
-	warn?: (...args: unknown[]) => void;
-	error?: (...args: unknown[]) => void;
-};
-
-type DependencyAnalyzerFacade = {
-	buildDependencyGraph(entry: string): DependencyAnalyzerResult;
-	topologicalSort(graph: AnalyzerDependencyGraph): ModuleRecord[];
-};
-
-type DependencyAnalyzerConstructor = new (config: WorkflowConfig) => DependencyAnalyzerFacade;
-
-interface DependencyAnalyzerResult {
-	graph: AnalyzerDependencyGraph;
-	entryModule: ModuleRecord | null;
-	missing: AnalyzerMissingDependency[];
-	errors: AnalysisError[];
-}
 
 interface AnalyzerMissingDependency {
 	requiredBy?: ModuleRecord | null;
@@ -43,14 +23,6 @@ interface AnalyzerMissingDependency {
 	record?: ModuleRecord | null;
 	error?: (AnalysisError & { code?: unknown }) | null;
 	fatal?: boolean;
-}
-
-function isModuleRecord(value: unknown): value is ModuleRecord {
-	if (!value || typeof value !== 'object') {
-		return false;
-	}
-	const record = value as Record<string, unknown>;
-	return typeof record.id === 'string';
 }
 
 function normalizeError(error: unknown): AnalysisError {
@@ -62,14 +34,16 @@ function normalizeError(error: unknown): AnalysisError {
 
 export default class AnalysisPipeline {
 	private readonly config: WorkflowConfig;
-	private readonly logger: PipelineLogger;
-	private readonly analyzer: DependencyAnalyzerFacade;
+	private readonly logger: LoggerLike;
+	private readonly analyzer: DependencyAnalyzer;
 
-	constructor(config: WorkflowConfig, { logger }: { logger?: PipelineLogger } = {}) {
+	constructor(
+		config: WorkflowConfig,
+		{ logger }: { logger?: LoggerLike } = {}
+	) {
 		this.config = config;
 		this.logger = logger || console;
-		const AnalyzerCtor = DependencyAnalyzer as unknown as DependencyAnalyzerConstructor;
-		this.analyzer = new AnalyzerCtor(config);
+		this.analyzer = new DependencyAnalyzer(config);
 	}
 
 	run(): AnalysisResult {
@@ -79,13 +53,19 @@ export default class AnalysisPipeline {
 
 		let graph: AnalyzerDependencyGraph | undefined;
 		try {
-			const result = this.analyzer.buildDependencyGraph(this.config.entry);
+			const result = this.analyzer.buildDependencyGraph(
+				this.config.entry
+			);
 			graph = result.graph;
 			analysis.entryModule = isModuleRecord(result.entryModule)
 				? result.entryModule
 				: null;
-			const missingEntries = Array.isArray(result.missing) ? result.missing : [];
-			analysis.missing = missingEntries.map((item) => this.formatMissing(item));
+			const missingEntries = Array.isArray(result.missing)
+				? result.missing
+				: [];
+			analysis.missing = missingEntries.map((item) =>
+				this.formatMissing(item)
+			);
 			analysis.metrics.missingCount = analysis.missing.length;
 			if (Array.isArray(result.errors) && result.errors.length > 0) {
 				analysis.errors.push(...result.errors.map(normalizeError));
@@ -113,14 +93,10 @@ export default class AnalysisPipeline {
 			analysis.sortedModules = sortedModules.filter(
 				(moduleRecord) => moduleRecord && !moduleRecord.isMissing
 			);
-			analysis.topologicalOrder = analysis.sortedModules.map(
-				(moduleRecord) => moduleRecord.moduleName
-			);
 		} catch (error) {
 			analysis.errors.push(normalizeError(error));
 			analysis.success = false;
 			analysis.sortedModules = [];
-			analysis.topologicalOrder = [];
 		}
 
 		analysis.metrics.moduleCount = analysis.modules.length;
@@ -130,10 +106,13 @@ export default class AnalysisPipeline {
 			this.logger
 		);
 		analysis.metrics.estimatedBundleSize = analysis.metrics.moduleSizeSum;
+		this.applyScopedDependencyPolicyWarnings(analysis);
 		this.applyMissingWarnings(analysis);
 
 		analysis.durationMs = performance.now() - start;
-		analysis.success = analysis.errors.length === 0;
+		analysis.success =
+			analysis.errors.length === 0 &&
+			!analysis.missing.some((missingEntry) => missingEntry.fatal);
 
 		return analysis;
 	}
@@ -145,10 +124,9 @@ export default class AnalysisPipeline {
 			moduleById: new Map<ModuleId, ModuleRecord>(),
 			dependencyGraph: new Map<ModuleId, ModuleDependencyEdge[]>(),
 			sortedModules: [],
-			topologicalOrder: [],
 			externals: [],
 			missing: [],
-			warnings: [],
+			warnings: getConfigWarnings(this.config),
 			errors: [],
 			metrics: {
 				moduleCount: 0,
@@ -158,63 +136,30 @@ export default class AnalysisPipeline {
 				estimatedBundleSize: 0,
 				bundleSizeBytes: 0,
 			},
-			obfuscation: this.getObfuscationConfig(),
 			context,
 			success: true,
 			durationMs: 0,
 		};
 	}
 
-	private getObfuscationConfig(): ObfuscationConfig {
-		const toolConfig = this.config.obfuscation ?? { tool: 'none', config: {} };
-		const rawConfig = toolConfig.config ?? {};
-		const rename = this.normalizeRenameConfig(rawConfig.renameVariables);
-		return {
-			tool: toolConfig.tool ?? 'none',
-			rename,
-			minify: Boolean(rawConfig.minify),
-			ascii: Boolean(rawConfig.ascii),
-		};
-	}
-
-	private normalizeRenameConfig(renameValue: unknown): ObfuscationRenameConfig {
-		const defaults: ObfuscationRenameConfig = { enabled: false, min: 5, max: 5 };
-		if (typeof renameValue === 'boolean') {
-			return { ...defaults, enabled: renameValue };
-		}
-		if (renameValue && typeof renameValue === 'object') {
-			const value = renameValue as Record<string, unknown>;
-			const minCandidate = value.min;
-			const maxCandidate = value.max;
-			const enabledCandidate = value.enabled;
-
-			const min = Number.isInteger(minCandidate) && (minCandidate as number) > 0
-				? (minCandidate as number)
-				: defaults.min;
-			let max = Number.isInteger(maxCandidate) && (maxCandidate as number) > 0
-				? (maxCandidate as number)
-				: Math.max(min, defaults.max);
-			if (max < min) {
-				max = min;
-			}
-			const enabled = typeof enabledCandidate === 'boolean'
-				? enabledCandidate
-				: defaults.enabled;
-			return { enabled, min, max };
-		}
-		return { ...defaults };
-	}
-
-	private formatMissing(item: AnalyzerMissingDependency): MissingModuleRecord {
-		const requiredByRecord = isModuleRecord(item.requiredBy) ? item.requiredBy : null;
+	private formatMissing(
+		item: AnalyzerMissingDependency
+	): MissingModuleRecord {
+		const requiredByRecord = isModuleRecord(item.requiredBy)
+			? item.requiredBy
+			: null;
 		const missingRecord = isModuleRecord(item.record) ? item.record : null;
-		const messageSource = item.error ?? (missingRecord?.missingError ?? null);
-		const message = messageSource instanceof Error && messageSource.message
-			? messageSource.message
-			: 'Module was marked missing.';
+		const messageSource = item.error ?? missingRecord?.missingError ?? null;
+		const message =
+			messageSource instanceof Error && messageSource.message
+				? messageSource.message
+				: 'Module not found.';
 		const code =
-			messageSource && typeof messageSource === 'object' && 'code' in messageSource
-				? String((messageSource as { code?: unknown }).code ?? '') || undefined
+			messageSource &&
+			typeof messageSource === 'object' &&
+			'code' in messageSource
+				? String((messageSource as { code?: unknown }).code ?? '') ||
+					undefined
 				: undefined;
 
 		return {
@@ -222,8 +167,13 @@ export default class AnalysisPipeline {
 				requiredByRecord?.moduleName || requiredByRecord?.id || null,
 			requireId: item.requireId,
 			moduleName: missingRecord?.moduleName ?? item.requireId,
+			packageName: missingRecord?.packageName ?? requiredByRecord?.packageName ?? 'default',
+			localModuleId: missingRecord?.localModuleId ?? item.requireId,
+			canonicalModuleId:
+				missingRecord?.canonicalModuleId ?? item.requireId,
 			filePath: missingRecord?.filePath ?? null,
 			isExternal: Boolean(missingRecord?.isExternal),
+			ruleApplied: Boolean(missingRecord?.ruleApplied),
 			overrideApplied: Boolean(missingRecord?.overrideApplied),
 			fatal: Boolean(item.fatal),
 			message,
@@ -235,10 +185,67 @@ export default class AnalysisPipeline {
 		const warningSet = new Set(analysis.warnings);
 		for (const missingEntry of analysis.missing) {
 			const isOverrideWarning =
-				missingEntry.overrideApplied && !missingEntry.fatal && missingEntry.message;
+				missingEntry.overrideApplied &&
+				!missingEntry.fatal &&
+				missingEntry.message;
 			if (isOverrideWarning && !warningSet.has(missingEntry.message)) {
 				analysis.warnings.push(missingEntry.message);
 				warningSet.add(missingEntry.message);
+			}
+		}
+	}
+
+	private applyScopedDependencyPolicyWarnings(analysis: AnalysisResult): void {
+		const warningSet = new Set(analysis.warnings);
+		const bundledPackages = new Set(
+			analysis.modules
+				.filter((moduleRecord) => !moduleRecord.isExternal && !moduleRecord.isMissing)
+				.map((moduleRecord) => moduleRecord.packageName || 'default')
+		);
+		const emittedPairs = new Set<string>();
+
+		for (const [moduleId, dependencies] of analysis.dependencyGraph.entries()) {
+			const sourceModule = analysis.moduleById.get(moduleId);
+			if (!sourceModule) {
+				continue;
+			}
+
+			const sourcePackageName = sourceModule.packageName || 'default';
+			const sourcePackageConfig = this.config.packages?.[sourcePackageName];
+			if (!sourcePackageConfig) {
+				continue;
+			}
+
+			for (const dependency of dependencies) {
+				const targetPackageName = dependency.packageName || 'default';
+				if (targetPackageName === sourcePackageName) {
+					continue;
+				}
+
+				const dependencyMode = sourcePackageConfig.dependencies?.[targetPackageName]?.mode;
+				if (
+					dependencyMode !== 'external' &&
+					dependencyMode !== 'ignore'
+				) {
+					continue;
+				}
+
+				if (!bundledPackages.has(targetPackageName)) {
+					continue;
+				}
+
+				const pairKey = `${sourcePackageName}->${targetPackageName}:${dependencyMode}`;
+				if (emittedPairs.has(pairKey)) {
+					continue;
+				}
+
+				const warning =
+					`Package '${targetPackageName}' is included in the bundle, but package '${sourcePackageName}' will not use the bundled copy because ${sourcePackageName} marks '${targetPackageName}' as ${dependencyMode}.`;
+				if (!warningSet.has(warning)) {
+					analysis.warnings.push(warning);
+					warningSet.add(warning);
+				}
+				emittedPairs.add(pairKey);
 			}
 		}
 	}

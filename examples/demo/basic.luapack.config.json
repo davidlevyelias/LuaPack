@@ -1,13 +1,27 @@
 {
+	"$schema": "../../config.schema.json",
+	"schemaVersion": 2,
 	"entry": "./src/main.lua",
 	"output": "../../dist/demo_basic_bundle.lua",
-	"sourceRoot": "./src",
-	"obfuscation": {
-		"tool": "none",
-		"config": {
-			"minify": false,
-			"renameVariables": false,
-			"ascii": false
+	"missing": "error",
+	"packages": {
+		"default": {
+			"root": "./src",
+			"rules": {
+				"dkjson2": {
+					"recursive": false,
+					"mode": "external",
+					"path": "./external_modules/dkjson2"
+				},
+				"not_used": {
+					"recursive": false,
+					"mode": "external",
+					"path": "./external_modules/not_used"
+				}
+			}
 		}
+	},
+	"bundle": {
+		"fallback": "never"
 	}
 }

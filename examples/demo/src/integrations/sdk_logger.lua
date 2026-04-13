@@ -1,4 +1,4 @@
-local sdkLogger = require('sdk.logger')
+local sdkLogger = require('sdk.src.logger')
 
 local Logger = {}
 

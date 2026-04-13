@@ -1,5 +1,6 @@
 local sdkLogger = require('integrations.sdk_logger')
 local JsonAdapter = require('integrations.json_adapter')
+local slaxml = require('slaxml')
 
 local function run()
 	sdkLogger.info('External scenario running')
