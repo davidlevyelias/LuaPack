@@ -19,7 +19,7 @@ export default class DependencyAnalyzer {
 
 	constructor(config: WorkflowConfig) {
 		this.resolver = new ModuleResolver(config);
-		this.extractor = new LuaRequireExtractor();
+		this.extractor = new LuaRequireExtractor(config.luaVersion);
 		this.visited = new Set<string>();
 		this.missingRecords = [];
 		this.errors = [];
@@ -136,7 +136,31 @@ export default class DependencyAnalyzer {
 		const fileContent = fileBuffer.toString('utf-8');
 		moduleRecord.sourceContent = fileContent;
 		moduleRecord.sizeBytes = fileBuffer.byteLength;
-		const requires = this.extractor.extract(fileContent);
+		let requires: string[];
+		try {
+			requires = this.extractor.extract(fileContent);
+		} catch (error) {
+			const parseError =
+				error instanceof Error ? error : new Error(String(error));
+			const luaVersion = this.extractor.getLuaVersion();
+			const wrappedError = Object.assign(
+				new Error(
+					`Failed to parse '${moduleRecord.filePath}' using Lua ${luaVersion} grammar: ${parseError.message}`
+				),
+				{
+					cause: parseError,
+					code: 'LUA_PARSE_FAILED',
+					filePath: moduleRecord.filePath,
+					luaVersion,
+				}
+			) as Error;
+			this.errors.push(wrappedError);
+			graph.set(moduleRecord.filePath, {
+				module: moduleRecord,
+				dependencies: [],
+			});
+			return;
+		}
 		const resolvedDependencies: ModuleRecord[] = [];
 
 		for (const requireId of requires) {

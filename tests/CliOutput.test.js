@@ -33,6 +33,7 @@ function createAnalysisResult() {
 			rootDir: 'src',
 			entryPath: 'src/main.lua',
 			outputPath: 'dist/out.lua',
+			luaVersion: '5.3',
 			analyzeOnly: true,
 			ignoredPatterns: [],
 			missingPolicy: 'error',
@@ -64,6 +65,7 @@ describe('CLI output color control', () => {
 		expect(lines.length).toBeGreaterThan(0);
 		expect(lines.join('\n')).not.toMatch(/\u001b\[/);
 		expect(lines.join('\n')).toContain('Output: dist/out.lua');
+		expect(lines.join('\n')).toContain('Lua Version: 5.3');
 		expect(lines.join('\n')).toContain('Analysis Result: success');
 		expect(lines.join('\n')).toContain('Missing Action: error');
 	});

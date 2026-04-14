@@ -23,6 +23,10 @@ export function mergeConfig(
 		merged.output = cliOptions.output;
 	}
 
+	if (cliOptions.luaVersion) {
+		merged.luaVersion = cliOptions.luaVersion;
+	}
+
 	if (cliRoot) {
 		merged.packages = {
 			...(merged.packages || {}),

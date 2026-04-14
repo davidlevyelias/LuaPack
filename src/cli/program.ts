@@ -5,6 +5,7 @@ import { printJsonErrorPayload } from './output';
 import {
 	parseFallbackMode,
 	parseLogLevel,
+	parseLuaVersion,
 	parseMissingPolicy,
 	parseReportFormat,
 } from './parse';
@@ -30,6 +31,11 @@ function addCommonOptions(
 		.option(
 			'--root <path>',
 			'Default package root path for this run.'
+		)
+		.option(
+			'--lua-version <version>',
+			'Lua grammar version for dependency parsing (5.1, 5.2, 5.3, LuaJIT).',
+			parseLuaVersion
 		)
 		.optionsGroup('Analysis Options:')
 		.option(
@@ -138,6 +144,11 @@ export function createProgram(
 		.option('--output <file>', 'Pre-fill output bundle path.')
 		.option('--root <path>', 'Pre-fill default package root.')
 		.option(
+			'--lua-version <version>',
+			'Pre-fill Lua grammar version (5.1, 5.2, 5.3, LuaJIT).',
+			parseLuaVersion
+		)
+		.option(
 			'--missing <policy>',
 			'Pre-fill missing-module policy (error, warn).',
 			parseMissingPolicy
@@ -200,12 +211,19 @@ export async function runCli(
 }
 
 function applyJsonErrorMode(program: Command): void {
-	program.exitOverride();
-	program.commands.forEach((command) => command.exitOverride());
-	program.configureOutput({
+	applyJsonErrorModeToCommand(program);
+}
+
+function applyJsonErrorModeToCommand(command: Command): void {
+	command.exitOverride();
+	command.showHelpAfterError(false);
+	command.showSuggestionAfterError(false);
+	command.configureOutput({
 		writeOut: () => {},
 		writeErr: () => {},
+		outputError: () => {},
 	});
+	command.commands.forEach((subcommand) => applyJsonErrorModeToCommand(subcommand));
 }
 
 function resolveJsonErrorCommand(

@@ -1,10 +1,16 @@
 import path from 'path';
 
-import { MISSING_POLICIES, FALLBACK_MODES, RULE_MODES } from './constants';
+import {
+	MISSING_POLICIES,
+	FALLBACK_MODES,
+	LUA_VERSIONS,
+	RULE_MODES,
+} from './constants';
 import type {
 	EntryKind,
 	MissingPolicy,
 	FallbackMode,
+	LuaVersion,
 	RuleMode,
 	NormalizedRule,
 	NormalizedDependencyPolicy,
@@ -183,6 +189,12 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 			? config.missing
 			: 'error'
 	) as MissingPolicy;
+	const luaVersion = (
+		typeof config.luaVersion === 'string' &&
+		LUA_VERSIONS.has(config.luaVersion)
+			? config.luaVersion
+			: '5.3'
+	) as LuaVersion;
 	const bundle = config.bundle || {};
 	const fallback = (
 		typeof bundle.fallback === 'string' &&
@@ -195,6 +207,7 @@ export function normalizeToV2Config(config: RawConfig): V2Config {
 		schemaVersion: 2,
 		entry: config.entry!,
 		output: config.output!,
+		luaVersion,
 		missing,
 		packages,
 		bundle: { fallback },

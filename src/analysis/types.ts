@@ -1,10 +1,15 @@
 import type {
 	FallbackMode,
 	LoadedConfig,
+	LuaVersion,
 	MissingPolicy,
 } from '../config/loader/types';
 
-export type { FallbackMode, MissingPolicy } from '../config/loader/types';
+export type {
+	FallbackMode,
+	LuaVersion,
+	MissingPolicy,
+} from '../config/loader/types';
 
 /**
  * Core TypeScript domain types describing the analysis pipeline output.
@@ -40,6 +45,7 @@ export interface AnalysisContext {
 	packages: AnalysisPackageInfo[];
 	entryPath: FilePath;
 	outputPath: FilePath;
+	luaVersion: LuaVersion;
 	analyzeOnly: boolean;
 	ignoredPatterns: string[];
 	missingPolicy: MissingPolicy;

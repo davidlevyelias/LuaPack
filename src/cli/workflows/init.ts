@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import type { MissingPolicy } from '../../config/loader';
+import type { LuaVersion, MissingPolicy } from '../../config/loader';
 import logger from '../../utils/Logger';
 
 import type { CliOptions } from '../types';
@@ -10,6 +10,7 @@ type InitAnswers = {
 	entry: string;
 	output: string;
 	root: string;
+	luaVersion: LuaVersion;
 	missing?: MissingPolicy;
 	filePath: string;
 };
@@ -39,6 +40,7 @@ function buildInitConfigPayload(answers: InitAnswers): Record<string, unknown> {
 		schemaVersion: 2,
 		entry: answers.entry,
 		output: answers.output,
+		luaVersion: answers.luaVersion,
 		packages: {
 			default: {
 				root: answers.root,
@@ -59,6 +61,7 @@ async function promptInitAnswers(
 		entry: string;
 		output: string;
 		root: string;
+		luaVersion: LuaVersion;
 		filePath: string;
 	}
 ): Promise<InitAnswers> {
@@ -92,6 +95,17 @@ async function promptInitAnswers(
 		validate: (v) => v.trim() !== '' || 'A directory path is required.',
 	});
 
+	const luaVersion = await select<LuaVersion>({
+		message: 'Lua grammar version:',
+		default: options.luaVersion || defaults.luaVersion,
+		choices: [
+			{ value: '5.1', name: '5.1' },
+			{ value: '5.2', name: '5.2' },
+			{ value: '5.3', name: '5.3' },
+			{ value: 'LuaJIT', name: 'LuaJIT' },
+		],
+	});
+
 	const missingAnswer = await select<MissingPolicy | ''>({
 		message: 'Missing-module policy:',
 		default: options.missing || '',
@@ -112,6 +126,7 @@ async function promptInitAnswers(
 		entry,
 		output,
 		root,
+		luaVersion,
 		missing: missingAnswer || undefined,
 		filePath,
 	};
@@ -135,6 +150,7 @@ export async function runInitWorkflow(options: CliOptions) {
 		entry: './init.lua',
 		output: 'dist/bundle.lua',
 		root: './',
+		luaVersion: options.luaVersion || '5.3',
 		filePath: options.file || 'luapack.config.json',
 	};
 
@@ -143,6 +159,7 @@ export async function runInitWorkflow(options: CliOptions) {
 				entry: normalizePromptValue(options.entry, defaults.entry),
 				output: normalizePromptValue(options.output, defaults.output),
 				root: normalizePromptValue(options.root, defaults.root),
+				luaVersion: options.luaVersion || defaults.luaVersion,
 				missing: options.missing,
 				filePath: normalizePromptValue(options.file, defaults.filePath),
 			}

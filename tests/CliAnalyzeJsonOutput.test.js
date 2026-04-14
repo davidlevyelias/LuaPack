@@ -88,6 +88,7 @@ function createAnalysisResult() {
 			],
 			entryPath: 'src/main.lua',
 			outputPath: 'dist/out.lua',
+			luaVersion: '5.3',
 			analyzeOnly: true,
 			ignoredPatterns: [],
 			missingPolicy: 'error',
@@ -117,6 +118,7 @@ describe('CLI analyze json output', () => {
 			schemaVersion: 2,
 			entry: 'src/main.lua',
 			output: 'dist/out.lua',
+			luaVersion: '5.3',
 			missing: 'error',
 			packages: {
 				default: {
@@ -156,6 +158,7 @@ describe('CLI analyze json output', () => {
 				}),
 			],
 			summary: {
+				luaVersion: '5.3',
 				missingPolicy: 'error',
 			},
 		});

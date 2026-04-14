@@ -8,6 +8,7 @@ LuaPack is a Node.js command-line tool for analyzing Lua dependency graphs and p
 - Builds dependency analysis output in text or JSON form.
 - Generates self-contained runtime bundles with controlled fallback behavior.
 - Supports package-scoped dependency policies and local module rules.
+- Supports configurable Lua grammar/runtime targets: `5.1`, `5.2`, `5.3`, and `LuaJIT`.
 - Validates configuration against the canonical v2 schema before execution.
 
 ## Installation
@@ -37,6 +38,7 @@ Common options:
 - `-c, --config <file>`: Point to a `luapack.config.json` file.
 - `-o, --output <file>`: Override the bundle path or report path.
 - `--root <path>`: Override the default package root for the current run.
+- `--lua-version <version>`: Override the Lua version used for parsing and runtime targeting: `5.1`, `5.2`, `5.3`, or `LuaJIT`.
 - `--missing <policy>`: Missing-module policy: `error` or `warn`.
 - `--fallback <policy>`: Runtime fallback policy: `never`, `external-only`, or `always`.
 - `--print-config`: Print the effective normalized v2 config and exit.
@@ -70,6 +72,8 @@ Display full help with:
 luapack --help
 ```
 
+When `--format json` is used, command-line usage failures are emitted as a machine-readable JSON payload instead of mixed help text. This applies to parse-time issues such as invalid option values.
+
 ## Configuration (`luapack.config.json`)
 
 LuaPack now accepts only the canonical v2 configuration format. Every config file must declare `schemaVersion: 2`. The loader validates the file against `config.schema.json`, then applies supported CLI overrides.
@@ -78,9 +82,11 @@ Minimal example:
 
 ```json
 {
+	"$schema": "./node_modules/@davidlevyelias/luapack/config.schema.json",
 	"schemaVersion": 2,
 	"entry": "./src/main.lua",
 	"output": "./dist/app.bundle.lua",
+	"luaVersion": "5.3",
 	"packages": {
 		"default": {
 			"root": "./src"
@@ -89,11 +95,15 @@ Minimal example:
 }
 ```
 
+- `$schema`: Optional JSON Schema path for editor integration.
 - `schemaVersion`: Must be `2`.
 - `entry`: Entry Lua file.
 - `output`: Optional output path. Defaults to `<entry-name>_packed.lua` alongside the entry file.
+- `luaVersion`: Optional Lua version used for both dependency parsing and the runtime target. Supported values are `5.1`, `5.2`, `5.3`, and `LuaJIT`. Defaults to `5.3`.
 - `missing`: Optional global missing-module policy.
 - `packages.default.root`: Root directory for the default package. If omitted, LuaPack uses the entry file directory.
+
+Lua 5.4 is not currently supported because the active parser backend does not support it.
 
 ### `packages`
 
@@ -158,6 +168,7 @@ Each local rule supports:
 ```
 
 - `fallback`: `never`, `external-only`, or `always`.
+
 
 ## Breaking Change
 

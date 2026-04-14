@@ -102,6 +102,108 @@ describe('DependencyAnalyzer', () => {
 		}
 	});
 
+	test('parses Lua 5.3 syntax when luaVersion is configured', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-lua53-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(path.join(srcDir, 'app'), { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				[
+					"local greeter = require('app.greeter')",
+					'for _, line in ipairs({ "" }) do',
+					"  if line == '' then goto continue end",
+					'  ::continue::',
+					'end',
+					'return greeter',
+				].join('\n')
+			);
+			fs.writeFileSync(
+				path.join(srcDir, 'app', 'greeter.lua'),
+				"return { greet = function() return 'hello' end }\n"
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						luaVersion: '5.3',
+						packages: {
+							default: {
+								root: './src',
+							},
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { graph, errors } = analyzer.buildDependencyGraph(config.entry);
+
+			expect(errors).toEqual([]);
+			expect(graph.has(path.join(srcDir, 'app', 'greeter.lua'))).toBe(true);
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('records Lua parse errors with file and luaVersion context', () => {
+		const tempDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-parse-error-')
+		);
+
+		try {
+			const srcDir = path.join(tempDir, 'src');
+			fs.mkdirSync(srcDir, { recursive: true });
+
+			fs.writeFileSync(
+				path.join(srcDir, 'main.lua'),
+				'local broken =\n'
+			);
+
+			const configPath = path.join(tempDir, 'luapack.config.json');
+			fs.writeFileSync(
+				configPath,
+				JSON.stringify(
+					{
+						schemaVersion: 2,
+						entry: './src/main.lua',
+						output: './dist/out.lua',
+						packages: {
+							default: {
+								root: './src',
+							},
+						},
+					},
+					null,
+					2
+				)
+			);
+
+			const config = loadConfig({ config: configPath });
+			const analyzer = new DependencyAnalyzer(config);
+			const { errors } = analyzer.buildDependencyGraph(config.entry);
+
+			expect(errors).toHaveLength(1);
+			expect(errors[0].code).toBe('LUA_PARSE_FAILED');
+			expect(errors[0].message).toContain("Failed to parse '");
+			expect(errors[0].message).toContain('Lua 5.3 grammar');
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	test('skips dependency analysis when override disables recursion', () => {
 		const tempDir = fs.mkdtempSync(
 			path.join(os.tmpdir(), 'luapack-analyzer-')

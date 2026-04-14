@@ -48,6 +48,7 @@ export function buildSerializablePayload(
 			outputPath: normalizeRequiredSerializablePath(
 				analysis.context?.outputPath
 			),
+				luaVersion: analysis.context?.luaVersion ?? '5.3',
 			missingPolicy,
 			fallbackPolicy: analysis.context?.fallbackPolicy ?? 'external-only',
 		},
