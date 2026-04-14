@@ -82,7 +82,7 @@ Minimal example:
 
 ```json
 {
-	"$schema": "./node_modules/@davidlevyelias/luapack/config.schema.json",
+	"$schema": "https://raw.githubusercontent.com/davidlevyelias/LuaPack/v2.1.0/config.schema.json",
 	"schemaVersion": 2,
 	"entry": "./src/main.lua",
 	"output": "./dist/app.bundle.lua",
@@ -95,7 +95,7 @@ Minimal example:
 }
 ```
 
-- `$schema`: Optional JSON Schema path for editor integration.
+- `$schema`: Optional JSON Schema URL for editor integration. `luapack init` writes a versioned schema URL so generated configs stay pinned to the installed LuaPack release instead of following the mutable `main` branch.
 - `schemaVersion`: Must be `2`.
 - `entry`: Entry Lua file.
 - `output`: Optional output path. Defaults to `<entry-name>_packed.lua` alongside the entry file.

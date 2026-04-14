@@ -1,6 +1,7 @@
 jest.mock('../src/cli/workflows', () => ({
 	runAnalyzeWorkflow: jest.fn().mockResolvedValue(undefined),
 	runBundleWorkflow: jest.fn().mockResolvedValue(undefined),
+	runInitWorkflow: jest.fn().mockResolvedValue(undefined),
 }));
 
 const logger = require('../src/utils/Logger');
@@ -8,6 +9,7 @@ const { executeCliAction } = require('../src/cli/executeCliAction');
 const {
 	runAnalyzeWorkflow,
 	runBundleWorkflow,
+	runInitWorkflow,
 } = require('../src/cli/workflows');
 
 describe('CLI execution', () => {
@@ -62,6 +64,15 @@ describe('CLI execution', () => {
 			'main.lua',
 			expect.objectContaining({ printConfig: true }),
 			'1.0.0'
+		);
+	});
+
+	test('init receives package version for versioned schema generation', async () => {
+		await executeCliAction('init', undefined, { yes: true }, '2.1.0');
+
+		expect(runInitWorkflow).toHaveBeenCalledWith(
+			expect.objectContaining({ yes: true }),
+			'2.1.0'
 		);
 	});
 

@@ -29,7 +29,7 @@ export async function executeCliAction(
 		if (commandName === 'analyze') {
 			await runAnalyzeWorkflow(entry, options, packageVersion);
 		} else if (commandName === 'init') {
-			await runInitWorkflow(options);
+			await runInitWorkflow(options, packageVersion);
 		} else {
 			await runBundleWorkflow(entry, options, packageVersion);
 		}
