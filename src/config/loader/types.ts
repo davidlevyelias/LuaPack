@@ -6,6 +6,7 @@ export type MissingPolicy = 'error' | 'warn';
 export type FallbackMode = 'never' | 'external-only' | 'always';
 export type RuleMode = 'bundle' | 'external' | 'ignore';
 export type EntryKind = 'package-module' | 'bootstrap';
+export type LuaVersion = '5.1' | '5.2' | '5.3' | 'LuaJIT';
 
 export interface NormalizedRule {
 	mode: RuleMode;
@@ -39,6 +40,7 @@ export interface V2Config {
 	schemaVersion: 2;
 	entry: string;
 	output: string;
+	luaVersion: LuaVersion;
 	missing: MissingPolicy;
 	packages: V2Packages;
 	bundle: V2Bundle;
@@ -54,6 +56,7 @@ export interface CliOptions {
 	entry?: string;
 	output?: string;
 	root?: string;
+	luaVersion?: LuaVersion;
 	missing?: MissingPolicy;
 	fallback?: FallbackMode;
 	[key: string]: unknown;
@@ -81,6 +84,7 @@ export interface RawConfig {
 	schemaVersion: 2;
 	entry?: string;
 	output?: string;
+	luaVersion?: string;
 	missing?: string;
 	packages?: RawPackages;
 	bundle?: {

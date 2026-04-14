@@ -59,6 +59,7 @@ export function buildAnalysisContext(config: WorkflowConfig): AnalysisContext {
 			})),
 		entryPath: config.entry,
 		outputPath: config.output,
+		luaVersion: config.luaVersion,
 		analyzeOnly: isAnalyzeOnlyConfig(config),
 		ignoredPatterns,
 		missingPolicy: config.missing,

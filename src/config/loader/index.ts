@@ -26,6 +26,7 @@ export type {
 	NormalizedRule,
 	NormalizedDependencyPolicy,
 	MissingPolicy,
+	LuaVersion,
 	FallbackMode,
 	RuleMode,
 	EntryKind,

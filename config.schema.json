@@ -23,6 +23,12 @@
 			"type": "string",
 			"description": "Optional destination path for the generated bundle. When omitted, LuaPack should emit '<entry-name>_packed.lua' alongside the entry file."
 		},
+		"luaVersion": {
+			"type": "string",
+			"description": "Lua grammar version used when parsing source files for dependency analysis.",
+			"enum": ["5.1", "5.2", "5.3", "LuaJIT"],
+			"default": "5.3"
+		},
 		"missing": {
 			"type": "string",
 			"description": "Policy for unresolved static dependencies.",

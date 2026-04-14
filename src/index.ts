@@ -5,6 +5,7 @@ import {
 	createProgram as createCliProgram,
 	executeCliAction as executeCliWorkflow,
 	parseFallbackMode,
+	parseLuaVersion,
 	parseMissingPolicy,
 	parseReportFormat,
 	parseLogLevel,
@@ -20,6 +21,7 @@ export type { CliOptions, CommandName, LogLevel, ReportFormat } from './cli';
 export {
 	parseFallbackMode,
 	parseLogLevel,
+	parseLuaVersion,
 	parseMissingPolicy,
 	parseReportFormat,
 	printBundleSuccess,

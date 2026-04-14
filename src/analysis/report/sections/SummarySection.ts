@@ -13,6 +13,7 @@ export function buildSummarySection(
 	const missingPolicy = analysis.context?.missingPolicy ?? 'error';
 	const entryPath = formatReportPath(analysis.context?.entryPath);
 	const outputPath = formatReportPath(analysis.context?.outputPath);
+	const luaVersion = analysis.context?.luaVersion ?? '5.3';
 	const moduleCount = analysis.metrics.moduleCount;
 	const missingCount = analysis.metrics.missingCount;
 	const ignored = analysis.context?.ignoredPatterns ?? [];
@@ -39,6 +40,7 @@ export function buildSummarySection(
 	);
 	lines.push(`${palette.key('Entry:')} ${palette.value(entryPath)}`);
 	lines.push(`${palette.key('Output:')} ${palette.value(outputPath)}`);
+	lines.push(`${palette.key('Lua Version:')} ${palette.value(luaVersion)}`);
 	lines.push(
 		`${palette.key('Packages:')} ${palette.value(String(packages.length))}`
 	);

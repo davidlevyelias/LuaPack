@@ -47,6 +47,7 @@ describe('ConfigLoader', () => {
 			schemaVersion: 2,
 			entry: path.resolve(tempDir, 'src/main.lua'),
 			output: path.resolve(tempDir, 'dist/out.lua'),
+			luaVersion: '5.3',
 				missing: 'error',
 				packages: {
 					default: {
@@ -94,6 +95,28 @@ describe('ConfigLoader', () => {
 		expect(config.entry).toBe(path.resolve(tempDir, 'src/main.lua'));
 		expect(config.output).toBe(path.resolve(tempDir, 'src/main_packed.lua'));
 		expect(config.output).toBe(path.resolve(tempDir, 'src/main_packed.lua'));
+	});
+
+	test('loads configured luaVersion and allows CLI override', () => {
+		const configPath = path.join(tempDir, 'luapack.config.json');
+		const configContent = {
+			schemaVersion: 2,
+			entry: './src/main.lua',
+			output: './dist/out.lua',
+			luaVersion: '5.1',
+			packages: defaultPackageConfig(),
+		};
+
+		fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
+
+		const configured = loadConfig({ config: configPath });
+		expect(configured.luaVersion).toBe('5.1');
+
+		const overridden = loadConfig({
+			config: configPath,
+			luaVersion: 'LuaJIT',
+		});
+		expect(overridden.luaVersion).toBe('LuaJIT');
 	});
 
 	test('applies CLI overrides relative to cwd', () => {

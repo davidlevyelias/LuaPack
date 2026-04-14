@@ -2,6 +2,7 @@ const {
 	createProgram,
 	parseFallbackMode,
 	parseLogLevel,
+	parseLuaVersion,
 	parseMissingPolicy,
 	parseReportFormat,
 	runCli,
@@ -14,18 +15,26 @@ function exitOverrideRecursively(program) {
 
 describe('CLI', () => {
 	const originalWrite = process.stdout.write;
+	const originalErrWrite = process.stderr.write;
 	let writes;
+	let errorWrites;
 
 	beforeEach(() => {
 		writes = [];
+		errorWrites = [];
 		process.stdout.write = jest.fn((chunk) => {
 			writes.push(String(chunk));
+			return true;
+		});
+		process.stderr.write = jest.fn((chunk) => {
+			errorWrites.push(String(chunk));
 			return true;
 		});
 	});
 
 	afterEach(() => {
 		process.stdout.write = originalWrite;
+		process.stderr.write = originalErrWrite;
 		process.exitCode = undefined;
 	});
 
@@ -55,6 +64,8 @@ describe('CLI', () => {
 			'dist/out.lua',
 			'--root',
 			'./',
+			'--lua-version',
+			'5.3',
 			'--missing',
 			'warn',
 			'--file',
@@ -71,6 +82,7 @@ describe('CLI', () => {
 				entry: './main.lua',
 				output: 'dist/out.lua',
 				root: './',
+				luaVersion: '5.3',
 				missing: 'warn',
 				file: 'custom.config.json',
 				force: true,
@@ -82,6 +94,13 @@ describe('CLI', () => {
 		expect(parseLogLevel('DEBUG')).toBe('debug');
 		expect(() => parseLogLevel('trace')).toThrow(
 			'Expected one of: error, warn, info, debug'
+		);
+	});
+
+	test('accepts only supported lua versions', () => {
+		expect(parseLuaVersion('5.3')).toBe('5.3');
+		expect(() => parseLuaVersion('5.4')).toThrow(
+			'Expected one of: 5.1, 5.2, 5.3, LuaJIT'
 		);
 	});
 
@@ -120,6 +139,8 @@ describe('CLI', () => {
 			'--verbose',
 			'--root',
 			'src',
+			'--lua-version',
+			'LuaJIT',
 			'--missing',
 			'warn',
 			'--fallback',
@@ -144,6 +165,7 @@ describe('CLI', () => {
 				fallback: 'always',
 				format: 'json',
 				logLevel: 'debug',
+				luaVersion: 'LuaJIT',
 				missing: 'warn',
 				printConfig: true,
 				quiet: true,
@@ -235,6 +257,30 @@ describe('CLI', () => {
 				code: 'commander-invalidargument',
 			},
 		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	test('runCli suppresses commander help output for json parse failures', async () => {
+		await runCli([
+			'node',
+			'luapack',
+			'analyze',
+			'--format',
+			'json',
+			'--lua-version',
+			'5.0',
+		]);
+
+		expect(JSON.parse(writes.join(''))).toMatchObject({
+			type: 'command-error',
+			status: 'error',
+			command: 'analyze',
+			error: {
+				type: 'usage',
+				code: 'commander-invalidargument',
+			},
+		});
+		expect(errorWrites.join('')).toBe('');
 		expect(process.exitCode).toBe(1);
 	});
 

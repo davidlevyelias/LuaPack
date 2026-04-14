@@ -1,4 +1,5 @@
 import type { FallbackMode, MissingPolicy } from '../types';
+import type { LuaVersion } from '../../config/loader/types';
 
 export type JsonReportCommand = 'analyze' | 'bundle';
 export type JsonReportStatus = 'ok' | 'warn' | 'failed';
@@ -16,6 +17,7 @@ export interface JsonSummary {
 	entryPackage: string | null;
 	packages: JsonSummaryPackage[];
 	outputPath: string;
+	luaVersion: LuaVersion;
 	missingPolicy: MissingPolicy;
 	fallbackPolicy: FallbackMode;
 }

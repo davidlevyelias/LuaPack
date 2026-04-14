@@ -1,5 +1,7 @@
 import luaparse from 'luaparse';
 
+import type { LuaVersion } from '../config/loader/types';
+
 type LuaAstNode = {
 	type?: string;
 	base?: LuaAstNode;
@@ -11,8 +13,16 @@ type LuaAstNode = {
 };
 
 export default class LuaRequireExtractor {
+	constructor(private readonly luaVersion: LuaVersion = '5.3') {}
+
+	getLuaVersion(): LuaVersion {
+		return this.luaVersion;
+	}
+
 	extract(content: string): string[] {
-		const ast = luaparse.parse(content) as unknown as LuaAstNode;
+		const ast = luaparse.parse(content, {
+			luaVersion: this.luaVersion,
+		}) as unknown as LuaAstNode;
 		const dependencies: string[] = [];
 		this.collectDependenciesFromNode(ast, dependencies);
 		return dependencies;

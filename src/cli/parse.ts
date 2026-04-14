@@ -4,6 +4,8 @@ import { FALLBACK_MODES } from '../config/loader/constants';
 import type { FallbackMode } from '../config/loader';
 import {
 	VALID_LOG_LEVELS,
+	VALID_LUA_VERSIONS,
+	type CliLuaVersion,
 	VALID_MISSING_POLICIES,
 	VALID_REPORT_FORMATS,
 	type CliMissingPolicy,
@@ -18,6 +20,16 @@ export function parseLogLevel(value: string): LogLevel {
 	}
 	throw new InvalidArgumentError(
 		`Expected one of: ${VALID_LOG_LEVELS.join(', ')}`
+	);
+}
+
+export function parseLuaVersion(value: string): CliLuaVersion {
+	const normalized = String(value).trim();
+	if ((VALID_LUA_VERSIONS as readonly string[]).includes(normalized)) {
+		return normalized as CliLuaVersion;
+	}
+	throw new InvalidArgumentError(
+		`Expected one of: ${VALID_LUA_VERSIONS.join(', ')}`
 	);
 }
 

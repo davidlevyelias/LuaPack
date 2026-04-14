@@ -1,12 +1,14 @@
-import type { FallbackMode, MissingPolicy } from '../config/loader';
+import type { FallbackMode, LuaVersion, MissingPolicy } from '../config/loader';
 
 const VALID_LOG_LEVELS = ['error', 'warn', 'info', 'debug'] as const;
+const VALID_LUA_VERSIONS = ['5.1', '5.2', '5.3', 'LuaJIT'] as const;
 const VALID_MISSING_POLICIES = ['error', 'warn'] as const;
 const VALID_REPORT_FORMATS = ['text', 'json'] as const;
 
 export type CommandName = 'bundle' | 'analyze' | 'init';
 
 export type LogLevel = (typeof VALID_LOG_LEVELS)[number];
+export type CliLuaVersion = (typeof VALID_LUA_VERSIONS)[number];
 export type CliMissingPolicy = (typeof VALID_MISSING_POLICIES)[number];
 export type ReportFormat = (typeof VALID_REPORT_FORMATS)[number];
 
@@ -17,6 +19,7 @@ export interface CliOptions {
 	config?: string;
 	root?: string;
 	entry?: string;
+	luaVersion?: LuaVersion;
 	file?: string;
 	yes?: boolean;
 	force?: boolean;
@@ -31,4 +34,9 @@ export interface CliOptions {
 	logLevel?: LogLevel;
 }
 
-export { VALID_LOG_LEVELS, VALID_MISSING_POLICIES, VALID_REPORT_FORMATS };
+export {
+	VALID_LOG_LEVELS,
+	VALID_LUA_VERSIONS,
+	VALID_MISSING_POLICIES,
+	VALID_REPORT_FORMATS,
+};

@@ -10,6 +10,7 @@ export function loadWorkflowConfig(
 		entry,
 		output: options.output,
 		root: options.root,
+		luaVersion: options.luaVersion,
 		config: options.config,
 		missing: options.missing,
 		fallback: options.fallback,
@@ -23,6 +24,7 @@ export function loadAnalyzeConfig(
 	return loadConfig({
 		entry,
 		root: options.root,
+		luaVersion: options.luaVersion,
 		config: options.config,
 		missing: options.missing,
 		fallback: options.fallback,
