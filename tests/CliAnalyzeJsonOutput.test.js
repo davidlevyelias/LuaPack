@@ -1,3 +1,7 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 jest.mock('../src/config/ConfigLoader', () => ({
 	loadConfig: jest.fn(),
 }));
@@ -105,6 +109,7 @@ function createAnalysisResult() {
 
 describe('CLI analyze json output', () => {
 	const originalWrite = process.stdout.write;
+	const originalInfo = logger.info;
 	let writes;
 
 	beforeEach(() => {
@@ -113,6 +118,7 @@ describe('CLI analyze json output', () => {
 			writes.push(String(chunk));
 			return true;
 		});
+		logger.info = jest.fn();
 
 		loadConfig.mockReturnValue({
 			schemaVersion: 2,
@@ -139,6 +145,7 @@ describe('CLI analyze json output', () => {
 
 	afterEach(() => {
 		process.stdout.write = originalWrite;
+		logger.info = originalInfo;
 		process.exitCode = undefined;
 		jest.clearAllMocks();
 	});
@@ -168,14 +175,23 @@ describe('CLI analyze json output', () => {
 	});
 
 	test('defaults analyze file output to text when no explicit format is provided', async () => {
-		await expect(
-			runAnalyzeWorkflow('main.lua', { output: 'report.txt' }, '1.0.0')
-		).resolves.toBeUndefined();
-
-		expect(printReportSuccess).toHaveBeenCalledWith(
-			expect.stringMatching(/report\.txt$/),
-			{ useColor: undefined }
+		const targetDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-analyze-report-')
 		);
+		const reportPath = path.join(targetDir, 'report.txt');
+
+		try {
+			await expect(
+				runAnalyzeWorkflow('main.lua', { output: reportPath }, '1.0.0')
+			).resolves.toBeUndefined();
+
+			expect(printReportSuccess).toHaveBeenCalledWith(
+				expect.stringMatching(/report\.txt$/),
+				{ useColor: undefined }
+			);
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
 	});
 
 	test('prints text through the logger when format is text', async () => {

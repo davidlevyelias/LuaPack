@@ -1,11 +1,11 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest/presets/js-with-ts',
+  preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transform: {
-    '^.+\\.(t|j)sx?$': [
+    '^.+\\.tsx?$': [
       'ts-jest',
       {
         tsconfig: '<rootDir>/tsconfig.json',

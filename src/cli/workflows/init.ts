@@ -15,8 +15,9 @@ type InitAnswers = {
 	filePath: string;
 };
 
-const SCHEMA_URL =
-	'https://raw.githubusercontent.com/davidlevyelias/LuaPack/refs/heads/main/config.schema.json';
+function buildSchemaUrl(packageVersion: string): string {
+	return `https://raw.githubusercontent.com/davidlevyelias/LuaPack/v${packageVersion}/config.schema.json`;
+}
 
 // Dynamic import wrapper — prevents TypeScript (module: "commonjs") from
 // rewriting import() to require(), which would fail for ESM-only packages.
@@ -34,9 +35,12 @@ function normalizePromptValue(
 	return normalized || defaultValue;
 }
 
-function buildInitConfigPayload(answers: InitAnswers): Record<string, unknown> {
+function buildInitConfigPayload(
+	answers: InitAnswers,
+	packageVersion: string
+): Record<string, unknown> {
 	const payload: Record<string, unknown> = {
-		$schema: SCHEMA_URL,
+		$schema: buildSchemaUrl(packageVersion),
 		schemaVersion: 2,
 		entry: answers.entry,
 		output: answers.output,
@@ -145,7 +149,10 @@ async function confirmOverwrite(filePath: string): Promise<boolean> {
 	});
 }
 
-export async function runInitWorkflow(options: CliOptions) {
+export async function runInitWorkflow(
+	options: CliOptions,
+	packageVersion: string
+) {
 	const defaults = {
 		entry: './init.lua',
 		output: 'dist/bundle.lua',
@@ -165,7 +172,7 @@ export async function runInitWorkflow(options: CliOptions) {
 			}
 		: await promptInitAnswers(options, defaults);
 
-	const payload = buildInitConfigPayload(answers);
+	const payload = buildInitConfigPayload(answers, packageVersion);
 	const serialized = JSON.stringify(payload, null, 2);
 
 	logger.info('');

@@ -1,3 +1,7 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 jest.mock('../src/config/ConfigLoader', () => ({
 	loadConfig: jest.fn(),
 }));
@@ -71,9 +75,11 @@ jest.mock('../src/bundle', () => ({
 
 const { loadConfig } = require('../src/config/ConfigLoader');
 const { runAnalyzeWorkflow, runBundleWorkflow } = require('../src/cli/workflows');
+const logger = require('../src/utils/Logger');
 
 describe('CLI print-config', () => {
 	const originalWrite = process.stdout.write;
+	const originalInfo = logger.info;
 	let writes;
 
 	beforeEach(() => {
@@ -82,6 +88,7 @@ describe('CLI print-config', () => {
 			writes.push(String(chunk));
 			return true;
 		});
+		logger.info = jest.fn();
 
 		loadConfig.mockReturnValue({
 			schemaVersion: 2,
@@ -107,11 +114,16 @@ describe('CLI print-config', () => {
 
 	afterEach(() => {
 		process.stdout.write = originalWrite;
+		logger.info = originalInfo;
 		jest.clearAllMocks();
 	});
 
 	test('analyze prints normalized config and exits before analysis', async () => {
-		await runAnalyzeWorkflow('main.lua', { printConfig: true, output: 'report.txt' }, '1.0.0');
+		await runAnalyzeWorkflow(
+			'main.lua',
+			{ printConfig: true, output: 'report.txt' },
+			'1.0.0'
+		);
 
 		expect(loadConfig).toHaveBeenCalledTimes(1);
 		expect(writes.join('')).toContain('"schemaVersion": 2');
@@ -126,14 +138,23 @@ describe('CLI print-config', () => {
 	});
 
 	test('bundle report path defaults report format to text', async () => {
-		await expect(
-			runBundleWorkflow(
-				'main.lua',
-				{ report: 'bundle-report.txt', format: 'json', verbose: true },
-				'1.0.0'
-			)
-		).resolves.toBeUndefined();
+		const targetDir = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'luapack-bundle-report-')
+		);
+		const reportPath = path.join(targetDir, 'bundle-report.txt');
 
-		expect(loadConfig).toHaveBeenCalledTimes(1);
+		try {
+			await expect(
+				runBundleWorkflow(
+					'main.lua',
+					{ report: reportPath, format: 'json', verbose: true },
+					'1.0.0'
+				)
+			).resolves.toBeUndefined();
+
+			expect(loadConfig).toHaveBeenCalledTimes(1);
+		} finally {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		}
 	});
 });
