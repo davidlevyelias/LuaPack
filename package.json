@@ -1,7 +1,7 @@
 {
   "name": "@davidlevyelias/luapack",
   "author": "David Levy Elias",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "A modern Lua bundler and analyzer.",
   "main": "build/index.js",
   "bin": {

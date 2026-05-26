@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const { BundleGenerator, BundlePlanBuilder, LuaPacker } = require('../src/bundle');
+const AnalysisPipeline = require('../src/analysis/AnalysisPipeline').default;
 
 function createTempLuaFile(content = 'return {}') {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luapack-bundle-'));
@@ -217,6 +218,93 @@ describe('BundleGenerator', () => {
 			expect(bundle).not.toContain('modules["sdk"] = function(...)');
 			expect(bundle).toContain('["sdk"] = true');
 			expect(bundlePlan.externalModules).toEqual(['sdk']);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('emits external local rules discovered during analysis', async () => {
+		const { dir, filePath } = createTempLuaFile(
+			"local sdk = require('sdk')\nreturn sdk\n"
+		);
+		const outputPath = path.join(dir, 'bundle.lua');
+		const packer = new LuaPacker({
+			entry: filePath,
+			output: outputPath,
+			missing: 'error',
+			packages: {
+				default: {
+					root: dir,
+					dependencies: {},
+					rules: {
+						sdk: { mode: 'external' },
+					},
+				},
+			},
+			bundle: { fallback: 'external-only' },
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
+		});
+
+		try {
+			const analysis = new AnalysisPipeline(packer.getConfig()).run();
+			await packer.pack(analysis);
+			const bundle = fs.readFileSync(outputPath, 'utf-8');
+
+			expect(bundle).toContain('local external_modules = {');
+			expect(bundle).toContain('["sdk"] = true');
+			expect(bundle).toContain('local original_require = require');
+			expect(bundle).not.toContain('modules["sdk"] = function(...)');
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('blocks ignored local rules before unrestricted runtime fallback', async () => {
+		const { dir, filePath } = createTempLuaFile(
+			"local skipped = require('legacy.temp')\nreturn skipped\n"
+		);
+		const outputPath = path.join(dir, 'bundle.lua');
+		const packer = new LuaPacker({
+			entry: filePath,
+			output: outputPath,
+			missing: 'error',
+			packages: {
+				default: {
+					root: dir,
+					dependencies: {},
+					rules: {
+						'legacy.temp': { mode: 'ignore' },
+					},
+				},
+			},
+			bundle: { fallback: 'always' },
+			_internal: {
+				entryPackage: 'default',
+				entryKind: 'package-module',
+			},
+		});
+
+		try {
+			const analysis = new AnalysisPipeline(packer.getConfig()).run();
+			await packer.pack(analysis);
+			const bundle = fs.readFileSync(outputPath, 'utf-8');
+
+			expect(bundle).toContain('local ignored_modules = {');
+			expect(bundle).toContain('["legacy.temp"] = true');
+			expect(bundle).toContain(
+				'if ignored_modules[module_name] == true then'
+			);
+			const requireStart = bundle.indexOf(
+				'local function __lp_require_absolute'
+			);
+			expect(
+				bundle.indexOf('if ignored_modules[module_name] == true then', requireStart)
+			).toBeLessThan(
+				bundle.indexOf('if require_loaded[module_name] then', requireStart)
+			);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
@@ -500,6 +588,16 @@ describe('BundleGenerator', () => {
 		expect(bundle).toContain('local dependency_mode = resolve_dependency_mode(requester_package_name, target_package_name)');
 		expect(bundle).toContain('if dependency_mode == "external" then');
 		expect(bundle).toContain('return load_external_module(module_name)');
+		expect(bundle).toContain('local external_require_cache = {}');
+		expect(bundle).toContain(
+			'if external_require_loaded[module_name] then return external_require_cache[module_name] end'
+		);
+		const requireStart = bundle.indexOf('local function __lp_require_absolute');
+		expect(
+			bundle.indexOf('if dependency_mode == "external" then', requireStart)
+		).toBeLessThan(
+			bundle.indexOf('if require_loaded[module_name] then', requireStart)
+		);
 	});
 
 	test('blocks caller-scoped ignored package dependencies before bundled resolution', async () => {
@@ -520,5 +618,33 @@ describe('BundleGenerator', () => {
 
 		expect(bundle).toContain('if dependency_mode == "ignore" then');
 		expect(bundle).toContain("is ignored for package '");
+		const requireStart = bundle.indexOf('local function __lp_require_absolute');
+		expect(
+			bundle.indexOf('if dependency_mode == "ignore" then', requireStart)
+		).toBeLessThan(
+			bundle.indexOf('if require_loaded[module_name] then', requireStart)
+		);
+	});
+
+	test('keeps explicit bundle dependency overrides ahead of local ignore rules', async () => {
+		const generator = new BundleGenerator();
+		const bundle = await generator.generateBundle({
+			entryModuleName: 'A.main',
+			entryPackageName: 'A',
+			packagePrefixes: ['sdk', 'A'],
+			bundledModules: [],
+			externalModules: [],
+			ignoredModules: ['sdk'],
+			packageDependencyModes: {
+				A: {
+					sdk: 'bundle',
+				},
+			},
+			fallbackPolicy: 'always',
+		});
+
+		expect(bundle).toContain(
+			'if dependency_mode == nil and ignored_modules[module_name] == true then'
+		);
 	});
 });

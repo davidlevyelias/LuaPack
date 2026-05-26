@@ -2,14 +2,18 @@ import fs from 'fs';
 
 import type { ModuleRecord, WorkflowConfig } from '../analysis/types';
 
-import type { BundlePlan } from './types';
+import type { BundlePlan, BundleRuntimePolicies } from './types';
 
 export default class BundlePlanBuilder {
 	constructor(private readonly config: WorkflowConfig) {}
 
 	build(
 		entryModule: ModuleRecord,
-		sortedModules: ModuleRecord[]
+		sortedModules: ModuleRecord[],
+		runtimePolicies: BundleRuntimePolicies = {
+			externalModules: [],
+			ignoredModules: [],
+		}
 	): BundlePlan {
 		if (!entryModule || !entryModule.moduleName) {
 			throw new Error(
@@ -21,38 +25,16 @@ export default class BundlePlanBuilder {
 		}
 
 		const bundledModules = [];
-		const externalModuleSet = new Set<string>();
+		const externalModuleSet = new Set<string>(
+			runtimePolicies.externalModules || []
+		);
+		const ignoredModuleSet = new Set<string>(
+			runtimePolicies.ignoredModules || []
+		);
 		const packagePrefixSet = new Set<string>();
-		const packageDependencyModes: Record<
-			string,
-			Record<string, 'external' | 'ignore'>
-		> = {};
 		for (const packageName of Object.keys(this.config.packages || {})) {
 			if (packageName && packageName !== 'default') {
 				packagePrefixSet.add(packageName);
-			}
-		}
-
-		for (const [packageName, packageConfig] of Object.entries(
-			this.config.packages || {}
-		)) {
-			const scopedModes = Object.fromEntries(
-				Object.entries(packageConfig?.dependencies || {}).flatMap(
-					([dependencyName, policy]) => {
-						if (
-							policy?.mode !== 'external' &&
-							policy?.mode !== 'ignore'
-						) {
-							return [];
-						}
-
-						return [[dependencyName, policy.mode]];
-					}
-				)
-			) as Record<string, 'external' | 'ignore'>;
-
-			if (Object.keys(scopedModes).length > 0) {
-				packageDependencyModes[packageName] = scopedModes;
 			}
 		}
 
@@ -67,6 +49,7 @@ export default class BundlePlanBuilder {
 			}
 
 			if (moduleRecord.isIgnored) {
+				ignoredModuleSet.add(moduleRecord.moduleName);
 				continue;
 			}
 
@@ -93,6 +76,36 @@ export default class BundlePlanBuilder {
 			bundledModules.push(bundledModule);
 		}
 
+		const hasExactRuntimePolicies =
+			externalModuleSet.size > 0 || ignoredModuleSet.size > 0;
+		const packageDependencyModes: Record<
+			string,
+			Record<string, 'bundle' | 'external' | 'ignore'>
+		> = {};
+		for (const [packageName, packageConfig] of Object.entries(
+			this.config.packages || {}
+		)) {
+			const scopedModes = Object.fromEntries(
+				Object.entries(packageConfig?.dependencies || {}).flatMap(
+					([dependencyName, policy]) => {
+						if (
+							policy?.mode !== 'external' &&
+							policy?.mode !== 'ignore' &&
+							(!hasExactRuntimePolicies || policy?.mode !== 'bundle')
+						) {
+							return [];
+						}
+
+						return [[dependencyName, policy.mode]];
+					}
+				)
+			) as Record<string, 'bundle' | 'external' | 'ignore'>;
+
+			if (Object.keys(scopedModes).length > 0) {
+				packageDependencyModes[packageName] = scopedModes;
+			}
+		}
+
 		return {
 			entryModuleName: entryModule.moduleName,
 			entryPackageName: entryModule.packageName || 'default',
@@ -101,6 +114,7 @@ export default class BundlePlanBuilder {
 			),
 			bundledModules,
 			externalModules: Array.from(externalModuleSet).sort(),
+			ignoredModules: Array.from(ignoredModuleSet).sort(),
 			packageDependencyModes,
 			fallbackPolicy: this.config.bundle?.fallback || 'external-only',
 		};

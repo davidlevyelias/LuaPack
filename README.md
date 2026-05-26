@@ -145,15 +145,15 @@ Lua 5.4 is not currently supported because the active parser backend does not su
 Each dependency supports:
 
 - `mode: "bundle"`: Include modules from that package in the bundle.
-- `mode: "external"`: Treat that package as runtime-provided.
-- `mode: "ignore"`: Skip that package entirely.
+- `mode: "external"`: Treat that package as runtime-provided through host `require`.
+- `mode: "ignore"`: Reject requests for that package at bundle runtime.
 - `recursive: false`: Resolve the package entry module but skip dependency traversal below it.
 
 Each local rule supports:
 
 - `mode: "bundle"`: Include the module in the bundle.
-- `mode: "external"`: Treat the module as runtime-provided.
-- `mode: "ignore"`: Skip the module entirely.
+- `mode: "external"`: Treat the module as runtime-provided through host `require`.
+- `mode: "ignore"`: Reject requests for the module at bundle runtime.
 - `path`: Override the resolved module path.
 - `recursive: false`: Resolve the module but skip dependency traversal below it.
 
@@ -167,7 +167,8 @@ Each local rule supports:
 }
 ```
 
-- `fallback`: `never`, `external-only`, or `always`.
+- `fallback`: `never`, `external-only`, or `always`. Explicit `external` policies
+  always use host `require`; explicit `ignore` policies never fall back.
 
 
 ## Breaking Change

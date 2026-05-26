@@ -7,9 +7,14 @@ interface RuntimeShape {
 	entryPackageName: string;
 	packagePrefixes: string[];
 	externalModules: string[];
-	packageDependencyModes: Record<string, Record<string, 'external' | 'ignore'>>;
+	ignoredModules: string[];
+	packageDependencyModes: Record<
+		string,
+		Record<string, 'bundle' | 'external' | 'ignore'>
+	>;
 	packageResolver: PackageResolverStrategy;
 	fallback: RuntimeFallbackStrategy;
+	needsExternalLoader: boolean;
 	needsOriginalRequire: boolean;
 }
 
@@ -54,9 +59,14 @@ function normalizeExternalModules(bundlePlan: BundlePlan): string[] {
 	return Array.from(new Set(bundlePlan.externalModules || [])).sort();
 }
 
+function normalizeIgnoredModules(bundlePlan: BundlePlan): string[] {
+	return Array.from(new Set(bundlePlan.ignoredModules || [])).sort();
+}
+
 function deriveRuntimeShape(bundlePlan: BundlePlan): RuntimeShape {
 	const packagePrefixes = normalizePackagePrefixes(bundlePlan);
 	const externalModules = normalizeExternalModules(bundlePlan);
+	const ignoredModules = normalizeIgnoredModules(bundlePlan);
 	const packageDependencyModes = bundlePlan.packageDependencyModes || {};
 	let fallback: RuntimeFallbackStrategy = 'none';
 
@@ -76,36 +86,39 @@ function deriveRuntimeShape(bundlePlan: BundlePlan): RuntimeShape {
 		packageResolver = 'multi';
 	}
 
+	const needsExternalLoader =
+		externalModules.length > 0 ||
+		Object.values(packageDependencyModes).some((scopedModes) =>
+			Object.values(scopedModes || {}).includes('external')
+		);
+
 	return {
 		entryPackageName: bundlePlan.entryPackageName || 'default',
 		packagePrefixes,
 		externalModules,
+		ignoredModules,
 		packageDependencyModes,
 		packageResolver,
 		fallback,
-		needsOriginalRequire:
-			externalModules.length > 0 ||
-			Object.values(packageDependencyModes).some((scopedModes) =>
-				Object.values(scopedModes || {}).includes('external')
-			) ||
-			fallback !== 'none',
+		needsExternalLoader,
+		needsOriginalRequire: needsExternalLoader || fallback !== 'none',
 	};
 }
 
 function renderLoadExternalModule(shape: RuntimeShape): string {
-	if (!shape.needsOriginalRequire) {
+	if (!shape.needsExternalLoader) {
 		return '';
 	}
 
 	return [
 		'local function load_external_module(module_name)',
-		'\tif require_loaded[module_name] then return require_cache[module_name] end',
+		'\tif external_require_loaded[module_name] then return external_require_cache[module_name] end',
 		'\tif not original_require then',
 		`\t\terror("Module '" .. module_name .. "' requires the host require function.")`,
 		'\tend',
 		'\tlocal result = original_require(module_name)',
-		'\trequire_cache[module_name] = result',
-		'\trequire_loaded[module_name] = true',
+		'\texternal_require_cache[module_name] = result',
+		'\texternal_require_loaded[module_name] = true',
 		'\treturn result',
 		'end',
 	].join('\n');
@@ -242,32 +255,52 @@ function renderResolveDependencyMode(shape: RuntimeShape): string {
 }
 
 function renderRequireAbsolute(shape: RuntimeShape): string {
-	const ignoreGuard =
-		Object.keys(shape.packageDependencyModes || {}).length === 0
-			? ''
-			: [
-				'\tlocal dependency_mode = resolve_dependency_mode(requester_package_name, target_package_name)',
+	const hasDependencyModes =
+		Object.keys(shape.packageDependencyModes || {}).length > 0;
+	const dependencyModeDeclaration = hasDependencyModes
+		? '\tlocal dependency_mode = resolve_dependency_mode(requester_package_name, target_package_name)'
+		: '';
+	const ignoredDependencyGuard = !hasDependencyModes
+		? ''
+		: [
 				'\tif dependency_mode == "ignore" then',
 				`\t\terror("Module '" .. module_name .. "' is ignored for package '" .. requester_package_name .. "'.")`,
 				'\tend',
+			].join('\n');
+	const externalDependencyGuard = !hasDependencyModes
+		? ''
+		: [
 				'\tif dependency_mode == "external" then',
 				'\t\treturn load_external_module(module_name)',
+				'\tend',
+			].join('\n');
+	const dependencyModeCondition =
+		hasDependencyModes ? 'dependency_mode == nil and ' : '';
+	const explicitIgnoredGuard =
+		shape.ignoredModules.length === 0
+			? ''
+			: [
+				`\tif ${dependencyModeCondition}ignored_modules[module_name] == true then`,
+				`\t\terror("Module '" .. module_name .. "' is ignored.")`,
 				'\tend',
 			].join('\n');
 	const explicitExternalGuard =
 		shape.externalModules.length === 0
 			? ''
 			: [
-				'\tif external_modules[module_name] == true then',
+				`\tif ${dependencyModeCondition}external_modules[module_name] == true then`,
 				'\t\treturn load_external_module(module_name)',
 				'\tend',
 			].join('\n');
 
 	return [
 		'local function __lp_require_absolute(requester_package_name, target_package_name, module_name, ...)',
-		'\tif require_loaded[module_name] then return require_cache[module_name] end',
-		ignoreGuard,
+		dependencyModeDeclaration,
+		ignoredDependencyGuard,
+		explicitIgnoredGuard,
+		externalDependencyGuard,
 		explicitExternalGuard,
+		'\tif require_loaded[module_name] then return require_cache[module_name] end',
 		'',
 		'\tlocal resolved_name = resolve_module_name(module_name)',
 		'\tif not resolved_name then',
@@ -383,6 +416,18 @@ function renderExternalModuleTable(shape: RuntimeShape): string {
 	return ['local external_modules = {', entries, '}'].join('\n');
 }
 
+function renderIgnoredModuleTable(shape: RuntimeShape): string {
+	if (shape.ignoredModules.length === 0) {
+		return '';
+	}
+
+	const entries = shape.ignoredModules
+		.map((moduleName) => `\t[${quoteLuaString(moduleName)}] = true,`)
+		.join('\n');
+
+	return ['local ignored_modules = {', entries, '}'].join('\n');
+}
+
 export default class BundleGenerator {
 	createBundleTemplate(bundlePlan: BundlePlan): string {
 		const shape = deriveRuntimeShape(bundlePlan);
@@ -390,8 +435,11 @@ export default class BundleGenerator {
 			'local modules = {}',
 			'local require_cache = {}',
 			'local require_loaded = {}',
+			shape.needsExternalLoader ? 'local external_require_cache = {}' : '',
+			shape.needsExternalLoader ? 'local external_require_loaded = {}' : '',
 			shape.needsOriginalRequire ? 'local original_require = require' : '',
 			renderExternalModuleTable(shape),
+			renderIgnoredModuleTable(shape),
 			renderPackageDependencyModeTable(shape),
 			renderResolveModuleName(),
 			renderResolveDependencyMode(shape),

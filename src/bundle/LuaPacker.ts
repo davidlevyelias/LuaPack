@@ -10,6 +10,7 @@ import type {
 
 import BundleGenerator from './BundleGenerator';
 import BundlePlanBuilder from './BundlePlanBuilder';
+import type { BundleRuntimePolicies } from './types';
 
 export default class LuaPacker {
 	private readonly config: WorkflowConfig;
@@ -83,7 +84,11 @@ export default class LuaPacker {
 
 		const generator = new BundleGenerator();
 		const planBuilder = new BundlePlanBuilder(this.config);
-		const bundlePlan = planBuilder.build(entryRecord, sortedModules);
+		const bundlePlan = planBuilder.build(
+			entryRecord,
+			sortedModules,
+			this.collectRuleRuntimePolicies(analysisResult)
+		);
 		const bundleContent = await generator.generateBundle(bundlePlan);
 
 		const outputDir = path.dirname(this.config.output);
@@ -105,5 +110,58 @@ export default class LuaPacker {
 		}
 
 		return this.config.output;
+	}
+
+	private collectRuleRuntimePolicies(
+		analysisResult: AnalysisResult
+	): BundleRuntimePolicies {
+		const externalModules = new Set<string>();
+		const ignoredModules = new Set<string>();
+
+		if (
+			!(analysisResult.dependencyGraph instanceof Map) ||
+			!(analysisResult.moduleById instanceof Map)
+		) {
+			return { externalModules: [], ignoredModules: [] };
+		}
+
+		for (const [requesterId, dependencies] of analysisResult.dependencyGraph) {
+			const requester = analysisResult.moduleById.get(requesterId);
+			if (!requester) {
+				continue;
+			}
+
+			const requesterPackageName = requester.packageName || 'default';
+			for (const dependency of dependencies || []) {
+				if (!dependency.isExternal && !dependency.isIgnored) {
+					continue;
+				}
+
+				const targetPackageName = dependency.packageName || 'default';
+				const dependencyPolicy =
+					requesterPackageName !== targetPackageName
+						? this.config.packages?.[requesterPackageName]?.dependencies?.[
+								targetPackageName
+							]
+						: undefined;
+				if (
+					dependencyPolicy?.mode === 'external' ||
+					dependencyPolicy?.mode === 'ignore'
+				) {
+					continue;
+				}
+
+				if (dependency.isIgnored) {
+					ignoredModules.add(dependency.moduleName);
+				} else if (dependency.isExternal) {
+					externalModules.add(dependency.moduleName);
+				}
+			}
+		}
+
+		return {
+			externalModules: Array.from(externalModules).sort(),
+			ignoredModules: Array.from(ignoredModules).sort(),
+		};
 	}
 }
